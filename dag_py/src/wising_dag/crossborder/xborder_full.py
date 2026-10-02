@@ -25,6 +25,7 @@ from ..india import india_full
 from ..india.aggregate_india_income import india_income_basket_split
 from ..us import us_full
 from . import ftc
+from ..india.tds_entries import salary_tds_inr
 
 OVERRIDE_REASON = "xborder-full-nodes.js wiring: redefined FTC boundaries to in-graph values"
 
@@ -36,6 +37,15 @@ def _nra_ss_tax_usd(u):
 
 def _nra_ss_income_usd(u):
     return ((u.get("nra") or {}).get("socialSecurityTaxableUsd")) or 0
+
+
+def _salary_nc_tax_usd(d, ctx):
+    """Actual salary TDS (Form 26AS entries) x the share of the salary India
+    can't tax when on file; otherwise the estimate. Mirrors xborder-full-nodes.js."""
+    tds = salary_tds_inr(ctx.get("india"))
+    if tds > 0 and (d["salaryInr"] or 0) > 0:
+        return tds * min(1.0, (d["salaryNotChargeableInr"] or 0) / d["salaryInr"]) / fx_rate(ctx)
+    return (d["salaryNotChargeableTaxInr"] or 0) / fx_rate(ctx)
 
 def build(base: NodeRegistry) -> NodeRegistry:
     r = base.extend()
@@ -117,7 +127,8 @@ def build(base: NodeRegistry) -> NodeRegistry:
     r.override("indiaSalaryOutsideIndiaUsdBoundaryFtc", NodeDef(deps=("indiaIncomeModelResult",), compute=lambda d, ctx: (d["indiaIncomeModelResult"].get("salaryOutsideIndiaInr") or 0) / fx_rate(ctx)), reason=OVERRIDE_REASON)
     r.override("indiaSalaryNotChargeableUsdBoundaryFtc", NodeDef(deps=("salaryNotChargeableInr",), compute=lambda d, ctx: (d["salaryNotChargeableInr"] or 0) / fx_rate(ctx)), reason=OVERRIDE_REASON)
     r.override("indiaSalaryWorkBasisBoundaryFtc", NodeDef(deps=("indiaIncomeModelResult",), compute=lambda d, ctx: (d["indiaIncomeModelResult"].get("salaryWorkLocation") or {}).get("basis")), reason=OVERRIDE_REASON)
-    r.override("indiaSalaryNotChargeableTaxUsdBoundaryFtc", NodeDef(deps=("salaryNotChargeableTaxInr",), compute=lambda d, ctx: (d["salaryNotChargeableTaxInr"] or 0) / fx_rate(ctx)), reason=OVERRIDE_REASON)
+    r.override("indiaSalaryNotChargeableTaxUsdBoundaryFtc", NodeDef(deps=("salaryNotChargeableTaxInr", "salaryNotChargeableInr", "salaryInr"), compute=_salary_nc_tax_usd), reason=OVERRIDE_REASON)
+    r.override("indiaSalaryTdsOnFileBoundaryFtc", NodeDef(deps=(), compute=lambda d, ctx: salary_tds_inr(ctx.get("india")) > 0), reason=OVERRIDE_REASON)
 
     # Companion to hasUsScopeBoundaryFtc above — port of findings-nodes.js's
     # hasIndiaScopeXbr, added here (not in crossborder/findings.py) because

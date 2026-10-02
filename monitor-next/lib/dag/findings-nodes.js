@@ -233,6 +233,8 @@ NODES.findingsBatch1Result = {
     // the salary would carry), since Layer 1 India records TDS as one total.
     if (d.hasIndiaScopeXbr && d.hasUsScopeBoundaryFtc && ftc.us.indiaNotChargeableSalaryUsd > 1) {
       var ncTreaty = d.residencyResult.india.status === "ROR";
+      // Actual salary TDS on Layer 1 India (Form 26AS entries) or an estimate.
+      var ncOnFile = ftc.us.indiaNotChargeableSalaryTdsOnFile === true;
       var ncWhy = ncTreaty
         ? "The treaty tie-breaker (DTAA Art. 4(2)) makes the US the client's residence country, so India can't tax this pay (Art. 16(1))."
         : "As an India " + (d.residencyResult.india.status === "RNOR" ? "RNOR" : "non-resident") + ", the client is taxed in India only on " +
@@ -259,12 +261,16 @@ NODES.findingsBatch1Result = {
         "- After year-end: file ITR-2 showing this salary as not taxable in India, and claim the full TDS credit from Form 26AS / AIS.",
         "- Expect a mismatch query (Form 16 shows the full salary) and answer it with the declaration and travel records. Tribunal rulings (e.g. Hyderabad ITAT, 28 Feb 2023) hold that salary for work done outside India isn't taxable merely because it is credited in India.",
         "- File by the original or belated due date: an updated return (ITR-U) can't claim a refund.",
-        "## Before relying on this amount", "- The TDS figure is an estimate: the Indian tax this salary would carry. Layer 1 India records TDS as one total, not per salary.", ncSplit]).join("\n");
+        "## Before relying on this amount", ncOnFile
+          ? "- The TDS figure is the employer's salary TDS entered on Layer 1 India (Form 26AS / AIS), for the share of the salary earned for work outside India."
+          : "- The TDS figure is an estimate: the Indian tax this salary would carry. Enter the employer's actual salary TDS under TDS by source on Layer 1 India (Form 26AS / AIS) to replace it.", ncSplit]).join("\n");
       add("salary_not_taxable_india_tds", "critical", "credit",
-        "Indian TDS on salary India can't tax — about " + usd(ftc.us.indiaNotChargeableSalaryTaxUsd) + " to stop or recover",
+        "Indian TDS on salary India can't tax — " + (ncOnFile ? "" : "about ") + usd(ftc.us.indiaNotChargeableSalaryTaxUsd) + " to stop or recover",
         usd(ftc.us.indiaNotChargeableSalaryUsd) + " of the client's Indian salary was earned for work done outside India (taken to be the US). " +
-        ncWhy + " But an employer that treats the client as taxable would deduct about " + usd(ftc.us.indiaNotChargeableSalaryTaxUsd) +
-        " of TDS, which the US won't credit on " + d.usFtcFormXbr + " (India isn't owed it), so the salary is taxed twice until that TDS is stopped or refunded.",
+        ncWhy + (ncOnFile
+          ? " But the employer deducted " + usd(ftc.us.indiaNotChargeableSalaryTaxUsd) + " of TDS on it (Form 26AS),"
+          : " But an employer that treats the client as taxable would deduct about " + usd(ftc.us.indiaNotChargeableSalaryTaxUsd) + " of TDS,") +
+        " which the US won't credit on " + d.usFtcFormXbr + " (India isn't owed it), so the salary is taxed twice until that TDS is stopped or refunded.",
         ncAction,
         ftc.us.indiaNotChargeableSalaryTaxUsd, (ncTreaty ? ["DTAA Art. 4(2)"] : []).concat(["DTAA Art. 16", "Form 41", "Form 6166", "ITR-2", "Form 26AS"]));
     }

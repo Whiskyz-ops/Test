@@ -1,0 +1,95 @@
+{
+  "form": "layer1_india.html",
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "is_us_citizen": false,
+    "has_green_card": true,
+    "us_days": 350,
+    "has_us_source_income_or_assets": true
+  },
+  "us": {
+    "metadata": {
+      "us_calendar_year": 2026
+    },
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": true,
+      "final_us_residency_status": "RESIDENT_ALIEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "NY"
+    }
+  },
+  "id": "in_tds_by_source",
+  "section": "Taxes already paid: TDS by source (Form 168 / AIS rows)",
+  "story": "Same client as in_salary_outside_india_zero_workdays (India non-resident, 0 days worked in India, Indian salary Rs 96,00,000 for work done from the US, Rs 1,20,000 FD interest), with TDS entered by source: salary TDS Rs 2,00,000 (Acme India Pvt Ltd, paid Rs 96,00,000) and interest TDS Rs 37,440 (HDFC Bank, paid Rs 1,20,000). Nothing in \"not broken down\".",
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 12,
+      "india_work_days_current_year": 0,
+      "final_india_residency_status": "NR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": true,
+        "gross_salary_inr": 9600000,
+        "work_performed_outside_india": true
+      }
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_fd_rd_inr": 120000
+    },
+    "tax_credits": {
+      "tds_already_deducted_inr": null,
+      "tds_entries": [
+        {
+          "source": "salary",
+          "payer_name": "Acme India Pvt Ltd",
+          "income_inr": 9600000,
+          "tds_inr": 200000
+        },
+        {
+          "source": "interest",
+          "payer_name": "HDFC Bank",
+          "income_inr": 120000,
+          "tds_inr": 37440
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "findings[id=salary_not_taxable_india_tds].amountUsd",
+      "value": 2409.64,
+      "tol": 0.5,
+      "why": "The employer's actual salary TDS, Rs 2,00,000 / 83 = $2,409.64, for the whole salary (none of it is for work in India) — replaces the estimate"
+    },
+    {
+      "path": "computed.ftc.us.indiaNotChargeableSalaryTdsOnFile",
+      "value": true,
+      "why": "Salary TDS is on file, so the alert says 'deducted', not 'would deduct about'"
+    },
+    {
+      "path": "computed.indiaTax.totalTaxInr",
+      "value": 0,
+      "why": "Only the Rs 1,20,000 interest is taxable in India, under the Rs 4,00,000 basic exemption"
+    },
+    {
+      "path": "findings[id=india_tds_refund_due].amountUsd",
+      "value": 2860.72,
+      "tol": 0.5,
+      "why": "All TDS is refundable: (Rs 2,00,000 + Rs 37,440) / 83 = $2,860.72"
+    }
+  ]
+}

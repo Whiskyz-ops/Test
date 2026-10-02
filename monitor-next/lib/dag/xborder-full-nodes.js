@@ -164,7 +164,19 @@ NODES.usIncomeInIndiaUsdBoundaryFtc = {
 NODES.indiaSalaryOutsideIndiaUsdBoundaryFtc = { deps: ["indiaIncomeModelResult"], compute: function (d, ctx) { return (d.indiaIncomeModelResult.salaryOutsideIndiaInr || 0) / fxRate(ctx); } };
 NODES.indiaSalaryNotChargeableUsdBoundaryFtc = { deps: ["salaryNotChargeableInr"], compute: function (d, ctx) { return (d.salaryNotChargeableInr || 0) / fxRate(ctx); } };
 NODES.indiaSalaryWorkBasisBoundaryFtc = { deps: ["indiaIncomeModelResult"], compute: function (d) { return d.indiaIncomeModelResult.salaryWorkLocation ? d.indiaIncomeModelResult.salaryWorkLocation.basis : null; } };
-NODES.indiaSalaryNotChargeableTaxUsdBoundaryFtc = { deps: ["salaryNotChargeableTaxInr"], compute: function (d, ctx) { return (d.salaryNotChargeableTaxInr || 0) / fxRate(ctx); } };
+// The TDS on salary India can't tax: the employer's actual salary TDS
+// (Layer 1 India's Form 26AS entries) × the share of the salary India can't
+// tax when it's on file; otherwise the Indian tax that salary would carry
+// (an estimate of what an employer would deduct).
+NODES.indiaSalaryNotChargeableTaxUsdBoundaryFtc = {
+  deps: ["salaryNotChargeableTaxInr", "salaryNotChargeableInr", "salaryInr"],
+  compute: function (d, ctx) {
+    var tds = require("./tds-entries.js").salaryTdsInr(ctx.india);
+    if (tds > 0 && d.salaryInr > 0) return tds * Math.min(1, (d.salaryNotChargeableInr || 0) / d.salaryInr) / fxRate(ctx);
+    return (d.salaryNotChargeableTaxInr || 0) / fxRate(ctx);
+  }
+};
+NODES.indiaSalaryTdsOnFileBoundaryFtc = { deps: [], compute: function (d, ctx) { return require("./tds-entries.js").salaryTdsInr(ctx.india) > 0; } };
 // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H, 21 Jul
 // 2026): was aggregateUsIncomeResult.usSourceTotal.usd directly — the
 // individual-shaped aggregate, $0 for a US entity taxpayer, which zeroed

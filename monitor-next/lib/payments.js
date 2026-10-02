@@ -9,6 +9,7 @@
  * domicile on 1 Jan). Pure functions; `raw` is the client's {router, india, us}. */
 
 import { jointAccountTdsCreditInr } from "./dag/joint-account.js";
+import { tdsEntriesTotalInr } from "./dag/tds-entries.js";
 import { stateTaxAsResident } from "./dag/findings-batch5-nodes.js";
 
 const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
@@ -27,7 +28,7 @@ export function usPaidUsd(us) {
 export function indiaPaidInr(india) {
   const tc = get(india, "tax_credits", {});
   return num(tc.advance_tax_q1_15jun_inr) + num(tc.advance_tax_q2_15sep_inr) + num(tc.advance_tax_q3_15dec_inr) + num(tc.advance_tax_q4_15mar_inr) +
-    num(tc.tds_already_deducted_inr) + num(tc.tds_inr) + num(tc.tcs_inr) + jointAccountTdsCreditInr(india);
+    num(tc.tds_already_deducted_inr) + num(tc.tds_inr) + num(tc.tcs_inr) + jointAccountTdsCreditInr(india) + tdsEntriesTotalInr(india);
 }
 
 const w2StateRows = (us) => (get(us, "income_us_source.wages_w2", []) || []).reduce((out, w) => out.concat(get(w, "state_and_local_taxes", []) || []), []);
@@ -131,7 +132,7 @@ export function countryPayments(result, raw) {
   const usPaid = usPaidUsd(raw.us), inPaid = indiaPaidInr(raw.india) / fx;
   const usWithheld = num(get(raw.us, "withholding_and_estimated.federal_withholding_total_usd", 0));
   const tc = get(raw.india, "tax_credits", {});
-  const inTdsInr = num(tc.tds_already_deducted_inr) + num(tc.tds_inr) + num(tc.tcs_inr) + jointAccountTdsCreditInr(raw.india);
+  const inTdsInr = num(tc.tds_already_deducted_inr) + num(tc.tds_inr) + num(tc.tcs_inr) + jointAccountTdsCreditInr(raw.india) + tdsEntriesTotalInr(raw.india);
   const year = (result.model && result.model.meta && result.model.meta.baseYear) || num(get(raw.router, "base_tax_year", 0)) || new Date().getFullYear();
   const usInst = installmentStatus(result, raw, "US", usTax - usWithheld >= 1000);
   const inInst = installmentStatus(result, raw, "IN", inTax * fx - inTdsInr >= 10000 && !indiaSeniorExempt(raw.india, year));
@@ -166,9 +167,12 @@ export function countryPayments(result, raw) {
   const salaryTds = finding("salary_not_taxable_india_tds");
   if (salaryTds && num(salaryTds.amountUsd) > 1) {
     const risk = num(salaryTds.amountUsd);
-    const deducted = out.IN.refundUsd >= risk * 0.5;
+    // With the employer's salary TDS on Layer 1 India (Form 168 / AIS rows),
+    // it was deducted and is in the refund; otherwise judge from the refund.
+    const onFile = !!(c.ftc && c.ftc.us && c.ftc.us.indiaNotChargeableSalaryTdsOnFile === true);
+    const deducted = onFile || out.IN.refundUsd >= risk * 0.5;
     out.IN.atRiskUsd = deducted ? 0 : risk;
-    out.IN.atRiskNote = deducted ? "likely includes TDS on salary India can't tax — see Conflicts" : "TDS at risk on salary India can't tax (see Conflicts)";
+    out.IN.atRiskNote = onFile ? "includes TDS on salary India can't tax — see Conflicts" : deducted ? "likely includes TDS on salary India can't tax — see Conflicts" : "TDS at risk on salary India can't tax (see Conflicts)";
   }
   return out;
 }

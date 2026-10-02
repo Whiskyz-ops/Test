@@ -143,7 +143,8 @@ NODES.withholdingDetailIndiaRaw = {
       };
     });
     return {
-      tdsAggregateInr: num(safe(tc, "tds_already_deducted_inr", 0)) + num(safe(tc, "tds_inr", 0)) + require("./joint-account.js").jointAccountTdsCreditInr(ctx.india),
+      tdsAggregateInr: num(safe(tc, "tds_already_deducted_inr", 0)) + num(safe(tc, "tds_inr", 0)) + require("./joint-account.js").jointAccountTdsCreditInr(ctx.india) + require("./tds-entries.js").tdsEntriesTotalInr(ctx.india),
+      tdsEntries: require("./tds-entries.js").tdsEntries(ctx.india),
       tcsAggregateInr: num(safe(tc, "tcs_inr", 0)),
       lrsTcs: computeLrsTcs(annualLrsOutbound(ctx.india)),
       propertyTds: propertyTds
@@ -236,12 +237,29 @@ NODES.buildWithholdingSummaryResult = {
 
     var wd = { india: d.withholdingDetailIndiaRaw, us: d.withholdingDetailUsRaw };
 
-    if ((wd.india.tdsAggregateInr || 0) > 1) {
+    // TDS by source (Layer 1 India's Form 26AS rows), then whatever is left
+    // of the TDS total that wasn't broken down.
+    var tdsE = require("./tds-entries.js");
+    var tdsBySource = wd.india.tdsEntries || [];
+    tdsBySource.forEach(function (e, idx) {
       indiaRows.push({
-        id: "tds_aggregate", jurisdiction: "IN", category: "general", label: "TDS Already Deducted (Aggregate — Form 26AS)",
+        id: "tds_" + e.source + "_" + idx, jurisdiction: "IN", category: "general",
+        label: "TDS on " + e.label.toLowerCase() + (e.payerName ? " — " + e.payerName : ""),
+        grossInr: e.incomeInr, domesticRatePct: null, treatyRatePct: null, docsOk: null,
+        rateAppliedPct: e.incomeInr ? (e.tdsInr / e.incomeInr) * 100 : null,
+        taxInr: e.tdsInr, gapInr: 0,
+        note: "Form 26AS / AIS entry" + (e.incomeInr ? "" : " — enter the income it was deducted on to see the rate applied"),
+        citation: tdsE.tdsSection(e.source, !!d.isNRV3) || "s.199"
+      });
+    });
+    var tdsUnallocatedInr = (wd.india.tdsAggregateInr || 0) - tdsBySource.reduce(function (t, e) { return t + e.tdsInr; }, 0);
+    if (tdsUnallocatedInr > 1) {
+      indiaRows.push({
+        id: "tds_aggregate", jurisdiction: "IN", category: "general",
+        label: tdsBySource.length ? "Other TDS — not broken down by source" : "TDS Already Deducted (Aggregate — Form 26AS)",
         grossInr: null, domesticRatePct: null, treatyRatePct: null, docsOk: null, rateAppliedPct: null,
-        taxInr: wd.india.tdsAggregateInr, gapInr: 0,
-        note: "Single aggregate figure — Layer 1 doesn't capture a per-source breakdown of income type or rate for this amount",
+        taxInr: tdsUnallocatedInr, gapInr: 0,
+        note: tdsBySource.length ? "Not split by source — add the rest of the Form 26AS / AIS entries under TDS by source on Layer 1 India" : "Single aggregate figure — Layer 1 doesn\'t capture a per-source breakdown of income type or rate for this amount",
         citation: "s.199"
       });
     }

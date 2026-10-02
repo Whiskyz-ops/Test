@@ -57,7 +57,7 @@
         domestic_income: { salary: { has_salary_income: false } },
         other_sources: { has_other_sources_income: true, interest_fd_rd_inr: 120000 },
         deductions: {},
-        tax_credits: { tds_already_deducted_inr: 37440 },
+        tax_credits: { tds_entries: [{ source: "interest", payer_name: "HDFC Bank (NRO fixed deposit)", income_inr: 120000, tds_inr: 37440 }] },
         metadata: { schema_version: "layer1_india_v5_1", financial_year: "TY" + year + "-" + String(year + 1).slice(2) }
       },
       us: {

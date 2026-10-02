@@ -28,6 +28,7 @@ from ..india.joint_interest import joint_account_tds_credit_inr
 from ..core.graph import NodeDef
 from ..core.util import format_inr, format_usd as usd, js_num_str, js_round, num, safe
 from ..india.in1_v3 import bracket_breakdown
+from ..india.tds_entries import tds_entries, tds_entries_total_inr, tds_section
 
 
 def inr(n: float) -> str:
@@ -766,7 +767,8 @@ def _withholding_detail_india_raw(d, ctx):
         for p in props if num(p.get("buyer_tds_deducted_inr")) > 0
     ]
     return {
-        "tdsAggregateInr": num(safe(tc, "tds_already_deducted_inr", 0)) + num(safe(tc, "tds_inr", 0)) + joint_account_tds_credit_inr(india),
+        "tdsAggregateInr": num(safe(tc, "tds_already_deducted_inr", 0)) + num(safe(tc, "tds_inr", 0)) + joint_account_tds_credit_inr(india) + tds_entries_total_inr(india),
+        "tdsEntries": tds_entries(india),
         "tcsAggregateInr": num(safe(tc, "tcs_inr", 0)),
         "lrsTcs": _compute_lrs_tcs(_annual_lrs_outbound(india)),
         "propertyTds": property_tds,
@@ -835,12 +837,27 @@ def _build_withholding_summary_result(d, ctx):
 
     wd = {"india": d["withholdingDetailIndiaRaw"], "us": d["withholdingDetailUsRaw"]}
 
-    if (wd["india"]["tdsAggregateInr"] or 0) > 1:
+    # TDS by source (Layer 1 India's Form 26AS rows), then whatever is left of
+    # the TDS total that wasn't broken down — mirrors report-batch4-nodes.js.
+    tds_by_source = wd["india"].get("tdsEntries") or []
+    for idx, e in enumerate(tds_by_source):
         india_rows.append({
-            "id": "tds_aggregate", "jurisdiction": "IN", "category": "general", "label": "TDS Already Deducted (Aggregate — Form 26AS)",
+            "id": f"tds_{e['source']}_{idx}", "jurisdiction": "IN", "category": "general",
+            "label": "TDS on " + e["label"].lower() + (" — " + e["payerName"] if e["payerName"] else ""),
+            "grossInr": e["incomeInr"], "domesticRatePct": None, "treatyRatePct": None, "docsOk": None,
+            "rateAppliedPct": (e["tdsInr"] / e["incomeInr"] * 100) if e["incomeInr"] else None,
+            "taxInr": e["tdsInr"], "gapInr": 0,
+            "note": "Form 26AS / AIS entry" + ("" if e["incomeInr"] else " — enter the income it was deducted on to see the rate applied"),
+            "citation": tds_section(e["source"], bool(d["isNRV3"])) or "s.199",
+        })
+    tds_unallocated_inr = (wd["india"]["tdsAggregateInr"] or 0) - sum(e["tdsInr"] for e in tds_by_source)
+    if tds_unallocated_inr > 1:
+        india_rows.append({
+            "id": "tds_aggregate", "jurisdiction": "IN", "category": "general",
+            "label": "Other TDS — not broken down by source" if tds_by_source else "TDS Already Deducted (Aggregate — Form 26AS)",
             "grossInr": None, "domesticRatePct": None, "treatyRatePct": None, "docsOk": None, "rateAppliedPct": None,
-            "taxInr": wd["india"]["tdsAggregateInr"], "gapInr": 0,
-            "note": "Single aggregate figure — Layer 1 doesn't capture a per-source breakdown of income type or rate for this amount",
+            "taxInr": tds_unallocated_inr, "gapInr": 0,
+            "note": "Not split by source — add the rest of the Form 26AS / AIS entries under TDS by source on Layer 1 India" if tds_by_source else "Single aggregate figure — Layer 1 doesn't capture a per-source breakdown of income type or rate for this amount",
             "citation": "s.199",
         })
     is_nr_seller_for_property_tds = d["isNRV3"]

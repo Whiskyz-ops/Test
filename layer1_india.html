@@ -4475,8 +4475,8 @@
                 <!-- TDS & 26AS Upload Toggle -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-white/5 pb-4">
                     <div>
-                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">TDS Already Deducted (See Form 168 / AIS)</label>
-                        <input type="text" inputmode="numeric" id="crd-tds" oninput="updateCreditNum('tds_already_deducted_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="0">
+                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">TDS Not Broken Down by Source (Form 168 / AIS)</label>
+                        <input type="text" inputmode="numeric" id="crd-tds" oninput="updateCreditNum('tds_already_deducted_inr', this.value); refreshTdsTotal()" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="0">
                     </div>
                     
                     <div class="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-xl">
@@ -4500,6 +4500,19 @@
                             <span id="crd-26as-upload-status" class="text-[9px] text-white/40 truncate font-sans max-w-[120px]">No file chosen</span>
                         </div>
                     </div>
+                </div>
+
+                <!-- TDS by source: one row per Form 168 (formerly 26AS) / AIS entry. The
+                     engine adds these to the TDS above (tds-entries.js), shows each on the
+                     Monitor's Withholding tab, and uses salary TDS in the salary alerts. -->
+                <div class="flex flex-col gap-3 border-b border-white/5 pb-4">
+                    <div class="flex items-center justify-between gap-4">
+                        <span class="text-[9px] font-black uppercase tracking-widest text-white/40">TDS by Source (Form 168 / AIS)</span>
+                        <span id="tds-entries-total" class="text-[10px] font-mono text-brandGold"></span>
+                    </div>
+                    <p class="text-[10px] text-white/50">One row per deductor, as Form 168 (formerly 26AS) / AIS lists it. Don't also include these amounts in "TDS not broken down by source".</p>
+                    <div id="tds-entries-list" class="flex flex-col gap-2"></div>
+                    <button type="button" onclick="addTdsEntry()" class="w-full py-2 bg-white/5 hover:bg-white/10 border border-white/10 border-dashed rounded-xl text-[10px] font-bold text-white/60">+ Add TDS entry</button>
                 </div>
 
                 <!-- Advance Tax Quarters -->
@@ -5118,6 +5131,7 @@
             advance_tax_q3_15dec_inr: null,
             advance_tax_q4_15mar_inr: null,
             tds_already_deducted_inr: null,
+            tds_entries: [],
             form_26as_uploaded: null,
             foreign_tax_credit: [],
             tcs_inr: null,
@@ -13178,6 +13192,69 @@ ${isProf ? '' : `
         state.tax_credits[field] = val === '' ? null : parseINRCurrency(val);
     }
 
+    // TDS by source (Form 168 / AIS rows) — tax_credits.tds_entries.
+    const TDS_SOURCES = [['salary', 'Salary'], ['interest', 'Interest'], ['dividend', 'Dividend'], ['rent', 'Rent'], ['professional_fees', 'Professional / technical fees'], ['other', 'Other']];
+    function tdsEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+    function tdsEntriesList() {
+        if (!Array.isArray(state.tax_credits.tds_entries)) state.tax_credits.tds_entries = [];
+        return state.tax_credits.tds_entries;
+    }
+    function renderTdsEntries() {
+        const box = document.getElementById('tds-entries-list');
+        if (!box) return;
+        const fmt = (n) => (n === null || n === undefined || n === '') ? '' : Number(n).toLocaleString('en-IN');
+        box.innerHTML = tdsEntriesList().map((e, i) => `
+            <div class="grid grid-cols-2 md:grid-cols-12 gap-2 items-end p-3 bg-[#121212] border border-white/10 rounded-xl">
+                <div class="md:col-span-3">
+                    <label class="block text-[8px] uppercase tracking-widest text-white/40 mb-1">Source</label>
+                    <select id="tds-src-${i}" onchange="updateTdsEntry(${i}, 'source', this.value)" class="w-full bg-white/5 border border-white/10 rounded-lg text-xs text-white px-2 py-1.5 focus:border-brandGold focus:ring-0">
+                        ${TDS_SOURCES.map(([v, l]) => `<option value="${v}" class="bg-black" ${e.source === v ? 'selected' : ''}>${l}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="md:col-span-4">
+                    <label class="block text-[8px] uppercase tracking-widest text-white/40 mb-1">Deductor (payer)</label>
+                    <input type="text" id="tds-payer-${i}" value="${tdsEsc(e.payer_name)}" oninput="updateTdsEntry(${i}, 'payer_name', this.value)" placeholder="e.g. HDFC Bank" class="w-full bg-white/5 border border-white/10 rounded-lg text-xs text-white px-2 py-1.5 focus:border-brandGold focus:ring-0">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-[8px] uppercase tracking-widest text-white/40 mb-1">Amount paid (₹)</label>
+                    <input type="text" inputmode="numeric" id="tds-income-${i}" value="${fmt(e.income_inr)}" oninput="updateTdsEntry(${i}, 'income_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-lg text-xs text-white px-2 py-1.5 font-mono focus:border-brandGold focus:ring-0">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-[8px] uppercase tracking-widest text-white/40 mb-1">TDS (₹)</label>
+                    <input type="text" inputmode="numeric" id="tds-amt-${i}" value="${fmt(e.tds_inr)}" oninput="updateTdsEntry(${i}, 'tds_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-lg text-xs text-white px-2 py-1.5 font-mono focus:border-brandGold focus:ring-0">
+                </div>
+                <div class="md:col-span-1 flex justify-end">
+                    <button type="button" onclick="removeTdsEntry(${i})" aria-label="Remove this TDS entry" class="px-2 py-1.5 text-xs text-white/50 hover:text-brandRed">✕</button>
+                </div>
+            </div>`).join('');
+        refreshTdsTotal();
+    }
+    function refreshTdsTotal() {
+        const el = document.getElementById('tds-entries-total');
+        if (!el) return;
+        const bySource = tdsEntriesList().reduce((t, e) => t + (Number(e.tds_inr) || 0), 0);
+        const other = Number(state.tax_credits.tds_already_deducted_inr) || 0;
+        el.textContent = bySource > 0 ? 'Total TDS ₹' + (bySource + other).toLocaleString('en-IN') + (other > 0 ? ' (₹' + bySource.toLocaleString('en-IN') + ' by source + ₹' + other.toLocaleString('en-IN') + ' not broken down)' : '') : '';
+    }
+    function addTdsEntry() {
+        tdsEntriesList().push({ source: 'interest', payer_name: null, income_inr: null, tds_inr: null });
+        renderTdsEntries();
+        if (typeof saveState === 'function') saveState();
+    }
+    function removeTdsEntry(i) {
+        tdsEntriesList().splice(i, 1);
+        renderTdsEntries();
+        if (typeof saveState === 'function') saveState();
+    }
+    function updateTdsEntry(i, field, val) {
+        const e = tdsEntriesList()[i];
+        if (!e) return;
+        if (field === 'income_inr' || field === 'tds_inr') e[field] = String(val).trim() === '' ? null : parseINRCurrency(val);
+        else e[field] = val === '' ? null : val;
+        refreshTdsTotal();
+        if (typeof saveState === 'function') saveState();
+    }
+
     // Advance-tax instalment dates (the Monitor marks a late or missed instalment).
     function updateCreditDate(field, val) {
         state.tax_credits[field] = val || null;
@@ -14614,6 +14691,7 @@ ${isProf ? '' : `
         if (crdTds && state.tax_credits.tds_already_deducted_inr !== null) {
             crdTds.value = state.tax_credits.tds_already_deducted_inr;
         }
+        renderTdsEntries();
         const crdQ1 = document.getElementById('crd-q1');
         if (crdQ1 && state.tax_credits.advance_tax_q1_15jun_inr !== null) {
             crdQ1.value = state.tax_credits.advance_tax_q1_15jun_inr;
@@ -15381,6 +15459,7 @@ ${isProf ? '' : `
             const input = document.getElementById('crd-tds');
             if (input) input.value = state.tax_credits.tds_already_deducted_inr;
         }
+        if (typeof renderTdsEntries === 'function') renderTdsEntries();
         if (state.tax_credits.advance_tax_q1_15jun_inr !== null) {
             const input = document.getElementById('crd-q1');
             if (input) input.value = state.tax_credits.advance_tax_q1_15jun_inr;

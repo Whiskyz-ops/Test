@@ -230,6 +230,10 @@ var NODES = {
   // estimate. safe()-guarded like indiaSalaryOutsideIndiaUsdBoundaryFtc.
   indiaSalaryWorkBasisBoundaryFtc: { deps: [], compute: function (d, ctx) { return safe(ctx.model.income.india, "salaryWorkLocation.basis", null); } },
   indiaSalaryNotChargeableTaxUsdBoundaryFtc: { deps: [], compute: function () { return 0; } },
+  // True when Layer 1 India has the employer's actual salary TDS (Form 26AS
+  // entries, tds-entries.js) — the figure above is then that TDS, not an
+  // estimate. false unless xborder-full-nodes.js wires it.
+  indiaSalaryTdsOnFileBoundaryFtc: { deps: [], compute: function () { return false; } },
   otherCountryFtcEntriesRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "foreign_tax_credit_other.entries", []) || []; } },
   // Layer 1 US's own FTC section: prior-year carryovers, and the §904
   // baskets a preparer fills in (mostly Indian tax, per the form's tips).
@@ -244,7 +248,7 @@ var NODES = {
       "usTaxableIncomeUsdBoundaryFtc", "usIncomeTaxUsdBoundaryFtc", "indiaTotalTaxUsdBoundaryFtc",
       "foreignWagesTaxPaidUsdBoundaryFtc", "otherCountryFtcEntriesRaw", "indiaSalaryOutsideIndiaUsdBoundaryFtc",
       "usIncomeInIndiaUsdBoundaryFtc", "indiaTotalIncomeUsdBoundaryFtc", "indiaSalaryNotChargeableUsdBoundaryFtc",
-      "indiaSalaryNotChargeableTaxUsdBoundaryFtc", "indiaSalaryWorkBasisBoundaryFtc", "ftcPriorCarryoverUsdRaw", "ftcBasketEntriesRaw"],
+      "indiaSalaryNotChargeableTaxUsdBoundaryFtc", "indiaSalaryWorkBasisBoundaryFtc", "indiaSalaryTdsOnFileBoundaryFtc", "ftcPriorCarryoverUsdRaw", "ftcBasketEntriesRaw"],
     compute: function (d) {
       // usIsNraBoundaryFtc / !hasUsScopeBoundaryFtc: the pre-existing zeroing
       // conditions (XB-24). !usWorldwideBoundaryFtc: the fix above — ceded
@@ -348,6 +352,8 @@ var NODES = {
         indiaNotChargeableSalaryUsd: notChargeableUsd,
         indiaNotChargeableSalaryTaxUsd: notChargeableUsd > 0 ? (d.indiaSalaryNotChargeableTaxUsdBoundaryFtc || 0) : 0,
         salaryWorkBasis: d.indiaSalaryWorkBasisBoundaryFtc || null,
+        // Only present (true) when the salary TDS is the employer's actual figure.
+        indiaNotChargeableSalaryTdsOnFile: notChargeableUsd > 0 && d.indiaSalaryTdsOnFileBoundaryFtc === true ? true : undefined,
         // Indian salary for work outside India (taken to be the US), before
         // any zeroing — the Art. 16(2) short-stay finding needs it for a US
         // non-resident alien, where the credit above is zeroed.

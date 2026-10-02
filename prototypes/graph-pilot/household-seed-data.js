@@ -587,6 +587,7 @@
     "advance_tax_q3_15dec_inr": null,
     "advance_tax_q4_15mar_inr": null,
     "tds_already_deducted_inr": 430000,
+    "tds_entries": [],
     "form_26as_uploaded": null,
     "foreign_tax_credit": [],
     "tcs_inr": null,
@@ -2749,7 +2750,15 @@
     "advance_tax_q2_15sep_inr": null,
     "advance_tax_q3_15dec_inr": null,
     "advance_tax_q4_15mar_inr": null,
-    "tds_already_deducted_inr": 37440,
+    "tds_already_deducted_inr": null,
+    "tds_entries": [
+     {
+      "source": "interest",
+      "payer_name": "HDFC Bank (NRO fixed deposit)",
+      "income_inr": 120000,
+      "tds_inr": 37440
+     }
+    ],
     "form_26as_uploaded": null,
     "foreign_tax_credit": [],
     "tcs_inr": null,

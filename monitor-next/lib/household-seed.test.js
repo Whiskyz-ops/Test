@@ -25,7 +25,7 @@ describe("investor mode's Reset example (household-seed.js)", () => {
     expect(seed.mehtaHouseholdEdited(W, s)).toBe(true);
     seed.seedMehtaHousehold(W, s);
     expect(seed.mehtaHouseholdEdited(W, s)).toBe(false);
-    expect(JSON.parse(s.getItem(key(seed.PRIYA_ID, "india"))).tax_credits.tds_already_deducted_inr).toBe(37440);
+    expect(JSON.parse(s.getItem(key(seed.PRIYA_ID, "india"))).tax_credits.tds_entries[0].tds_inr).toBe(37440);
   });
   it("opening a form (it stamps times and a request id in metadata) isn't an edit", () => {
     const s = memoryStorage();
