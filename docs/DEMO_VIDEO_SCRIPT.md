@@ -1,12 +1,12 @@
 # WISING demo video: Rohan & Priya Mehta (2:30)
 
-**Target:** 2:30 (YC limit 3:00). About 290 spoken words (under two minutes of talking); the clicks and pauses fill the rest.
+**Target:** 2:30 (YC limit 3:00). About 250 spoken words; the clicks and pauses fill the rest.
 
-**Flow:** for each spouse, inputs → output; then change one input → both spouses' output updates.
+**Kept simple:** two browser tabs, four screens (Clients, Monitor, Filings, Priya's India form), one live change.
 
-**Story:** Rohan and Priya file one joint US return, and India taxes each of them separately, so both get equal time. Rohan is the complex one: two Indian businesses, an LLP share, F&O trading, a Bengaluru rental, plus a US job. Priya's only on-camera change is a salary. WISING finds a new conflict, keeps India's tax at ₹0 on that salary, re-prices the joint US return, and moves Rohan's numbers though nobody touched his file.
+**Story:** Rohan and Priya file one joint US return, and India taxes each of them separately. The Monitor's household card shows both of them side by side, so both get equal weight on the same screen. The filing calendar shows what's due in both countries. Then one change on Priya's India form, a salary, updates both spouses at once.
 
-Every figure and on-screen text below was measured by running this exact flow on the current build in a fresh browser.
+Every figure and on-screen text below was measured by running this exact flow on the current build in a fresh browser. Countdowns ("in 73d") depend on the day you record, so read them off the screen.
 
 ---
 
@@ -30,91 +30,75 @@ The "Layer 1: Router · India · US" links at the top right of the Monitor open 
 
 ---
 
-## Set up (off camera, about 3 minutes)
+## Set up (off camera, about 2 minutes)
 
 1. Open a **new incognito window**. Go to demo.wising.app and enter the password. You land on **Clients**.
 2. The button next to ↻ Refresh should read **"↺ Reset example"**. If it reads **"↺ Edited – Reset"**, click it.
-3. In the client switcher (green pill, top left) pick **Rohan Mehta**, then Cmd/Ctrl-click **Layer 1: India** (top right). That's **tab 2**. In it, click **5. Business & Trading**.
-4. Back in tab 1, switch to **Priya Mehta** and Cmd/Ctrl-click **Layer 1: India** again. That's **tab 3**. In it, click **2. Residency Detection Lock**.
-5. Back in tab 1, click **Clients** in the left menu. Recording starts here.
-6. Browser zoom 90%. Hide the bookmarks bar and notifications.
+3. In the client switcher (green pill, top left) pick **Priya Mehta**, then Cmd/Ctrl-click **Layer 1: India** (top right). That's **tab 2**. In it, click **1. Financial Life Snapshot** and leave it there.
+4. Back in tab 1, click **Clients** in the left menu. Recording starts here.
+5. Browser zoom 90%. Hide the bookmarks bar and notifications.
 
 ---
 
 ## The script
 
-### 0:00–0:12 · The problem · tab 1, Clients (Monitor)
+### 0:00–0:15 · The problem · tab 1, Clients
 
 **Screen:** Client Portfolio with Rohan and Priya Mehta, both tagged "Joint with …".
 
-> "Rohan and Priya Mehta both earn in India and the US. The US taxes them together on one joint return. India taxes each of them separately. Today their CPA reconciles this by hand."
+> "Rohan and Priya Mehta both earn in India and the US. The US taxes them together on one joint return. India taxes each of them separately. Today their CPA juggles two countries, two tax years and two people by hand."
 
-### 0:12–0:27 · Rohan's inputs · tab 2, Rohan's India form (input layer)
+### 0:15–0:50 · The household · tab 1, Monitor
 
-**Switch to tab 2.** The Business & Trading screen shows **Mehta Advisory Services**, **Mehta Equipment Rentals**, a share in **Kapoor & Mehta Consulting LLP**, and F&O trading.
+On **Rohan's row**, click **Open →**.
 
-> "Each spouse has their own intake: a short router, then one form per country. Rohan runs two businesses in India, holds an LLP share, trades F&O and rents out a villa in Bengaluru, alongside his US job."
+**Point at the household card** (both spouses in one table): joint US income tax **$87,212**; Rohan **89% · $77,479**, Indian tax **$19,212**; Priya **11% · $9,732**, Indian tax **$0**.
 
-### 0:27–0:50 · Rohan's output · tab 1, Rohan's Monitor
+> "WISING reads each spouse's own forms, builds the joint US return and splits it fairly. Rohan carries eighty-nine percent and pays nineteen thousand dollars of Indian tax. Priya carries eleven percent."
 
-**Switch to tab 1.** On **Rohan's row**, click **Open →**.
+**Scroll to the country table and Conflicts:** India and US both **Exposed**; India Q1 and Q2 advance tax **not paid**; **"Foreign Tax Credit shortfall" $4,408**.
 
-**Point at:**
-- Household card: joint US income tax **$87,212**; Rohan **89% · $77,479**; his Indian tax **$19,212**.
-- Country table: both **Exposed**. India: Q1 and Q2 advance tax **not paid**, **$14,032** unpaid.
-- Conflicts: **Foreign Tax Credit shortfall: $4,408**.
+> "Both countries are red. Rohan has missed two Indian advance-tax payments, and forty-four hundred dollars of his Indian tax can't be credited in the US this year."
 
-> "From both spouses' files WISING builds the joint US return and splits it fairly: Rohan carries eighty-nine percent. It computes his Indian tax too. Both countries are red: he's missed two Indian advance-tax payments, and forty-four hundred dollars of his Indian tax can't be credited in the US this year."
+### 0:50–1:10 · The filing calendar · tab 1, Filings
 
-### 0:50–1:02 · Priya's inputs · tab 3, Priya's India form (input layer)
+Click **Filings** in the left menu.
 
-**Switch to tab 3.** The Residency screen is open. Point at **Total Days in India: 12** and **days worked in India: 0**.
+**Point at:** Return Form **ITR-3** (India) and **1040** (US). Scroll to the **Compliance Calendar**: passed instalments greyed out; next **India advance tax Q3, Dec 15**; **US estimate Q4, Jan 15**; **Form 1040 + Form 1116 + FBAR, Apr 15**; **ITR, Jul 31**.
 
-> "Priya holds a green card and works in New York. She spent twelve days in India, none of them working. In India she only has fixed-deposit interest."
+> "Every deadline in both countries on one calendar: the Indian return and advance tax on India's April-to-March year, the joint 1040, the foreign tax credit and the FBAR on the US calendar year."
 
-### 1:02–1:15 · Priya's output · tab 1, Priya's Monitor
+### 1:10–1:35 · One change · tab 2, Priya's India form
 
-**Switch to tab 1.** In the client switcher, pick **Priya Mehta** (you stay on the Monitor).
+**Switch to tab 2.**
 
-**Point at:** Priya **11% · $9,732**; Conflicts **9 findings, 2 critical**; **"Indian tax withheld exceeds the tax due: ₹37,440 refund to claim in India."**
-
-> "She carries eleven percent of the joint tax. And WISING found money she's owed: her bank withheld Indian tax she doesn't owe."
-
-### 1:15–1:40 · Change one input · tab 3, Priya's India form
-
-**Switch to tab 3.**
-
-> "Now her Indian employer keeps paying her while she works remotely from New York."
+> "Now Priya's Indian employer keeps paying her while she works remotely from New York."
 
 Clicks:
-1. **1. Financial Life Snapshot** → click the **💼 Employment** card.
+1. Click the **💼 Employment** card.
 2. **3. Salary** → turn on **Salary Income & Exemptions**.
 3. **Gross salary:** type **24,00,000**.
 4. Scroll to **"Where was this work performed?"** and pause. It reads: *"From the residency screen (0 days worked in India): none of this salary treated as earned for work in India."*
 
-> "No new question. She worked zero days in India, so WISING knows India can't tax this salary. The US can."
+> "She worked zero days in India, so WISING already knows India can't tax this salary. The US can."
 
-### 1:40–2:12 · Priya's output updates · tab 1, Monitor → Reconciliation
+### 1:35–2:15 · Both spouses update · tab 1, Priya's Monitor
 
-**Switch to tab 1. Click ↻ Refresh.**
+**Switch to tab 1.** In the client switcher, pick **Priya Mehta**, click **Monitor** in the left menu, then click **↻ Refresh**.
 
 **Point at:**
-- Household card: joint US tax **$87,212 → $96,465**; Priya **11% → 16%**.
-- Conflicts: **10 findings, 3 critical**. New, at the top: **"Indian TDS on salary India can't tax: about $3,928 to stop or recover."**
+- Household card: joint US tax **$87,212 → $96,465**; Priya **11% → 16%**, Indian tax still **$0**; Rohan **89% → 84%** (**$77,479 → $80,629**).
+- Conflicts: **10 findings, 3 critical**. New, at the top: **"Indian TDS on salary India can't tax: about $3,928 to stop or recover."** Below it, the household **FTC shortfall $4,408 → $3,873**.
 
-> "A new critical conflict: her employer will likely withhold about four thousand dollars of Indian tax on salary India can't tax. WISING tells the CPA how to stop it, or claim it back in time."
+> "One edit, and both spouses moved. The joint tax went up, and Rohan's share too, though nobody touched his file. Priya's Indian tax stays zero. And a new critical conflict: her employer will likely withhold about four thousand dollars of Indian tax it shouldn't. WISING tells the CPA how to stop it, or claim it back in time."
 
-**Click Reconciliation.** India card: the salary row is greyed **"not taxable in India"**, the total stays **₹1,20,000**, and India tax is **₹0**.
+### 2:15–2:30 · Close
 
-> "India's computation leaves the salary out, and shows why."
+Hold on the Monitor.
 
-### 2:12–2:30 · Rohan moved too · tab 1, Rohan's Reconciliation
+> "Two countries, two people, one household, always in sync. That's WISING."
 
-**Switch client → Rohan Mehta** (you stay on Reconciliation). Point at Rohan's share **$77,479 → $80,629**, then the FTC Reconciliation: unrelieved double tax **$4,408 → $3,873**.
-
-> "We never touched Rohan's file. His share went up, but the extra US income raised the joint credit limit, so his double tax went down. One input, both countries, both people in sync. That's WISING."
-
-**End on the screen. Stop recording.**
+**Stop recording.**
 
 ---
 
@@ -123,28 +107,25 @@ Clicks:
 | Where | Before | After the salary |
 |---|---|---|
 | Joint US income tax | $87,212 | $96,465 |
-| Rohan's share | 89% · $77,479 | 84% · $80,629 |
-| Priya's share | 11% · $9,732 | 16% · $15,836 |
-| Rohan: Indian tax | $19,212 (₹15,94,622) | unchanged |
-| Rohan: India paid / unpaid | $5,181 / $14,032 (Q1, Q2 advance tax not paid) | unchanged |
-| Rohan: US unpaid | $37,014 | $41,503 |
-| Unrelieved double tax (FTC shortfall), on both pages | $4,408 | $3,873 |
+| Rohan: share · Indian tax | 89% · $77,479 · $19,212 | 84% · $80,629 · $19,212 |
+| Priya: share · Indian tax | 11% · $9,732 · $0 | 16% · $15,836 · $0 |
+| Rohan: India advance tax | Q1, Q2 not paid ($14,032 unpaid) | unchanged |
+| FTC shortfall (household) | $4,408 | $3,873 |
 | Priya: findings / critical | 9 / 2 | 10 / 3 |
 | New conflict (Priya) | — | Indian TDS on salary India can't tax, $3,928 |
-| Priya: India tax | ₹0 (₹1,20,000 interest) | ₹0 (salary ₹23,25,000 left out) |
-| Joint US wages | $248,000 | $276,916 |
-| Clients tab, combined tax after credits: Rohan / Priya | $91,841 / $10,983 | $93,867 / $17,675 |
+| Filings: return forms | ITR-3 (India) · 1040 (US) | unchanged |
+| Calendar: next deadlines | India advance tax Q3 Dec 15 · US estimate Q4 Jan 15 · 1040 + 1116 + FBAR Apr 15 · ITR Jul 31 | unchanged |
 
 ## If something goes wrong
 
 - **Numbers don't change after the edit:** you skipped ↻ Refresh, or the **Salary Income & Exemptions** switch is off. Turning on the Employment card alone isn't enough.
 - **Starting numbers differ:** this browser has old edits. Click **↺ Edited – Reset** and start again.
-- **A form tab shows the wrong person:** open Layer 1: India **while that spouse is selected** in tab 1.
+- **Tab 2 shows the wrong person:** open Layer 1: India **while Priya is selected** in tab 1.
 
 ## Between takes
 
-Click **↺ Edited – Reset** in tab 1, close tabs 2 and 3, and redo set-up steps 3–5.
+Click **↺ Edited – Reset** in tab 1, close tab 2, and redo set-up steps 3–4.
 
 ## Cutting to time
 
-Each scene ends on a full stop, so you can trim at any scene boundary. If you run long, cut the last sentence of Rohan's output scene first ("Both countries are red…"), then the Reconciliation line in Priya's update.
+If you run long, cut the second sentence pair in "The household" (the red countries) first. The filing calendar and the update scene are the two you shouldn't cut.
