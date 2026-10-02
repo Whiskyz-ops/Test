@@ -14,7 +14,7 @@ Every figure below was measured by running this exact flow in a fresh browser on
 ## Before you hit record (off camera)
 
 1. Open a **new incognito / private window**. Rohan and Priya are created fresh in every new browser, so this gives you clean data.
-2. Go to demo.wising.app and enter the password. You land on **Clients**.
+2. Go to demo.wising.app and enter the password. You land on **Clients**. The button next to ↻ Refresh should read **↺ Reset example**. If it says "Edited — reset example", click it.
 3. Hover the **Layer 1: India** link (top right) with Priya selected and **open it in a second tab** (Cmd/Ctrl-click). Don't edit anything yet. Go back to tab 1.
 4. Browser zoom 90% if the Monitor feels cramped. Close every other tab and notification.
 
@@ -46,7 +46,7 @@ Top tiles: Open critical **8**, Combined tax **$117,629**, FTC residual **$4,408
 
 **Scroll to the map and status cards.**
 
-> "The US is red: tax still unpaid after credits and payments, plus missed estimated-tax quarters, each with its due date. India is green."
+> "Both countries are red for Rohan. Each row shows tax still unpaid after credits and payments, and which estimated or advance-tax instalments were missed, with their due dates. In India he's paid **$5,181** of **$19,212**, and the June and September advance-tax instalments were missed."
 
 **Scroll to Conflicts & Mismatches.** Open the top root cause, "Same income taxed by both countries".
 
@@ -64,7 +64,8 @@ Top tiles: Open critical **8**, Combined tax **$117,629**, FTC residual **$4,408
 - Household card: same joint tax, **$87,212**; Priya **11%, $9,732**.
 - United States row: estimated **$10,983**, unpaid **$4,755**.
 - Conflicts: **9 findings, 2 critical**.
-- "Indian tax withheld exceeds the tax due: **₹37,440 refund** to claim in India." (Her bank withheld TDS on interest that's below the exemption. She has to file in India to get it back.)
+- Map: India is **blue, "Filing required"**. She owes India nothing, but she has money to get back.
+- Conflict: "Indian tax withheld exceeds the tax due: **₹37,440 refund** to claim in India." (Her bank withheld TDS on interest that's below the exemption. She only gets it back by filing an Indian return.)
 
 **Click:** **Reconciliation.**
 
@@ -164,9 +165,11 @@ The form saves on its own. **Close tab 2.**
 ## If something goes wrong on camera
 
 - **Numbers don't move after the edit:** you forgot ↻ Refresh, or the "Salary Income & Exemptions" switch is off. The setup card alone isn't enough.
-- **Starting numbers differ from the "before" column:** this browser already has edits. See Reset.
+- **Starting numbers differ from the "before" column:** this browser already has edits. Click ↺ Reset example and start the take again.
 - **The second tab shows a different client:** open Layer 1 India *while Priya is selected* in tab 1. The link carries the selected client.
 
 ## Reset for another take
 
-Close the incognito window completely and open a new one. The two clients are re-created from scratch. A normal (non-incognito) browser keeps your edits until site data is cleared.
+Click **↺ Reset example** (next to ↻ Refresh). After an edit it reads "↺ Edited — reset example". It puts Rohan and Priya back to the checked starting data, so every "before" figure above is true again. Alternatively, close the incognito window and open a new one.
+
+Tip: don't show the reset button on camera. If it says "Edited — reset example" when you start recording, reset first.
