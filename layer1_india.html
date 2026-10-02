@@ -14099,6 +14099,8 @@ ${isProf ? '' : `
         document.getElementById('prof-regime').value = state.profile.tax_regime;
 
         document.getElementById('res-days-current').value = state.residency_detail.days_in_india_current_year;
+        const manualLblP = document.getElementById('manual-days-val');
+        if (manualLblP) manualLblP.textContent = state.residency_detail.days_in_india_current_year + ' days';
         document.getElementById('res-p4y').value = state.residency_detail.days_in_india_preceding_4_years_gte_365 === null ? 'null' : state.residency_detail.days_in_india_preceding_4_years_gte_365;
         document.getElementById('res-emp').value = state.residency_detail.employment_or_crew_status === null ? 'null' : state.residency_detail.employment_or_crew_status;
         document.getElementById('res-is-departure').value = state.residency_detail.is_departure_year === null ? 'null' : state.residency_detail.is_departure_year;
@@ -14300,13 +14302,20 @@ ${isProf ? '' : `
         if (regime) regime.value = state.profile.tax_regime || 'NEW';
         
         // Residency
+        // Slider and its label show the manual days on file — or, when only
+        // the year's total was saved, that total (0 is a real answer, not
+        // "use the default").
+        const rd = state.residency_detail;
+        const manualShown = rd.manual_days != null ? rd.manual_days : (rd.days_in_india_current_year != null ? rd.days_in_india_current_year : 182);
         const daysCurr = document.getElementById('res-days-current');
-        if (daysCurr) daysCurr.value = state.residency_detail.manual_days || 182;
+        if (daysCurr) daysCurr.value = manualShown;
+        const manualLbl = document.getElementById('manual-days-val');
+        if (manualLbl) manualLbl.textContent = manualShown + ' days';
         const workDays = document.getElementById('res-india-work-days');
         if (workDays) workDays.value = state.residency_detail.india_work_days_current_year != null ? state.residency_detail.india_work_days_current_year : '';
         
         const daysVal = document.getElementById('days-val');
-        if (daysVal) daysVal.value = state.residency_detail.days_in_india_current_year || 182;
+        if (daysVal) daysVal.value = state.residency_detail.days_in_india_current_year != null ? state.residency_detail.days_in_india_current_year : 182;
         
         const p4y = document.getElementById('res-p4y');
         if (p4y) p4y.value = state.residency_detail.days_in_india_preceding_4_years_gte_365 === null ? 'null' : String(state.residency_detail.days_in_india_preceding_4_years_gte_365);

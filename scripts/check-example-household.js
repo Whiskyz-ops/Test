@@ -76,6 +76,14 @@ function cleanUp(data) {
   // India entries in the US foreign-tax baskets: ignored by the engine when
   // the India side is on file (it uses the India-side tax), so not kept.
   IDS.forEach((id) => { const f = data[id].us.ftc_inputs; if (f && Array.isArray(f.ftc_baskets)) f.ftc_baskets = f.ftc_baskets.filter((b) => (b.foreign_country || b.country) !== "IN"); });
+  // India days: the form's total is manual days + trips; the starting
+  // data set only the total, so the form's default 182 manual days was
+  // saved next to it. With no trips on file, manual days = the total.
+  IDS.forEach((id) => {
+    const rd = data[id].india && data[id].india.residency_detail;
+    const noTrips = rd && !(rd.trips || []).some((t) => t && t.arrival_date && t.departure_date);
+    if (rd && noTrips && rd.days_in_india_current_year != null) rd.manual_days = rd.days_in_india_current_year;
+  });
   IDS.forEach((id) => SECTIONS.forEach((sec) => {
     const md = data[id][sec] && data[id][sec].metadata;
     if (md) ["created_at", "last_updated_at", "request_id"].forEach((k) => delete md[k]);

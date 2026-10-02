@@ -54,7 +54,7 @@
       "departure_date": null
      }
     ],
-    "manual_days": 182,
+    "manual_days": 20,
     "india_work_days_current_year": null,
     "is_wholly_outside_india": null,
     "is_indian_company": null,
@@ -2425,7 +2425,7 @@
       "departure_date": null
      }
     ],
-    "manual_days": 182,
+    "manual_days": 12,
     "india_work_days_current_year": 0,
     "is_wholly_outside_india": null,
     "is_indian_company": null,

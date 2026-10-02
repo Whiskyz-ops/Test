@@ -131,6 +131,15 @@
     if (v && typeof v === "object") return "{" + Object.keys(v).sort().map(function (k) { return JSON.stringify(k) + ":" + sortedJson(v[k]); }).join(",") + "}";
     return JSON.stringify(v === undefined ? null : v);
   }
+  // Opening a form stamps its metadata (times, request id) without any
+  // edit — the same fields the example data leaves out — so they don't
+  // count as an edit.
+  function withoutStamps(section) {
+    var c = clone(section || {});
+    if (c.metadata) ["created_at", "last_updated_at", "request_id"].forEach(function (k) { delete c.metadata[k]; });
+    return c;
+  }
+
   function mehtaHouseholdEdited(W, storage) {
     if (!storage || !W) return false;
     var clients;
@@ -139,7 +148,7 @@
       return ["router", "india", "us"].some(function (part) {
         var saved = storage.getItem("wising_client_" + c.id + "_" + part);
         if (saved == null) return false;
-        try { return sortedJson(JSON.parse(saved)) !== sortedJson(c[part]); } catch (e) { return true; }
+        try { return sortedJson(withoutStamps(JSON.parse(saved))) !== sortedJson(withoutStamps(c[part])); } catch (e) { return true; }
       });
     });
   }
