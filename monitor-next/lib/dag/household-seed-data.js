@@ -580,7 +580,7 @@
    "lrs_outbound": {
     "total_lrs_remitted_this_fy_inr": null,
     "lrs_purpose": null,
-    "has_received_foreign_income": false
+    "has_received_foreign_income": null
    },
    "tax_credits": {
     "advance_tax_q1_15jun_inr": null,
@@ -1256,7 +1256,7 @@
      "lrs_outbound": {
       "total_lrs_remitted_this_fy_inr": null,
       "lrs_purpose": null,
-      "has_received_foreign_income": false
+      "has_received_foreign_income": null
      },
      "nro_repatriation": {
       "cumulative_repatriated_usd_this_fy": null,
@@ -1533,7 +1533,7 @@
      "lrs_outbound": {
       "total_lrs_remitted_this_fy_inr": null,
       "lrs_purpose": null,
-      "has_received_foreign_income": false
+      "has_received_foreign_income": null
      },
      "nro_repatriation": {
       "cumulative_repatriated_usd_this_fy": null,
@@ -1810,7 +1810,7 @@
      "lrs_outbound": {
       "total_lrs_remitted_this_fy_inr": null,
       "lrs_purpose": null,
-      "has_received_foreign_income": false
+      "has_received_foreign_income": null
      },
      "nro_repatriation": {
       "cumulative_repatriated_usd_this_fy": null,
@@ -1981,7 +1981,7 @@
     "lt_loss_carryover_usd": null,
     "self_employment": [
      {
-      "id": "se-1790955835104zdo",
+      "id": "se-17909568399714gw",
       "business_name": "Mehta Analytics (consulting)",
       "branches": [],
       "naics_code": null,
@@ -2036,7 +2036,7 @@
     ],
     "partnerships_k1": [
      {
-      "id": "part-k1-1790955835104hrg",
+      "id": "part-k1-1790956839971edo",
       "business_name": "Meridian Consulting Partners LLC",
       "ein": null,
       "naics_code": null,
@@ -2113,7 +2113,7 @@
       "partner_share_recourse_usd": null,
       "partners": [
        {
-        "id": "partner-1790955835161or8",
+        "id": "partner-1790956840042th6",
         "name": "",
         "tin": "",
         "type": "limited",
@@ -2137,7 +2137,7 @@
     ],
     "s_corporations_k1": [
      {
-      "id": "scorp-k1-17909558351045gy",
+      "id": "scorp-k1-1790956839971r4x",
       "business_name": "Harborline Print Co",
       "ein": null,
       "naics_code": null,
@@ -2199,7 +2199,7 @@
       "qbi_ubia_usd": 45000,
       "shareholders": [
        {
-        "id": "shareholder-1790955835175rkx",
+        "id": "shareholder-1790956840058ti4",
         "name": "",
         "tin": "",
         "percent": null,
@@ -2235,7 +2235,7 @@
     "crypto_transactions": [],
     "wages_w2": [
      {
-      "id": "w2-1790955835140t1t",
+      "id": "w2-1790956840017420",
       "employer_name": "Northwind Labs",
       "employer_street": null,
       "employer_city": null,
@@ -2880,7 +2880,7 @@
    "lrs_outbound": {
     "total_lrs_remitted_this_fy_inr": null,
     "lrs_purpose": null,
-    "has_received_foreign_income": false
+    "has_received_foreign_income": null
    },
    "tax_credits": {
     "advance_tax_q1_15jun_inr": null,
@@ -3278,7 +3278,7 @@
      "lrs_outbound": {
       "total_lrs_remitted_this_fy_inr": null,
       "lrs_purpose": null,
-      "has_received_foreign_income": false
+      "has_received_foreign_income": null
      },
      "nro_repatriation": {
       "cumulative_repatriated_usd_this_fy": null,
@@ -3461,7 +3461,7 @@
      "lrs_outbound": {
       "total_lrs_remitted_this_fy_inr": null,
       "lrs_purpose": null,
-      "has_received_foreign_income": false
+      "has_received_foreign_income": null
      },
      "nro_repatriation": {
       "cumulative_repatriated_usd_this_fy": null,
@@ -3644,7 +3644,7 @@
      "lrs_outbound": {
       "total_lrs_remitted_this_fy_inr": null,
       "lrs_purpose": null,
-      "has_received_foreign_income": false
+      "has_received_foreign_income": null
      },
      "nro_repatriation": {
       "cumulative_repatriated_usd_this_fy": null,
@@ -3834,7 +3834,7 @@
     "crypto_transactions": [],
     "wages_w2": [
      {
-      "id": "w2-1790955853387ol8",
+      "id": "w2-1790956858423fz6",
       "employer_name": "Mount Sinai Health System",
       "employer_street": null,
       "employer_city": null,

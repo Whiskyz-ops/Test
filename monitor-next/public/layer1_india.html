@@ -5295,19 +5295,19 @@
             const others = ['Q1','Q2','Q3','Q4'].filter(q => q !== quarter && state.quarters[q]).map(q => state.quarters[q]);
             const anyOn = (read) => others.some(o => { try { return read(o) === true; } catch (e) { return false; } });
             if (state.domestic_income.salary) {
-                state.domestic_income.salary.has_salary_income = state.domestic_income.salary.has_salary_income === true || anyOn(o => o.domestic_income.salary.has_salary_income);
+                if (state.domestic_income.salary.has_salary_income !== true && anyOn(o => o.domestic_income.salary.has_salary_income)) state.domestic_income.salary.has_salary_income = true;
             }
             if (state.domestic_income.house_property) {
-                state.domestic_income.house_property.has_house_property_income = state.domestic_income.house_property.has_house_property_income === true || anyOn(o => o.domestic_income.house_property.has_house_property_income);
+                if (state.domestic_income.house_property.has_house_property_income !== true && anyOn(o => o.domestic_income.house_property.has_house_property_income)) state.domestic_income.house_property.has_house_property_income = true;
             }
-            state.domestic_income.has_agricultural_income = state.domestic_income.has_agricultural_income === true || anyOn(o => o.domestic_income.has_agricultural_income);
+            if (state.domestic_income.has_agricultural_income !== true && anyOn(o => o.domestic_income.has_agricultural_income)) state.domestic_income.has_agricultural_income = true;
             if (state.other_sources) {
-                state.other_sources.has_other_sources_income = state.other_sources.has_other_sources_income === true || anyOn(o => o.other_sources.has_other_sources_income);
+                if (state.other_sources.has_other_sources_income !== true && anyOn(o => o.other_sources.has_other_sources_income)) state.other_sources.has_other_sources_income = true;
                 // The unexplained-income answer is for the year, not one quarter.
                 if (state.other_sources.unexplained_income_offered == null && anyOn(o => o.other_sources.unexplained_income_offered)) state.other_sources.unexplained_income_offered = true;
             }
             if (state.lrs_outbound) {
-                state.lrs_outbound.has_received_foreign_income = state.lrs_outbound.has_received_foreign_income === true || anyOn(o => o.lrs_outbound.has_received_foreign_income);
+                if (state.lrs_outbound.has_received_foreign_income !== true && anyOn(o => o.lrs_outbound.has_received_foreign_income)) state.lrs_outbound.has_received_foreign_income = true;
             }
         }
     }
@@ -10861,7 +10861,7 @@ const crDiv = document.getElementById('div-company-residency');
     // Agricultural income
     function toggleAgriSection(checked) {
         state.domestic_income.has_agricultural_income = checked;
-        if (!checked) clearMasterSwitchAllQuarters(qs => { qs.domestic_income.has_agricultural_income = false; });
+        if (!checked) clearMasterSwitchAllQuarters(qs => { if (qs.domestic_income.has_agricultural_income === true) qs.domestic_income.has_agricultural_income = false; });
         const div = document.getElementById('div-agri-section');
         if (checked) { div.classList.remove('hidden'); }
         else { div.classList.add('hidden'); state.domestic_income.agricultural_income_inr = null; }
@@ -11909,7 +11909,7 @@ ${isProf ? '' : `
 
         function toggleOSSection(val) {
         state.other_sources.has_other_sources_income = val;
-        if (!val) clearMasterSwitchAllQuarters(qs => { qs.other_sources.has_other_sources_income = false; });
+        if (!val) clearMasterSwitchAllQuarters(qs => { if (qs.other_sources.has_other_sources_income === true) qs.other_sources.has_other_sources_income = false; });
         const divOS = document.getElementById('div-os-section');
         if (val) {
             divOS.classList.remove('hidden');
@@ -11923,7 +11923,7 @@ ${isProf ? '' : `
     // ═══════════════════════════════════════════════════════════════════════
     function toggleSalarySection(val) {
         state.domestic_income.salary.has_salary_income = val;
-        if (!val) clearMasterSwitchAllQuarters(qs => { qs.domestic_income.salary.has_salary_income = false; });
+        if (!val) clearMasterSwitchAllQuarters(qs => { if (qs.domestic_income.salary.has_salary_income === true) qs.domestic_income.salary.has_salary_income = false; });
         const divSal = document.getElementById('div-salary-section');
         if (val) {
             divSal.classList.remove('hidden');
@@ -12903,7 +12903,9 @@ ${isProf ? '' : `
 
     function toggleReceivedForeignIncome(hasIncome) {
         state.lrs_outbound.has_received_foreign_income = hasIncome;
-        if (!hasIncome) clearMasterSwitchAllQuarters(qs => { qs.lrs_outbound.has_received_foreign_income = false; });
+        // Only an explicit No clears the other quarters' Yes; restoring an
+        // unanswered question (null) leaves them as they are.
+        if (hasIncome === false) clearMasterSwitchAllQuarters(qs => { if (qs.lrs_outbound.has_received_foreign_income === true) qs.lrs_outbound.has_received_foreign_income = false; });
         const warnFsi = document.getElementById('warn-fa-income-fsi');
         const btnYes = document.getElementById('btn-fa-inc-yes');
         const btnNo = document.getElementById('btn-fa-inc-no');
@@ -15592,7 +15594,7 @@ ${isProf ? '' : `
     // --- HOUSE PROPERTY HANDLERS ---
     function toggleHPSection(val) {
         state.domestic_income.house_property.has_house_property_income = val;
-        if (!val) clearMasterSwitchAllQuarters(qs => { qs.domestic_income.house_property.has_house_property_income = false; });
+        if (!val) clearMasterSwitchAllQuarters(qs => { if (qs.domestic_income.house_property.has_house_property_income === true) qs.domestic_income.house_property.has_house_property_income = false; });
         const divHP = document.getElementById('div-hp-section');
         if (val) {
             divHP.classList.remove('hidden');
