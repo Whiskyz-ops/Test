@@ -1421,6 +1421,20 @@
                             </div>
                         </div>
                     </div>
+                    <!-- DTAA Art. 21(1) students / business apprentices (treaty-art21.js). -->
+                    <div class="p-4 bg-black/20 border border-white/5 rounded-xl flex flex-col gap-3 mt-2">
+                        <label class="flex items-center justify-between gap-4 cursor-pointer">
+                            <span class="flex flex-col">
+                                <span class="text-[10px] font-bold text-white/80">Indian student / business apprentice treaty exemption (DTAA Art. 21(1))</span>
+                                <span class="text-[9px] text-white/40">Payments from outside the US for maintenance, education or training (a stipend, scholarship or allowance from India), for someone resident in India just before arriving and in the US only to study or train. Money from family is a gift, not income: leave it out.</span>
+                            </span>
+                            <input type="checkbox" id="res-art21-claim" onchange="updateResidencyField('article_21_student_claim', this.checked); toggleArt21(this.checked)" class="w-4 h-4 accent-brandCyan">
+                        </label>
+                        <div id="div-art21-fields" class="hidden">
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Payments from outside the US this year (USD) — don't also enter them under foreign wages</label>
+                            <input type="text" inputmode="numeric" id="res-art21-payments" oninput="updateResidencyField('article_21_foreign_payments_usd', parseFormattedNumber(this.value) || null)" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1.5 focus:border-brandCyan focus:ring-0 font-mono">
+                        </div>
+                    </div>
                     <div id="exempt-details-container" class="hidden p-4 bg-black/20 border border-white/5 rounded-xl flex flex-col gap-4 mt-2">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -11753,6 +11767,8 @@ div.innerHTML = `
                 <div class="md:col-span-4"><label class="${L}">§72(t) exception (if paid before 59½)</label><select id="rd-exc-${i}" onchange="updateRetDist(${i}, 'early_exception', this.value)" class="${F}">${opts(RET_EXCEPTIONS, r.early_exception || 'none')}</select></div>
                 <div class="md:col-span-3"><label class="${L}">Federal tax withheld (box 4)</label><input type="text" inputmode="numeric" id="rd-wh-${i}" value="${money(r.federal_withheld_usd)}" oninput="updateRetDist(${i}, 'federal_withheld_usd', this.value)" class="${F} font-mono"></div>
                 <label class="md:col-span-4 flex items-center gap-2 text-[10px] text-white/70 pb-2"><input type="checkbox" id="rd-roll-${i}" ${r.rolled_over === true ? 'checked' : ''} onchange="updateRetDist(${i}, 'rolled_over', this.checked)" class="w-4 h-4 accent-brandCyan"> Rolled over within 60 days (not taxable)</label>
+                ${r.early_exception === 'sepp' ? `<label class="md:col-span-5 flex items-center gap-2 text-[10px] text-white/70 pb-2"><input type="checkbox" id="rd-sepp-broken-${i}" ${r.sepp_broken === true ? 'checked' : ''} onchange="updateRetDist(${i}, 'sepp_broken', this.checked)" class="w-4 h-4 accent-brandCyan"> SEPP schedule changed or stopped this year (before 5 years / 59½)</label>
+                <div class="md:col-span-6 ${r.sepp_broken === true ? '' : 'hidden'}"><label class="${L}">Earlier SEPP payments taken before 59½ (all prior years)</label><input type="text" inputmode="numeric" id="rd-sepp-prior-${i}" value="${money(r.sepp_prior_payments_usd)}" oninput="updateRetDist(${i}, 'sepp_prior_payments_usd', this.value)" class="${F} font-mono"></div>` : ''}
                 <div class="md:col-span-1 flex justify-end"><button type="button" onclick="removeRetDist(${i})" aria-label="Remove this distribution" class="px-2 py-1.5 text-xs text-white/50 hover:text-red-400">✕</button></div>
             </div>`).join('');
         refreshRetDistTotal();
@@ -11776,11 +11792,20 @@ div.innerHTML = `
     function updateRetDist(i, field, val) {
         const r = retDistRows()[i];
         if (!r) return;
-        if (field === 'taxable_usd' || field === 'federal_withheld_usd') r[field] = String(val).trim() === '' ? null : (parseFormattedNumber(val) || 0);
-        else if (field === 'rolled_over') r[field] = val === true;
+        if (field === 'taxable_usd' || field === 'federal_withheld_usd' || field === 'sepp_prior_payments_usd') r[field] = String(val).trim() === '' ? null : (parseFormattedNumber(val) || 0);
+        else if (field === 'rolled_over' || field === 'sepp_broken') r[field] = val === true;
         else r[field] = val === '' ? null : val;
+        // SEPP payments are periodic by definition.
+        if (field === 'early_exception' && val === 'sepp') r.payment_type = 'periodic';
+        // The SEPP fields show only for a SEPP row (and the earlier-payments
+        // amount only once it's marked broken): redraw when that changes.
+        if (field === 'early_exception' || field === 'sepp_broken') renderRetDists();
         refreshRetDistTotal();
         try { recalculateDerivedFields(); persistUsState(); } catch (e) {}
+    }
+    function toggleArt21(on) {
+        const box = document.getElementById('div-art21-fields');
+        if (box) box.classList.toggle('hidden', !on);
     }
     function toggleArt22(on) {
         const box = document.getElementById('div-art22-fields');
@@ -21945,6 +21970,7 @@ div.innerHTML = `
             if(document.getElementById('res-exempt-scholar-override')) document.getElementById('res-exempt-scholar-override').checked = usState.us_residency_detail.exempt_scholar_lookback_exception || false;
             if(document.getElementById('res-closer-conn')) document.getElementById('res-closer-conn').checked = usState.us_residency_detail.closer_connection_claim || false;
             toggleArt22(usState.us_residency_detail.article_22_claim === true);
+            toggleArt21(usState.us_residency_detail.article_21_student_claim === true);
             if(document.getElementById('res-first-yr')) document.getElementById('res-first-yr').checked = usState.us_residency_detail.first_year_choice_election || false;
             // Restore entry date field and visibility
             const firstYrEntryContainer = document.getElementById('div-first-yr-entry-date');

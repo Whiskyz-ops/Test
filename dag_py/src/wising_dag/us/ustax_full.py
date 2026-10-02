@@ -40,7 +40,8 @@ from ..core.util import js_num_str, js_round, num, safe
 from . import constants as C
 from .ustax import bracket_breakdown, bracket_tax, compute_salt_cap, compute_us_tax_core
 from .nra_fdap import nra_exempt_interest_usd, nra_fdap_breakdown, nra_interest_split_recorded
-from .retirement_dist import early_72t_base_after_treaty_usd
+from .retirement_dist import additional_tax_72t_usd
+from .treaty_art21 import art21
 from .treaty_art22 import art22, base_year_of
 
 T = C.US
@@ -447,6 +448,41 @@ def _treaty_findings(d, ctx, is_nra):
                 0, ["DTAA Art. 22"],
             ))
 
+    # DTAA Art. 21(1) — see ustax-full-nodes.js.
+    a21 = art21(ctx.get("us"))
+    if a21 and a21["paymentsUsd"] > 0:
+        if a21["blockedBy"]:
+            out.append(make_finding(
+                "treaty_article_21_student", "warning", "residency",
+                "DTAA Art. 21(1) student exemption blocked by the saving clause (Art. 1(3))",
+                "The client claims the India–US treaty's student and business-apprentice exemption on " + _usd(a21["paymentsUsd"]) + " of payments from "
+                "outside the US, but is a " + ("US citizen" if a21["blockedBy"] == "citizen" else "green-card holder") + ". The saving clause's exception for Art. 21 "
+                "(Art. 1(4)(b)) covers only US residents who are neither citizens nor green-card holders. WISING taxes these payments as foreign income.",
+                "Remove the Art. 21(1) claim; report the payments as foreign income. A foreign tax credit applies to any Indian tax on them.",
+                0, ["DTAA Art. 1(3)", "DTAA Art. 1(4)(b)", "DTAA Art. 21(1)"],
+            ))
+        elif is_nra:
+            out.append(make_finding(
+                "treaty_article_21_student", "info", "residency",
+                "DTAA Art. 21(1) not needed: payments from outside the US aren't US income for a non-resident alien",
+                "The client claims the student exemption on " + _usd(a21["paymentsUsd"]) + " of payments from outside the US. As a non-resident alien the "
+                "client is taxed only on US-source income, so these payments are outside US tax already, treaty or not.",
+                "No treaty claim or Form 8833 is needed for them this year. Keep the claim on file: it matters once the client becomes a US "
+                "resident (usually after five calendar years on an F or J visa).",
+                0, ["DTAA Art. 21(1)", "IRC §872(a)"],
+            ))
+        else:
+            out.append(make_finding(
+                "treaty_article_21_student", "info", "residency",
+                "DTAA Art. 21(1): " + _usd(a21["exemptUsd"]) + " of student payments from outside the US exempt from US tax",
+                "The client claims the India–US treaty's student and business-apprentice exemption on " + _usd(a21["paymentsUsd"]) + " of payments from "
+                "outside the US for maintenance, education or training. As a US resident alien who is neither a citizen nor a green-card holder, the client keeps "
+                "it under the saving clause's exception (DTAA Art. 1(4)(b)). WISING leaves these payments out of US income.",
+                "Attach Form 8833 (treaty-based return position). The exemption needs the client to have been resident in India immediately "
+                "before arriving and to be in the US solely for education or training; it doesn't cover pay for work done in the US.",
+                0, ["DTAA Art. 21(1)", "DTAA Art. 1(4)(b)", "Form 8833"],
+            ))
+
     if is_nra:
         rows = n.get("fdapBreakdown") or []
         ex_row = next((r for r in rows if r["type"] == "interest_exempt"), None)
@@ -759,7 +795,7 @@ def _nra_effective_eci_fdap(d, ctx):
 
 # §72(t) on a 1040-NR — see ustax-full-nodes.js's nraAdditionalTax72tUsd.
 def _nra_additional_tax_72t_usd(d, ctx):
-    return early_72t_base_after_treaty_usd(ctx.get("us"), ctx.get("india"), d["taxpayerDobRaw"], d["baseYearUs"] or 2026) * 0.10
+    return additional_tax_72t_usd(ctx.get("us"), ctx.get("india"), d["taxpayerDobRaw"], d["baseYearUs"] or 2026)
 
 
 def _nra_tax_result(d, ctx):

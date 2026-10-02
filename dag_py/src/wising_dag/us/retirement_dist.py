@@ -26,6 +26,14 @@ def age_59_half_date(dob_raw):
     return (y, m, d[2])
 
 
+def _sepp_broken(r) -> bool:
+    return r.get("early_exception") == "sepp" and r.get("sepp_broken") is True
+
+
+def _treaty_periodic(r) -> bool:
+    return r["paymentType"] != "lump_sum" and not r["seppBroken"]
+
+
 def rows(us) -> list:
     ui = ((us or {}).get("income_us_source") or {}) if isinstance(us, dict) else {}
     out = []
@@ -38,13 +46,14 @@ def rows(us) -> list:
             "planType": r.get("plan_type") if r.get("plan_type") in PLAN_TYPES else "other_plan",
             "payerName": r.get("payer_name") or None, "taxableUsd": num(r.get("taxable_usd")),
             "paymentType": "lump_sum" if pt == "lump_sum" else ("periodic" if pt == "periodic" else None),
-            "exception": r.get("early_exception") if r.get("early_exception") in EXCEPTIONS else "none",
+            "exception": "none" if _sepp_broken(r) else (r.get("early_exception") if r.get("early_exception") in EXCEPTIONS else "none"),
+            "seppBroken": _sepp_broken(r),
             "datePaid": r.get("date_paid") or None, "withheldUsd": num(r.get("federal_withheld_usd")), "legacy": False,
         })
     for plan, amt in (("ira", num(ui.get("ira_distributions_usd"))), ("401k", num(ui.get("401k_distributions_usd"))), ("pension", num(ui.get("pension_income_usd")))):
         if amt > 0:
             out.append({"planType": plan, "payerName": None, "taxableUsd": amt, "paymentType": "periodic" if plan == "pension" else None,
-                        "exception": "pension_legacy" if plan == "pension" else "none", "datePaid": None, "withheldUsd": 0, "legacy": True})
+                        "exception": "pension_legacy" if plan == "pension" else "none", "seppBroken": False, "datePaid": None, "withheldUsd": 0, "legacy": True})
     return out
 
 
@@ -54,10 +63,10 @@ def totals(us) -> dict:
         k = "iraUsd" if r["planType"] in ("ira", "roth_ira") else "k401Usd" if r["planType"] == "401k" else "pensionUsd" if r["planType"] == "pension" else "otherUsd"
         t[k] += r["taxableUsd"]
         t["totalUsd"] += r["taxableUsd"]
-        if r["paymentType"] == "lump_sum":
-            t["lumpSumUsd"] += r["taxableUsd"]
-        else:
+        if _treaty_periodic(r):
             t["periodicUsd"] += r["taxableUsd"]
+        else:
+            t["lumpSumUsd"] += r["taxableUsd"]
     return t
 
 
@@ -80,7 +89,7 @@ def early_72t_rows(us, dob_raw, base_year) -> list:
 def early_72t_base_usd(us, dob_raw, base_year, payment_type=None) -> float:
     total = 0.0
     for r in early_72t_rows(us, dob_raw, base_year):
-        if payment_type is None or (r["paymentType"] == "lump_sum") == (payment_type == "lump_sum"):
+        if payment_type is None or (not _treaty_periodic(r)) == (payment_type == "lump_sum"):
             total += r["taxableUsd"]
     return total
 
@@ -90,6 +99,7 @@ def excepted_early_usd(us, dob_raw, base_year) -> float:
 
 
 # DTAA Art. 20(1) / §72(t) on a 1040-NR — see retirement-dist.js.
+# Confirmed by the CPA (2 Oct 2026) — see retirement-dist.js.
 TREATY_EXEMPTS_72T = True
 
 
@@ -106,3 +116,14 @@ def early_72t_base_after_treaty_usd(us, india, dob_raw, base_year) -> float:
     if treaty_periodic_exempt(us, india):
         return early_72t_base_usd(us, dob_raw, base_year, "lump_sum")
     return early_72t_base_usd(us, dob_raw, base_year)
+
+
+def sepp_recapture_base_usd(us) -> float:
+    ui = ((us or {}).get("income_us_source") or {}) if isinstance(us, dict) else {}
+    lst = ui.get("retirement_distributions")
+    return sum(max(0.0, num(r.get("sepp_prior_payments_usd"))) for r in (lst if isinstance(lst, list) else [])
+               if isinstance(r, dict) and _sepp_broken(r))
+
+
+def additional_tax_72t_usd(us, india, dob_raw, base_year) -> float:
+    return (early_72t_base_after_treaty_usd(us, india, dob_raw, base_year) + sepp_recapture_base_usd(us)) * 0.10

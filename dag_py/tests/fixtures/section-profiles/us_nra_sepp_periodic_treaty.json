@@ -1,0 +1,72 @@
+{
+  "id": "us_nra_sepp_periodic_treaty",
+  "form": "layer1_us.html",
+  "section": "NRA (Form 1040-NR) \u2014 SEPP under DTAA Art. 20",
+  "story": "Indian resident, non-resident alien, born 1980-01-01 (46), files Form 1040-NR with a W-8BEN. Takes $24,000 a year from a US IRA as SEPP payments, schedule unchanged.",
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 0,
+    "date_of_birth": "1980-01-01",
+    "has_us_source_income_or_assets": true
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0,
+      "date_of_birth": "1980-01-01"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 0,
+      "spt_test_met": false,
+      "final_us_residency_status": "NRA"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "nra_specific": {
+      "files_form_1040nr": true,
+      "submitted_w8ben": true,
+      "us_eci_income_usd": 0,
+      "us_fdap_income_usd": 0
+    },
+    "income_us_source": {
+      "retirement_distributions": [
+        {
+          "payer_name": "Vanguard",
+          "plan_type": "ira",
+          "taxable_usd": 24000,
+          "payment_type": "periodic",
+          "early_exception": "sepp",
+          "rolled_over": false,
+          "date_paid": null,
+          "federal_withheld_usd": null
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.nra.pensionTreatyExemptUsd",
+      "value": 24000,
+      "why": "SEPP payments are periodic payments: DTAA Art. 20 leaves them to India, the country of residence (CPA, 2 Oct 2026)"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 0,
+      "why": "no US tax on the treaty-exempt periodic payments, and no \u00a772(t) 10% while the schedule holds"
+    },
+    {
+      "path": "findings[id=early_withdrawal_penalty_72t]",
+      "value": null,
+      "why": "SEPP unbroken: exception applies"
+    }
+  ]
+}

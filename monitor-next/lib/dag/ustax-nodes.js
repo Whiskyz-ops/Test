@@ -863,15 +863,15 @@ var NODES = {
   // (body extracted to computeUsTaxCore above so dual-status-nodes.js can
   // call it twice for a split-year return; this node is now a thin wrapper.)
   // §72(t): 10% additional tax on IRA/401(k) distributions taken before
-  // 59½ (Schedule 2 line 8). Layer 1 doesn't collect the statutory
-  // exceptions, so — like the early_withdrawal_penalty_72t finding — the
-  // full 10% is assumed. Age at 31 Dec under 59, same test as that finding.
+  // 59½ (Schedule 2 line 8), less the exceptions recorded on Layer 1 US,
+  // plus the §72(t)(4) recapture on a broken SEPP (retirement-dist.js).
   additionalTax72tUsd: {
     deps: ["taxpayerDobRaw", "baseYearUs"],
     compute: function (d, ctx) {
       // Distributions paid before 59½ with no §72(t)(2) exception recorded
       // (SEPP, separation at 55+, death, disability, ...) — retirement-dist.js.
-      return require("./retirement-dist.js").early72tBaseUsd(ctx.us, d.taxpayerDobRaw, d.baseYearUs || 2026) * 0.10;
+      var rd = require("./retirement-dist.js");
+      return (rd.early72tBaseUsd(ctx.us, d.taxpayerDobRaw, d.baseYearUs || 2026) + rd.seppRecaptureBaseUsd(ctx.us)) * 0.10;
     }
   },
   usTaxResult: {

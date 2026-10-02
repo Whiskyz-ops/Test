@@ -1,0 +1,74 @@
+{
+  "id": "us_nra_sepp_broken_treaty",
+  "form": "layer1_us.html",
+  "section": "NRA (Form 1040-NR) \u2014 SEPP under DTAA Art. 20",
+  "story": "Same client as us_nra_sepp_periodic_treaty, but the SEPP schedule was changed this year: $24,000 paid in 2026, $48,000 in earlier years.",
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 0,
+    "date_of_birth": "1980-01-01",
+    "has_us_source_income_or_assets": true
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0,
+      "date_of_birth": "1980-01-01"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 0,
+      "spt_test_met": false,
+      "final_us_residency_status": "NRA"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "nra_specific": {
+      "files_form_1040nr": true,
+      "submitted_w8ben": true,
+      "us_eci_income_usd": 0,
+      "us_fdap_income_usd": 0
+    },
+    "income_us_source": {
+      "retirement_distributions": [
+        {
+          "payer_name": "Vanguard",
+          "plan_type": "ira",
+          "taxable_usd": 24000,
+          "payment_type": "periodic",
+          "early_exception": "sepp",
+          "rolled_over": false,
+          "date_paid": null,
+          "federal_withheld_usd": null,
+          "sepp_broken": true,
+          "sepp_prior_payments_usd": 48000
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.additionalTax72tUsd",
+      "value": 7200,
+      "why": "10% of this year's 24,000 (exception lost) + 10% of the 48,000 recaptured = 2,400 + 4,800"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 14400,
+      "why": "a broken SEPP is no longer a periodic payment under the treaty (CPA, 2 Oct 2026): 30% \u00d7 24,000 = 7,200 as FDAP, plus 7,200 additional tax"
+    },
+    {
+      "path": "findings[id=sepp_recapture_72t].amountUsd",
+      "value": 4800,
+      "why": "s.72(t)(4) recapture on the 48,000 of earlier payments"
+    }
+  ]
+}

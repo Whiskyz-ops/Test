@@ -20,7 +20,17 @@
  * birth-or-adoption exceptions. A Roth IRA's qualified distributions have
  * no taxable part, so only what's entered as taxable is counted.
  * "Before 59½": the date paid against the 59½ date when entered; otherwise
- * the client must not have reached 59½ by 31 December. */
+ * the client must not have reached 59½ by 31 December.
+ *
+ * A broken SEPP (sepp_broken: the payment schedule was changed or stopped
+ * before the later of five years and age 59½) loses the exception
+ * (§72(t)(4)): this year's payment is counted as an early distribution, and
+ * the 10% falls due now on every earlier SEPP payment taken before 59½
+ * (sepp_prior_payments_usd), plus interest for the deferral, which isn't
+ * computed. SEPP payments are periodic payments, so while the schedule holds
+ * the treaty treats them as periodic (DTAA Art. 20, taxable in the country
+ * of residence); a broken schedule loses that too and is taxed like a lump
+ * sum. */
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 
 var PLAN_TYPES = ["ira", "roth_ira", "401k", "pension", "other_plan"];
@@ -40,6 +50,11 @@ function age59HalfDate(dobRaw) {
   return [y, m, d[2]];
 }
 
+function seppBroken(r) { return r.early_exception === "sepp" && r.sepp_broken === true; }
+// Periodic for the treaty (Art. 20): marked periodic (or no type, older
+// data) and not a broken SEPP.
+function treatyPeriodic(r) { return r.paymentType !== "lump_sum" && !r.seppBroken; }
+
 function rows(us) {
   var ui = (us && us.income_us_source) || {};
   var out = [];
@@ -49,13 +64,14 @@ function rows(us) {
       planType: PLAN_TYPES.indexOf(r.plan_type) >= 0 ? r.plan_type : "other_plan",
       payerName: r.payer_name || null, taxableUsd: num(r.taxable_usd),
       paymentType: r.payment_type === "lump_sum" ? "lump_sum" : r.payment_type === "periodic" ? "periodic" : null,
-      exception: EXCEPTIONS.indexOf(r.early_exception) >= 0 ? r.early_exception : "none",
+      exception: seppBroken(r) ? "none" : EXCEPTIONS.indexOf(r.early_exception) >= 0 ? r.early_exception : "none",
+      seppBroken: seppBroken(r),
       datePaid: r.date_paid || null, withheldUsd: num(r.federal_withheld_usd), legacy: false
     });
   });
   [["ira", num(ui.ira_distributions_usd)], ["401k", num(ui["401k_distributions_usd"])], ["pension", num(ui.pension_income_usd)]].forEach(function (t) {
     if (t[1] > 0) out.push({ planType: t[0], payerName: null, taxableUsd: t[1], paymentType: t[0] === "pension" ? "periodic" : null,
-      exception: t[0] === "pension" ? "pension_legacy" : "none", datePaid: null, withheldUsd: 0, legacy: true });
+      exception: t[0] === "pension" ? "pension_legacy" : "none", seppBroken: false, datePaid: null, withheldUsd: 0, legacy: true });
   });
   return out;
 }
@@ -66,7 +82,8 @@ function totals(us) {
     var k = r.planType === "ira" || r.planType === "roth_ira" ? "iraUsd" : r.planType === "401k" ? "k401Usd" : r.planType === "pension" ? "pensionUsd" : "otherUsd";
     t[k] += r.taxableUsd; t.totalUsd += r.taxableUsd;
     // No payment type recorded (older data): treated as periodic, as before.
-    if (r.paymentType === "lump_sum") t.lumpSumUsd += r.taxableUsd; else t.periodicUsd += r.taxableUsd;
+    // A broken SEPP counts as a lump sum (see the header).
+    if (treatyPeriodic(r)) t.periodicUsd += r.taxableUsd; else t.lumpSumUsd += r.taxableUsd;
   });
   return t;
 }
@@ -84,7 +101,7 @@ function early72tRows(us, dobRaw, baseYear) {
 }
 function early72tBaseUsd(us, dobRaw, baseYear, paymentType) {
   return early72tRows(us, dobRaw, baseYear).filter(function (r) {
-    return !paymentType || (paymentType === "lump_sum" ? r.paymentType === "lump_sum" : r.paymentType !== "lump_sum");
+    return !paymentType || (paymentType === "lump_sum" ? !treatyPeriodic(r) : treatyPeriodic(r));
   }).reduce(function (s, r) { return s + r.taxableUsd; }, 0);
 }
 // Rows paid before 59½ where an exception was recorded (for the alert text).
@@ -93,10 +110,25 @@ function exceptedEarlyUsd(us, dobRaw, baseYear) {
     .reduce(function (s, r) { return s + r.taxableUsd; }, 0);
 }
 
-// DTAA Art. 20(1) leaves a periodic pension paid to an Indian resident
-// taxable only in India, so on a 1040-NR the US charges no tax on it — and
-// the §72(t) 10%, an income tax under the Code, goes with it. Set false if
-// the CPA takes the view that §72(t) still applies.
+// §72(t)(4) recapture: earlier SEPP payments (taken before 59½) on every
+// broken SEPP row — read from the raw list, so a schedule stopped this year
+// with nothing paid still counts.
+function seppRecaptureBaseUsd(us) {
+  var ui = (us && us.income_us_source) || {};
+  return (Array.isArray(ui.retirement_distributions) ? ui.retirement_distributions : []).reduce(function (s, r) {
+    return s + (r && seppBroken(r) ? Math.max(0, num(r.sepp_prior_payments_usd)) : 0);
+  }, 0);
+}
+// The whole §72(t) additional tax for the year: 10% of this year's early
+// distributions (after the treaty) plus 10% of the recaptured SEPP payments.
+function additionalTax72tUsd(us, india, dobRaw, baseYear) {
+  return (early72tBaseAfterTreatyUsd(us, india, dobRaw, baseYear) + seppRecaptureBaseUsd(us)) * 0.10;
+}
+
+// DTAA Art. 20 leaves periodic payments (pensions, and SEPP payments while
+// the schedule holds) to an Indian resident taxable only in India, so on a
+// 1040-NR the US charges no tax on them — and no §72(t) 10% (confirmed by
+// the CPA, 2 Oct 2026). A broken SEPP loses both (see the header).
 var TREATY_EXEMPTS_72T = true;
 // A 1040-NR filer (non-citizen, no §6013(g)/(h) election) resident in India.
 function treatyPeriodicExempt(us, india) {
@@ -111,5 +143,5 @@ function early72tBaseAfterTreatyUsd(us, india, dobRaw, baseYear) {
   return treatyPeriodicExempt(us, india) ? early72tBaseUsd(us, dobRaw, baseYear, "lump_sum") : early72tBaseUsd(us, dobRaw, baseYear);
 }
 
-module.exports = { TREATY_EXEMPTS_72T: TREATY_EXEMPTS_72T, treatyPeriodicExempt: treatyPeriodicExempt, early72tBaseAfterTreatyUsd: early72tBaseAfterTreatyUsd, PLAN_TYPES: PLAN_TYPES, EXCEPTIONS: EXCEPTIONS, rows: rows, totals: totals, age59HalfDate: age59HalfDate, isEarly: isEarly,
+module.exports = { seppRecaptureBaseUsd: seppRecaptureBaseUsd, additionalTax72tUsd: additionalTax72tUsd, TREATY_EXEMPTS_72T: TREATY_EXEMPTS_72T, treatyPeriodicExempt: treatyPeriodicExempt, early72tBaseAfterTreatyUsd: early72tBaseAfterTreatyUsd, PLAN_TYPES: PLAN_TYPES, EXCEPTIONS: EXCEPTIONS, rows: rows, totals: totals, age59HalfDate: age59HalfDate, isEarly: isEarly,
   early72tRows: early72tRows, early72tBaseUsd: early72tBaseUsd, exceptedEarlyUsd: exceptedEarlyUsd };

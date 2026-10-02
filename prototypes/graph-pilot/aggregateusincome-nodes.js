@@ -927,6 +927,10 @@ var NODES = {
       var art22 = require("./treaty-art22.js").art22(ctx.us, require("./treaty-art22.js").baseYearOf(ctx.router, ctx.us));
       var art22ExemptUsd = art22 ? Math.min(wagesUsd, art22.exemptUsd) : 0;
       wagesUsd -= art22ExemptUsd;
+      // DTAA Art. 21(1) student payments from outside the US (treaty-art21.js):
+      // foreign income only when the claim is blocked (citizen / green card).
+      var art21 = require("./treaty-art21.js").art21(ctx.us);
+      var art21TaxableUsd = art21 ? art21.taxableUsd : 0;
       var foreignInterest = di.foreignInterestUsd + epf.taxableEpfInterestUsd;
       var foreignPension = di.foreignPensionUsd + epf.taxableNpsWithdrawalUsd + fi.pensionUsd;
 
@@ -935,7 +939,7 @@ var NODES = {
       // here — it flows through cfcElectedPool into computeUsTaxCore's own
       // flat-tax add-on instead, mirroring how AMT/NIIT amounts don't appear
       // in this aggregate either.
-      var foreignSourceTotal = foreignWagesTotalUsd + foreignSelfEmploymentUsd + foreignInterest + di.foreignDividendsUsd + di.foreignRentalUsd + foreignPension + di.foreignStcgUsd + di.foreignLtcgUsd + di.section988GainLossUsd + cfc.nonElectedOrdinaryInclusionUsd + fi.otherUsd;
+      var foreignSourceTotal = foreignWagesTotalUsd + foreignSelfEmploymentUsd + foreignInterest + di.foreignDividendsUsd + di.foreignRentalUsd + foreignPension + di.foreignStcgUsd + di.foreignLtcgUsd + di.section988GainLossUsd + cfc.nonElectedOrdinaryInclusionUsd + fi.otherUsd + art21TaxableUsd;
       // Prior-year capital loss carryovers (Layer 1 US, positive amounts),
       // netted in computeUsTaxCore's Schedule D step. Present only when set,
       // so every other client's aggregate keeps its shape.
@@ -966,7 +970,7 @@ var NODES = {
         w2WorkLocation: d.w2WorkLocation,
         // Ordinary foreign income with no Layer 1 US field (winnings, misc.,
         // royalty/fees) — only ever filled from Layer 1 India.
-        foreignOtherIncome: m(fi.otherUsd, ctx),
+        foreignOtherIncome: m(fi.otherUsd + art21TaxableUsd, ctx),
         // Layer 1 India business income filled in as foreign self-employment:
         // Schedule SE base, kept apart from seEarningsUsd so it only counts
         // for a worldwide-taxed filer (computeUsTaxCore gates it).

@@ -1,0 +1,67 @@
+{
+  "id": "us_art21_student_green_card",
+  "form": "layer1_us.html",
+  "section": "Residency \u2014 DTAA Art. 21(1) students and business apprentices",
+  "story": "Same student as us_art21_student_resident_alien, but holding a green card. The Art. 21(1) box is ticked anyway.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": false,
+    "has_green_card": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": true,
+      "us_days_current_year": 365,
+      "spt_test_met": true,
+      "final_us_residency_status": "GREEN_CARD",
+      "article_21_student_claim": true,
+      "article_21_foreign_payments_usd": 20000
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "State University",
+          "wages_box1_usd": 30000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 30000
+          }
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.agiUsd",
+      "value": 50000,
+      "why": "the claim is blocked: the 20,000 is foreign income, AGI 30,000 + 20,000"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 3820,
+      "why": "taxable 50,000 \u2212 16,100 = 33,900: 1,240 + 12% \u00d7 21,500 = 3,820"
+    },
+    {
+      "path": "findings[id=treaty_article_21_student].severity",
+      "value": "warning",
+      "why": "the saving clause's exception doesn't reach green-card holders"
+    }
+  ]
+}

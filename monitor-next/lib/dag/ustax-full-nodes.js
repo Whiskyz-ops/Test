@@ -649,6 +649,39 @@ function treatyFindings(d, ctx, isNra) {
     }
   }
 
+  // DTAA Art. 21(1) student / business-apprentice payments from outside the
+  // US (treaty-art21.js): applied, blocked for a citizen / green-card
+  // holder, or not needed for a non-resident alien.
+  var a21 = require("./treaty-art21.js").art21(ctx.us);
+  if (a21 && a21.paymentsUsd > 0) {
+    out.push(a21.blockedBy ? {
+      id: "treaty_article_21_student", severity: "warning", category: "residency",
+      title: "DTAA Art. 21(1) student exemption blocked by the saving clause (Art. 1(3))",
+      detail: "The client claims the India–US treaty's student and business-apprentice exemption on " + usd(a21.paymentsUsd) + " of payments from " +
+        "outside the US, but is a " + (a21.blockedBy === "citizen" ? "US citizen" : "green-card holder") + ". The saving clause's exception for Art. 21 " +
+        "(Art. 1(4)(b)) covers only US residents who are neither citizens nor green-card holders. WISING taxes these payments as foreign income.",
+      recommendation: "Remove the Art. 21(1) claim; report the payments as foreign income. A foreign tax credit applies to any Indian tax on them.",
+      amountUsd: 0, refs: ["DTAA Art. 1(3)", "DTAA Art. 1(4)(b)", "DTAA Art. 21(1)"]
+    } : isNra ? {
+      id: "treaty_article_21_student", severity: "info", category: "residency",
+      title: "DTAA Art. 21(1) not needed: payments from outside the US aren't US income for a non-resident alien",
+      detail: "The client claims the student exemption on " + usd(a21.paymentsUsd) + " of payments from outside the US. As a non-resident alien the " +
+        "client is taxed only on US-source income, so these payments are outside US tax already, treaty or not.",
+      recommendation: "No treaty claim or Form 8833 is needed for them this year. Keep the claim on file: it matters once the client becomes a US " +
+        "resident (usually after five calendar years on an F or J visa).",
+      amountUsd: 0, refs: ["DTAA Art. 21(1)", "IRC §872(a)"]
+    } : {
+      id: "treaty_article_21_student", severity: "info", category: "residency",
+      title: "DTAA Art. 21(1): " + usd(a21.exemptUsd) + " of student payments from outside the US exempt from US tax",
+      detail: "The client claims the India–US treaty's student and business-apprentice exemption on " + usd(a21.paymentsUsd) + " of payments from " +
+        "outside the US for maintenance, education or training. As a US resident alien who is neither a citizen nor a green-card holder, the client keeps " +
+        "it under the saving clause's exception (DTAA Art. 1(4)(b)). WISING leaves these payments out of US income.",
+      recommendation: "Attach Form 8833 (treaty-based return position). The exemption needs the client to have been resident in India immediately " +
+        "before arriving and to be in the US solely for education or training; it doesn't cover pay for work done in the US.",
+      amountUsd: 0, refs: ["DTAA Art. 21(1)", "DTAA Art. 1(4)(b)", "Form 8833"]
+    });
+  }
+
   if (isNra) {
     var rows = n.fdapBreakdown || [];
     var exRow = rows.filter(function (r) { return r.type === "interest_exempt"; })[0];
@@ -957,11 +990,11 @@ NODES.nraEffectiveEciFdap = {
 };
 
 // §72(t) on a 1040-NR: the 10% on early distributions the US taxes — a
-// periodic pension the treaty leaves to India (DTAA Art. 20(1)) carries none
-// (retirement-dist.js treatyPeriodicExempt / TREATY_EXEMPTS_72T).
+// periodic payment the treaty leaves to India (DTAA Art. 20) carries none;
+// a broken SEPP's recapture is added (retirement-dist.js additionalTax72tUsd).
 NODES.nraAdditionalTax72tUsd = {
   deps: ["taxpayerDobRaw", "baseYearUs"],
-  compute: function (d, ctx) { return require("./retirement-dist.js").early72tBaseAfterTreatyUsd(ctx.us, ctx.india, d.taxpayerDobRaw, d.baseYearUs || 2026) * 0.10; }
+  compute: function (d, ctx) { return require("./retirement-dist.js").additionalTax72tUsd(ctx.us, ctx.india, d.taxpayerDobRaw, d.baseYearUs || 2026); }
 };
 
 NODES.nraTaxResult = {

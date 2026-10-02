@@ -12,6 +12,7 @@ from ..core.graph import NodeDef
 from ..core.util import js_round, num, safe
 from . import constants as C
 from .retirement_dist import totals as retirement_totals
+from .treaty_art21 import art21
 from .treaty_art22 import art22, base_year_of
 
 US_SEC179_MAX_USD = C.US["US_SEC179_MAX_USD"]
@@ -776,6 +777,9 @@ def _aggregate_us_income_result(d, ctx):
     a22 = art22(ctx.get("us"), base_year_of(ctx.get("router"), ctx.get("us")))
     art22_exempt_usd = min(wages_usd, a22["exemptUsd"]) if a22 else 0
     wages_usd -= art22_exempt_usd
+    # DTAA Art. 21(1) (treaty_art21.py) — see aggregateusincome-nodes.js.
+    a21 = art21(ctx.get("us"))
+    art21_taxable_usd = a21["taxableUsd"] if a21 else 0
     foreign_interest = di["foreignInterestUsd"] + epf["taxableEpfInterestUsd"]
     foreign_pension = di["foreignPensionUsd"] + epf["taxableNpsWithdrawalUsd"] + fi["pensionUsd"]
 
@@ -784,7 +788,7 @@ def _aggregate_us_income_result(d, ctx):
     # here — it flows through cfcElectedPool into compute_us_tax_core's own
     # flat-tax add-on instead, mirroring how AMT/NIIT amounts don't appear
     # in this aggregate either.
-    foreign_source_total = foreign_wages_total + foreign_self_employment + foreign_interest + di["foreignDividendsUsd"] + di["foreignRentalUsd"] + foreign_pension + di["foreignStcgUsd"] + di["foreignLtcgUsd"] + di["section988GainLossUsd"] + cfc["nonElectedOrdinaryInclusionUsd"] + fi["otherUsd"]
+    foreign_source_total = foreign_wages_total + foreign_self_employment + foreign_interest + di["foreignDividendsUsd"] + di["foreignRentalUsd"] + foreign_pension + di["foreignStcgUsd"] + di["foreignLtcgUsd"] + di["section988GainLossUsd"] + cfc["nonElectedOrdinaryInclusionUsd"] + fi["otherUsd"] + art21_taxable_usd
 
     # Prior-year capital loss carryovers (Layer 1 US, positive amounts), netted
     # in compute_us_tax_core's Schedule D step. Present only when set.
@@ -814,7 +818,7 @@ def _aggregate_us_income_result(d, ctx):
         # aggregateusincome-nodes.js's w2WorkLocation.
         "w2WorkLocation": d["w2WorkLocation"],
         # One income list (see aggregateusincome-nodes.js).
-        "foreignOtherIncome": _m(fi["otherUsd"], ctx),
+        "foreignOtherIncome": _m(fi["otherUsd"] + art21_taxable_usd, ctx),
         "seEarningsFromIndiaUsd": fi["selfEmploymentUsd"],
         "foreignFromIndia": fi["filled"],
         # US-source income from Layer 1 US itself, for India's worldwide

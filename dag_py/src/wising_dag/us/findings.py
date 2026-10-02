@@ -37,6 +37,7 @@ from ..india.aggregate_india_income import _annual_slice_agg
 from . import constants as C
 from . import us1_penalty_2210, us5_penalty_72t, us_full
 from .nra_fdap import nra_exempt_interest_usd, nra_fdap_breakdown
+from .retirement_dist import sepp_recapture_base_usd
 
 T = C.US
 
@@ -703,6 +704,23 @@ def _findings_us_result(d, ctx):
             d["penalty72tUsd"], ["§72(t)", "Form 5329"],
         ))
 
+    # -- sepp_recapture_72t (report-batch5-nodes.js earlyWithdrawalPenalty72tFinding) --
+    recapture_base_usd = sepp_recapture_base_usd(ctx.get("us")) if d["hasUsScope"] else 0
+    if recapture_base_usd > 0:
+        findings.append(make_finding(
+            "sepp_recapture_72t", "critical", "credit",
+            f"Broken SEPP: §72(t) 10% recaptured on earlier payments ({_fmt(recapture_base_usd * 0.10)} plus interest)",
+            "A substantially equal periodic payment schedule (SEPP) recorded on Layer 1 US was changed or stopped before the later of five "
+            f"years and age 59½. Under §72(t)(4) the exception is lost for every payment already taken: 10% of the {_fmt(recapture_base_usd)}"
+            f" of earlier SEPP payments taken before 59½ ({_fmt(recapture_base_usd * 0.10)}) is added to this year's tax, plus interest for each "
+            "year it was deferred, which isn't included here. This year's payment from that plan gets no exception either, and for a non-resident "
+            "filing Form 1040-NR it is no longer treated as a periodic payment under the treaty (DTAA Art. 20), so the US taxes it like a lump sum.",
+            "Confirm the schedule was really modified (a change in the amount, an extra withdrawal, a rollover or transfer out of the "
+            "account, or stopping early all count). Report the recapture and the interest on Form 5329 and Schedule 2 for this year. If earlier "
+            "SEPP payments were left out of US tax as periodic payments under the treaty, review those years' returns for amendment.",
+            recapture_base_usd * 0.10, ["§72(t)(4)", "Form 5329", "DTAA Art. 20"],
+        ))
+
     return findings
 
 
@@ -784,7 +802,7 @@ NODES["usResidencyConsistencyFinding"] = NodeDef(
 ALL_FINDING_IDS = (
     "amt_applies", "foreign_gift_3520", "covered_expat_gift_tax", "nra_w8ben_missing", "firpta",
     "feie_ineligible", "feie_applied", "nra_fdap_flat_rate", "iso_3921", "state_income_tax",
-    "trump_account_contribution_limit", "underpayment_2210", "early_withdrawal_penalty_72t",
+    "trump_account_contribution_limit", "underpayment_2210", "early_withdrawal_penalty_72t", "sepp_recapture_72t",
     "residency_status_understated_us", "residency_status_overstated_us",
     "residency_status_understated_us_entity", "residency_status_overstated_us_entity",
 )

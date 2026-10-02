@@ -121,9 +121,26 @@ NODES.underpayment2210Finding = {
 
 /* early_withdrawal_penalty_72t — conflicts.js:549-557. */
 NODES.earlyWithdrawalPenalty72tFinding = {
-  deps: ["us5ShouldFire", "penalty72tUsd", "earlyDistUsd", "ageAtYearEndUs"],
-  compute: function (d) {
-    if (!d.us5ShouldFire) return [];
+  deps: ["us5ShouldFire", "penalty72tUsd", "earlyDistUsd", "ageAtYearEndUs", "hasUsScope"],
+  compute: function (d, ctx) {
+    var out = [];
+    // §72(t)(4): a broken SEPP (retirement-dist.js) — the 10% on every earlier
+    // SEPP payment taken before 59½ falls due this year.
+    var recaptureBaseUsd = d.hasUsScope ? require("./retirement-dist.js").seppRecaptureBaseUsd(ctx.us) : 0;
+    if (recaptureBaseUsd > 0) out.push({
+      id: "sepp_recapture_72t", severity: "critical", category: "credit",
+      title: "Broken SEPP: §72(t) 10% recaptured on earlier payments (" + usd(recaptureBaseUsd * 0.10) + " plus interest)",
+      detail: "A substantially equal periodic payment schedule (SEPP) recorded on Layer 1 US was changed or stopped before the later of five " +
+        "years and age 59½. Under §72(t)(4) the exception is lost for every payment already taken: 10% of the " + usd(recaptureBaseUsd) +
+        " of earlier SEPP payments taken before 59½ (" + usd(recaptureBaseUsd * 0.10) + ") is added to this year's tax, plus interest for each " +
+        "year it was deferred, which isn't included here. This year's payment from that plan gets no exception either, and for a non-resident " +
+        "filing Form 1040-NR it is no longer treated as a periodic payment under the treaty (DTAA Art. 20), so the US taxes it like a lump sum.",
+      recommendation: "Confirm the schedule was really modified (a change in the amount, an extra withdrawal, a rollover or transfer out of the " +
+        "account, or stopping early all count). Report the recapture and the interest on Form 5329 and Schedule 2 for this year. If earlier " +
+        "SEPP payments were left out of US tax as periodic payments under the treaty, review those years' returns for amendment.",
+      amountUsd: recaptureBaseUsd * 0.10, refs: ["§72(t)(4)", "Form 5329", "DTAA Art. 20"]
+    });
+    if (!d.us5ShouldFire) return out;
     return [{
       id: "early_withdrawal_penalty_72t", severity: "warning", category: "credit",
       title: "§72(t) 10% early-withdrawal tax on retirement distributions (" + usd(d.penalty72tUsd) + ")",
@@ -135,7 +152,7 @@ NODES.earlyWithdrawalPenalty72tFinding = {
         "expenses over 7.5% of AGI, first home (IRA, up to $10,000), higher education (IRA), birth or adoption (up to $5,000). File Form 5329 " +
         "when an exception applies that box 7 doesn't show.",
       amountUsd: d.penalty72tUsd, refs: ["§72(t)", "Form 5329"]
-    }];
+    }].concat(out);
   }
 };
 
@@ -401,7 +418,7 @@ NODES.buildTaxComputationResult = {
  * merged array's own concatenation order doesn't naturally reproduce. */
 var FINDING_ADD_ORDER = ["dual_residency", "dual_residency_resolved", "treaty_docs_missing", "dtaa_treaty_elections",
   "withholding_documentation_gap", "pan_not_linked_aadhaar", "ftc_gap", "ftc_available", "salary_us_work_india_tax", "salary_not_taxable_india_tds", "dtaa_16_2_short_stay_us", "dtaa_16_2_short_stay_india", "feie_ineligible", "feie_applied",
-  "amt_applies", "india_advance_tax_interest", "underpayment_2210", "early_withdrawal_penalty_72t",
+  "amt_applies", "india_advance_tax_interest", "underpayment_2210", "early_withdrawal_penalty_72t", "sepp_recapture_72t",
   "retirement_excess_elective_deferral", "retirement_excess_ira_contribution", "hsa_excess_contribution", "retirement_rmd_required", "iso_3921", "form_10iea",
   "form_1099da_awareness", "state_income_tax", "niit_medicare_not_creditable", "no_totalization_agreement", "pe_article7",
   "entity_dual_residency_poem", "residency_status_dtaa_conflated_india", "residency_status_mismatch_india_company",

@@ -1,0 +1,87 @@
+{
+  "id": "us_sepp_broken_recapture",
+  "form": "layer1_us.html",
+  "section": "Retirement distributions \u2014 broken SEPP (\u00a772(t)(4))",
+  "story": "US citizen, single, Texas, born 1980-01-01 (46 in 2026). Wages $50,000. Has taken SEPP payments from a 401(k) for three years ($36,000 so far) and this year changed the schedule: $12,000 paid in 2026.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365,
+    "date_of_birth": "1980-01-01"
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0,
+      "date_of_birth": "1980-01-01"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 50000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 50000
+          }
+        }
+      ],
+      "retirement_distributions": [
+        {
+          "payer_name": "Acme 401(k)",
+          "plan_type": "401k",
+          "taxable_usd": 12000,
+          "payment_type": "periodic",
+          "early_exception": "sepp",
+          "rolled_over": false,
+          "date_paid": null,
+          "federal_withheld_usd": null,
+          "sepp_broken": true,
+          "sepp_prior_payments_usd": 36000
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.agiUsd",
+      "value": 62000,
+      "why": "wages 50,000 + 12,000 of 401(k) payments"
+    },
+    {
+      "path": "findings[id=early_withdrawal_penalty_72t].amountUsd",
+      "value": 1200,
+      "why": "the broken schedule loses the SEPP exception for this year's 12,000: 10% = 1,200"
+    },
+    {
+      "path": "findings[id=sepp_recapture_72t].amountUsd",
+      "value": 3600,
+      "why": "s.72(t)(4): 10% of the 36,000 of earlier SEPP payments, due this year (interest not computed)"
+    },
+    {
+      "path": "findings[id=sepp_recapture_72t].severity",
+      "value": "critical",
+      "why": "tax due now on past years' payments"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 10060,
+      "why": "taxable 62,000 \u2212 16,100 = 45,900: 1,240 + 12% \u00d7 33,500 = 5,260; plus 1,200 + 3,600 additional tax"
+    }
+  ]
+}
