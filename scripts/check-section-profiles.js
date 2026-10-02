@@ -59,6 +59,8 @@ function leafKeys(v, out) {
 // Keys that name a structure the forms build by position rather than by a
 // literal field name.
 const STRUCTURAL = new Set(["Q1", "Q2", "Q3", "Q4"]);
+// Year keys of a by-year map (e.g. sepp_prior_payments_by_year: { "2024": … }).
+const isYearKey = (k) => /^\d{4}$/.test(k);
 const formText = {};
 function formHas(file, key) {
   if (!formText[file]) formText[file] = fs.readFileSync(path.join(FORMS, file), "utf8");
@@ -91,7 +93,7 @@ function check(profile, result) {
   [["router", "router.html"], ["india", "layer1_india.html"], ["us", "layer1_us.html"]].forEach(([part, file]) => {
     const superseded = supersededIn(file);
     leafKeys(profile[part] || {}, new Set()).forEach((k) => {
-      if (!STRUCTURAL.has(k) && !formHas(file, k)) problems.push(part + "." + k + ": no such field in " + file);
+      if (!STRUCTURAL.has(k) && !isYearKey(k) && !formHas(file, k)) problems.push(part + "." + k + ": no such field in " + file);
       else if (superseded.has(k)) problems.push(part + "." + k + ": old field name " + file + " renames on save");
     });
   });

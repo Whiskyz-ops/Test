@@ -1,0 +1,86 @@
+{
+  "id": "us_sepp_calc_auto_break",
+  "form": "layer1_us.html",
+  "section": "Retirement distributions \u2014 SEPP method check (Notice 2022-6)",
+  "story": "Same facts as the IRS SEPP FAQ example (Q&A 7): IRA owner born 1973-03-01 (50 in 2023), balance $400,000 on 31 Dec 2022, series started 15 Jan 2023 at 4% over the Single Life Table. US citizen, single, Texas, wages $50,000. Fixed amortization, but $30,000 was taken on 1 July 2026 instead of $21,102; $63,305 taken in 2023-2025. The preparer didn't tick 'changed'.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365,
+    "date_of_birth": "1973-03-01"
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0,
+      "date_of_birth": "1973-03-01"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 50000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 50000
+          }
+        }
+      ],
+      "retirement_distributions": [
+        {
+          "payer_name": "Vanguard IRA",
+          "plan_type": "ira",
+          "taxable_usd": 30000,
+          "payment_type": "periodic",
+          "early_exception": "sepp",
+          "rolled_over": false,
+          "date_paid": "2026-07-01",
+          "federal_withheld_usd": null,
+          "sepp_method": "amortization",
+          "sepp_life_table": "single",
+          "sepp_start_date": "2023-01-15",
+          "sepp_start_balance_usd": 400000,
+          "sepp_interest_rate_pct": 4,
+          "sepp_prior_payments_usd": 63305
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "findings[id=sepp_calculation].severity",
+      "value": "warning",
+      "why": "$30,000 paid vs $21,102 required: differs after the first year"
+    },
+    {
+      "path": "findings[id=sepp_recapture_72t].amountUsd",
+      "value": 7294.54,
+      "why": "10% of the $63,305 of earlier payments (6,330.50) + interest on each year's 10% (2,110.16) from 15 Apr of the next year to 15 Apr 2027 at the IRS underpayment rates, compounded daily: 2023 504.79 + 2024 311.03 + 2025 148.22 = 964.04 (2027 at the last published rate, 7%)"
+    },
+    {
+      "path": "findings[id=early_withdrawal_penalty_72t].amountUsd",
+      "value": 3000,
+      "why": "this year's $30,000, paid on the change date, loses the exception: 10%"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 19065,
+      "why": "8,770 income tax + 3,000 on this year's payment + 6,330.50 recapture + 964.04 interest = 19,064.54"
+    }
+  ]
+}

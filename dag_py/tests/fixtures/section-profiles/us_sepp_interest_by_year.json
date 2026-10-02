@@ -1,0 +1,85 @@
+{
+  "id": "us_sepp_interest_by_year",
+  "form": "layer1_us.html",
+  "section": "Retirement distributions \u2014 SEPP recapture interest (yearly amounts entered)",
+  "story": "US citizen, single, Texas, born 1968-01-01 (59\u00bd on 1 Jul 2027), wages $50,000. SEPP by the RMD method from 1 Mar 2015; earlier payments entered year by year: 2015 $10,000, 2016 $10,500, 2025 $12,000. Took an extra $13,000 on 1 May 2026, ending the series.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365,
+    "date_of_birth": "1968-01-01"
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0,
+      "date_of_birth": "1968-01-01"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 50000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 50000
+          }
+        }
+      ],
+      "retirement_distributions": [
+        {
+          "payer_name": "Fidelity IRA",
+          "plan_type": "ira",
+          "taxable_usd": 13000,
+          "payment_type": "periodic",
+          "early_exception": "sepp",
+          "rolled_over": false,
+          "date_paid": "2026-05-01",
+          "federal_withheld_usd": null,
+          "sepp_method": "rmd",
+          "sepp_life_table": "single",
+          "sepp_start_date": "2015-03-01",
+          "sepp_broken": true,
+          "sepp_change_date": "2026-05-01",
+          "sepp_prior_payments_by_year": {
+            "2015": 10000,
+            "2016": 10500,
+            "2025": 12000
+          }
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "findings[id=sepp_recapture_72t].amountUsd",
+      "value": 4115.27,
+      "why": "10% of 32,500 = 3,250, + interest 780.98 on 2016's 1,050 (15 Apr 2017 \u2192 15 Apr 2027) + 84.29 on 2025's 1,200 (15 Apr 2026 \u2192 15 Apr 2027); 2015's interest would start 15 Apr 2016, before the loaded rates (2017+), so it is left out and reported"
+    },
+    {
+      "path": "findings[id=early_withdrawal_penalty_72t].amountUsd",
+      "value": 1300,
+      "why": "the 2026 payment, made on the change date, loses the exception"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 10795,
+      "why": "AGI 63,000 \u2212 16,100 = 46,900: 1,240 + 12% \u00d7 34,500 = 5,380; + 1,300 + 3,250 + interest = 10795.27"
+    }
+  ]
+}

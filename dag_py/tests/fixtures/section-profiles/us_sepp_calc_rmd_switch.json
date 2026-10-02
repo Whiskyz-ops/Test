@@ -1,0 +1,87 @@
+{
+  "id": "us_sepp_calc_rmd_switch",
+  "form": "layer1_us.html",
+  "section": "Retirement distributions \u2014 SEPP method check (Notice 2022-6)",
+  "story": "IRS SEPP FAQ example 'Sam': IRA owner born 1971-05-01 (55 in 2026), series started 1 Dec 2023 by fixed amortization, switched once to the RMD method for 2026. Balance $810,250 on 31 Dec 2025; $25,641 paid in 2026. US citizen, single, Texas, wages $50,000.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365,
+    "date_of_birth": "1971-05-01"
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0,
+      "date_of_birth": "1971-05-01"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 50000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 50000
+          }
+        }
+      ],
+      "retirement_distributions": [
+        {
+          "payer_name": "Vanguard IRA",
+          "plan_type": "ira",
+          "taxable_usd": 25641,
+          "payment_type": "periodic",
+          "early_exception": "sepp",
+          "rolled_over": false,
+          "date_paid": "2026-03-01",
+          "federal_withheld_usd": null,
+          "sepp_method": "amortization",
+          "sepp_life_table": "single",
+          "sepp_start_date": "2023-12-01",
+          "sepp_start_balance_usd": 400000,
+          "sepp_interest_rate_pct": 4,
+          "sepp_switched_to_rmd": true,
+          "sepp_balance_usd": 810250
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "findings[id=sepp_calculation].severity",
+      "value": "info",
+      "why": "IRS example: $810,250 / 31.6 (Single Life, age 55) = $25,641; the one-time switch isn't a modification"
+    },
+    {
+      "path": "findings[id=sepp_recapture_72t]",
+      "value": null,
+      "why": "switch allowed by Notice 2022-6 \u00a73.03(b)"
+    },
+    {
+      "path": "findings[id=early_withdrawal_penalty_72t]",
+      "value": null,
+      "why": "payment follows the series"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 7811,
+      "why": "AGI 75,641 \u2212 16,100 = 59,541: 5,800 + 22% \u00d7 9,141 = 7,811.02"
+    }
+  ]
+}

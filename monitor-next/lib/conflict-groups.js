@@ -30,7 +30,7 @@ export const GROUPS = [
 const BY_ID = {
   double_tax: ["joint_return_spouse_income_india", "india_tds_refund_due", "joint_return_household_linked", "joint_return_spouse_profile_missing", "joint_return_spouse_two_earner_signs", "joint_return_nra_spouse_no_election", "joint_return_spouse_id_missing", "joint_return_spouse_unknown", "salary_not_taxable_india_tds", "us_withholding_outside_us_wages", "salary_us_work_india_tax", "ftc_gap", "ftc_available", "form67_required", "niit_medicare_not_creditable",
     "no_totalization_agreement", "cross_basis_summary"],
-  payments: ["india_advance_tax_interest", "underpayment_2210", "early_withdrawal_penalty_72t", "sepp_recapture_72t"],
+  payments: ["india_advance_tax_interest", "underpayment_2210", "early_withdrawal_penalty_72t", "sepp_recapture_72t", "sepp_calculation"],
   docs: ["treaty_docs_missing", "withholding_documentation_gap", "pan_not_linked_aadhaar", "form_10iea", "india_itr_form_mismatch",
     "iso_3921", "nra_w8ben_missing", "itin_application_required", "us_pension_withholding_no_w8ben"],
   residency: ["dtaa_16_2_short_stay_us", "dtaa_16_2_short_stay_india", "dual_residency", "dual_residency_resolved", "entity_dual_residency_poem", "dtaa_treaty_elections", "pe_article7",

@@ -247,6 +247,61 @@ def _fmt(n: float) -> str:
     return f"${js_round(n):,}"
 
 
+# SEPP alert text — see report-batch5-nodes.js (seppCalcLine / seppWhy).
+_SEPP_METHOD = {"rmd": "RMD method", "amortization": "fixed amortization", "annuitization": "fixed annuitization"}
+_SEPP_TABLE = {"single": "Single Life", "uniform": "Uniform Lifetime", "joint": "Joint and Last Survivor"}
+_SEPP_INPUT = {"sepp_method": "the method", "date_of_birth": "the date of birth", "sepp_beneficiary_dob": "the beneficiary's date of birth",
+               "sepp_start_date": "the start date", "sepp_interest_rate_pct": "the interest rate", "sepp_start_balance_usd": "the starting balance",
+               "sepp_balance_usd": "the balance on 31 December last year", "life_expectancy": "a life expectancy for that age"}
+
+
+def _sepp_who(a):
+    return a["payerName"] or "SEPP"
+
+
+def _sepp_calc_line(a):
+    c = a["calc"]
+    ages = "age " + js_num_str(c["age"]) + ((" and " + js_num_str(c["beneficiaryAge"])) if c["beneficiaryAge"] is not None else "")
+    how = _SEPP_METHOD[c["method"]] + (" (switched once to the RMD method)" if c["switchedToRmd"] else "")
+    if c["annualUsd"] is None:
+        return _sepp_who(a) + ": " + how + " — can't be worked out without " + ", ".join(_SEPP_INPUT.get(m, m) for m in c["missing"]) + "."
+    if c["factorKind"] == "life_expectancy":
+        calc = f"balance ÷ {c['factor']:.1f} ({_SEPP_TABLE[c['table']]} table, {ages})"
+    elif c["factorKind"] == "amortization":
+        calc = (f"starting balance amortized over {c['lifeExpectancy']:.1f} years ({_SEPP_TABLE[c['table']]} table, {ages}) at "
+                f"{js_num_str(c['rate']['pct'])}% (factor {c['factor']:.4f})")
+    else:
+        calc = f"starting balance ÷ annuity factor {c['factor']:.4f} (IRS mortality rates, {ages}, {js_num_str(c['rate']['pct'])}%)"
+    if not a["mismatch"]:
+        status = "matches"
+    elif a["firstYear"]:
+        status = "differs by " + _fmt(abs(a["paidUsd"] - c["annualUsd"])) + " — first year of the series, so not treated as a change; confirm with the custodian"
+    else:
+        status = "differs by " + _fmt(abs(a["paidUsd"] - c["annualUsd"])) + " — a change to the series"
+    line = _sepp_who(a) + ": " + how + ", " + calc + " = " + _fmt(c["annualUsd"]) + " a year; paid " + _fmt(a["paidUsd"]) + ", " + status + "."
+    if c["rate"] and c["rate"]["over"]:
+        line += (" The rate " + js_num_str(c["rate"]["pct"]) + "% is above the permitted " + js_num_str(c["rate"]["limitPct"]) + "% (the greater of 5% and 120% of the federal mid-term rate"
+                 + ("" if c["rate"]["midtermGiven"] else "; enter the mid-term rate if it allows more") + "): payments set at that rate don't qualify as SEPP.")
+    return line
+
+
+def _sepp_interest_text(a):
+    who = _sepp_who(a) + ": "
+    if a["interestStatus"] in ("computed", "before_rates"):
+        return (who + _fmt(a["interestUsd"]) + " of interest on " + ", ".join(f"{x['year']} ({_fmt(x['amountUsd'])})" for x in a["schedule"])
+                + (" — yearly amounts from the method, as the series held in those years" if a["scheduleSource"] == "method" else "")
+                + ", each year's 10% from 15 April of the next year to " + a["interestTo"] + ", at the IRS underpayment rate compounded daily"
+                + ("; no interest worked out for " + ", ".join(str(y) for y in a["yearsBeforeRates"]) + " (rates before 2017 aren't loaded)" if a["yearsBeforeRates"] else "")
+                + ("; quarters after December 2026 taken at the last published rate (7%)" if a["assumedRates"] else ""))
+    return who + "interest not worked out — " + ("the yearly amounts don't add up to the total of earlier payments entered" if a["interestStatus"] == "schedule_differs"
+                                                  else "enter the earlier SEPP payments year by year on Layer 1 US")
+
+
+def _sepp_why(a):
+    return (_sepp_who(a) + (": paid " + _fmt(a["paidUsd"]) + ", not the " + _fmt(a["calc"]["annualUsd"]) + " its method requires" if a["autoBreak"] else ": marked as changed or stopped")
+            + " (" + a["changeDate"] + ("; the required period runs to " + a["periodEnd"] if a["periodEnd"] else "") + ")")
+
+
 NODES = {
     # ---- 4c4a. NRA raw facts (findings-batch3-nodes.js) ----------------------
     "nraRaw": NodeDef(
@@ -704,33 +759,71 @@ def _findings_us_result(d, ctx):
             d["penalty72tUsd"], ["§72(t)", "Form 5329"],
         ))
 
-    # -- sepp_recapture_72t (report-batch5-nodes.js earlyWithdrawalPenalty72tFinding) --
+    # -- sepp_recapture_72t / sepp_calculation (report-batch5-nodes.js earlyWithdrawalPenalty72tFinding) --
     sepp = sepp_status(ctx.get("us"), d["taxpayerDobRaw"], d["baseYearUs"] or 2026)
+    srows = sepp["rows"] if d["hasUsScope"] else []
     recapture_base_usd = sepp["recaptureBaseUsd"] if d["hasUsScope"] else 0
-    if d["hasUsScope"] and recapture_base_usd == 0 and sepp["afterPeriod"]:
+    this_year = [a for a in srows if a["brokenThisYear"]]
+    earlier = [a for a in srows if a["brokenEarlier"]]
+    after = [a for a in srows if a["afterPeriod"]]
+    if this_year:
+        findings.append(make_finding(
+            "sepp_recapture_72t", "critical", "credit",
+            f"Broken SEPP: §72(t) 10% recaptured on earlier payments ({_fmt(recapture_base_usd * 0.10)} + {_fmt(sepp['interestUsd'])} interest)",
+            "A substantially equal periodic payment series (SEPP) was changed this year, before the later of five years from the first payment and "
+            "age 59½: " + "; ".join(_sepp_why(a) for a in this_year) + ". Under §72(t)(4) the exception is lost for every payment already taken: 10% of the "
+            + _fmt(recapture_base_usd) + " of earlier SEPP payments taken before 59½ (" + _fmt(recapture_base_usd * 0.10) + ") is added to this year's tax, plus "
+            "interest for each year it was deferred. " + "; ".join(_sepp_interest_text(a) for a in this_year) + ". This year's payments from that account made on or after the change get "
+            "no exception either, and for a non-resident filing Form 1040-NR they are no longer periodic payments under the treaty (DTAA Art. 20), so "
+            "the US taxes them like a lump sum.",
+            "Confirm the series was really changed (a different amount from the method's, an extra withdrawal, a rollover or transfer out "
+            "of the account, or stopping early all count; running out of money doesn't). Report the recapture and the interest on Form 5329 "
+            "line 4, with an explanation attached showing each year's amount and interest (Pub. 590-B), and Schedule 2 for this year. If earlier SEPP payments were left out of US tax as periodic payments under the treaty, review those years' "
+            "returns for amendment. The interest uses a standard method (underpayment rate, daily compounding, return due dates); the IRS doesn't "
+            "prescribe one, so agree it with the CPA." + (" Enter the earlier SEPP payments on Layer 1 US so WISING can work out the recapture." if any(a["priorPaymentsUsd"] == 0 for a in this_year) else "")
+            + (" Enter the SEPP start date on Layer 1 US: a change after the later of five years and age 59½ isn't a break, and WISING can only check that with the date." if any(a["missingStartDate"] for a in this_year) else ""),
+            recapture_base_usd * 0.10 + sepp["interestUsd"], ["§72(t)(4)", "Notice 2022-6", "Form 5329", "§6621", "§6622", "DTAA Art. 20"],
+        ))
+    elif earlier:
+        findings.append(make_finding(
+            "sepp_recapture_72t", "warning", "credit",
+            f"SEPP series broken in {earlier[0]['changeYear']} — no exception for this year's payments",
+            "The SEPP series was changed before its required period ended: " + "; ".join(_sepp_why(a) for a in earlier) + ". The §72(t)(4) recapture on the "
+            "earlier payments belonged on that year's return, not this one. The series no longer exists, so this year's payments from that account are "
+            "early distributions with no SEPP exception.",
+            "Check that the recapture (and interest) was reported on Form 5329 for the year of the change; amend that return if not.",
+            0, ["§72(t)(4)", "Form 5329"],
+        ))
+    elif after:
         findings.append(make_finding(
             "sepp_recapture_72t", "info", "credit",
             "SEPP changed after its required period — no §72(t) recapture",
-            "A SEPP schedule marked as changed or stopped on Layer 1 US was changed after the later of five years from the first payment and age 59½ ("
-            + "; ".join(((a["payerName"] + ": ") if a["payerName"] else "") + "period ended " + a["periodEnd"] for a in sepp["afterPeriod"])
-            + "). A change after that point is allowed: the earlier payments keep their exception.",
+            "A SEPP series was changed after the later of five years from the first payment and age 59½: " + "; ".join(_sepp_why(a) for a in after)
+            + ". A change after that point is allowed: the earlier payments keep their exception.",
             "No recapture to report. Keep the SEPP start date and payment history on file in case the IRS asks.",
             0, ["§72(t)(4)"],
         ))
-    if recapture_base_usd > 0:
+    with_method = [a for a in srows if a["calc"]["method"]]
+    if with_method:
+        any_auto = any(a["autoBreak"] for a in with_method)
+        any_first = any(a["mismatch"] and a["firstYear"] for a in with_method)
+        any_over = any(a["calc"]["rate"] and a["calc"]["rate"]["over"] for a in with_method)
+        any_missing = any(a["calc"]["annualUsd"] is None for a in with_method)
         findings.append(make_finding(
-            "sepp_recapture_72t", "critical", "credit",
-            f"Broken SEPP: §72(t) 10% recaptured on earlier payments ({_fmt(recapture_base_usd * 0.10)} plus interest)",
-            "A substantially equal periodic payment schedule (SEPP) recorded on Layer 1 US was changed or stopped before the later of five "
-            f"years and age 59½. Under §72(t)(4) the exception is lost for every payment already taken: 10% of the {_fmt(recapture_base_usd)}"
-            f" of earlier SEPP payments taken before 59½ ({_fmt(recapture_base_usd * 0.10)}) is added to this year's tax, plus interest for each "
-            "year it was deferred, which isn't included here. This year's payment from that plan gets no exception either, and for a non-resident "
-            "filing Form 1040-NR it is no longer treated as a periodic payment under the treaty (DTAA Art. 20), so the US taxes it like a lump sum.",
-            "Confirm the schedule was really modified (a change in the amount, an extra withdrawal, a rollover or transfer out of the "
-            "account, or stopping early all count). Report the recapture and the interest on Form 5329 and Schedule 2 for this year. If earlier "
-            "SEPP payments were left out of US tax as periodic payments under the treaty, review those years' returns for amendment."
-            + (" Enter the SEPP start date on Layer 1 US: a change after the later of five years and age 59½ isn't a break, and WISING can only check that with the date." if sepp["missingStartDate"] else ""),
-            recapture_base_usd * 0.10, ["§72(t)(4)", "Form 5329", "DTAA Art. 20"],
+            "sepp_calculation", "warning" if any_auto or any_first or any_over or any_missing else "info", "credit",
+            ("SEPP check: a payment differs from the amount its method requires" if any_auto
+             else "SEPP check: interest rate above the permitted limit" if any_over
+             else "SEPP check: first-year payment differs from the method's amount" if any_first
+             else "SEPP check: inputs missing to work out the required amount" if any_missing
+             else "SEPP check: payments match the amount each method requires"),
+            "Required annual amount under Notice 2022-6, from the IRS life-expectancy and mortality tables (Treas. Reg. §1.401(a)(9)-9): "
+            + " ".join(_sepp_calc_line(a) for a in with_method),
+            ("Compare with the custodian's own calculation and the 1099-R. A payment that differs from the method's amount "
+             "after the first year changes the series (§72(t)(4)); if the inputs on Layer 1 US are wrong, correct them." if any_auto or any_first
+             else "A rate above the limit means the payments were never SEPP: check the rate and the federal mid-term rate for the two months before the first payment." if any_over
+             else "Complete the SEPP inputs on Layer 1 US → Retirement distributions so WISING can check the amount." if any_missing
+             else "Nothing to do. Keep the calculation on file."),
+            0, ["§72(t)(2)(A)(iv)", "Notice 2022-6", "Treas. Reg. §1.401(a)(9)-9"],
         ))
 
     return findings
@@ -814,7 +907,7 @@ NODES["usResidencyConsistencyFinding"] = NodeDef(
 ALL_FINDING_IDS = (
     "amt_applies", "foreign_gift_3520", "covered_expat_gift_tax", "nra_w8ben_missing", "firpta",
     "feie_ineligible", "feie_applied", "nra_fdap_flat_rate", "iso_3921", "state_income_tax",
-    "trump_account_contribution_limit", "underpayment_2210", "early_withdrawal_penalty_72t", "sepp_recapture_72t",
+    "trump_account_contribution_limit", "underpayment_2210", "early_withdrawal_penalty_72t", "sepp_recapture_72t", "sepp_calculation",
     "residency_status_understated_us", "residency_status_overstated_us",
     "residency_status_understated_us_entity", "residency_status_overstated_us_entity",
 )
