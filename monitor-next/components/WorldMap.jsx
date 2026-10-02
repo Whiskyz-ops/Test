@@ -2,7 +2,10 @@
 import { useCallback, useState } from "react";
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from "react-simple-maps";
 import { ZoomIn, ZoomOut } from "lucide-react";
-import worldTopo from "world-atlas/countries-110m.json";
+// India's official boundaries (all of J&K and Ladakh, incl. PoK, Gilgit-
+// Baltistan, Aksai Chin) — Natural Earth's India point of view, built by
+// scripts/build-world-map.js. Same shape and names as world-atlas 110m.
+import worldTopo from "@/lib/countries-110m-india-view.json";
 import { STATUS_META, PAL } from "@/lib/logic";
 
 // world-atlas country names we care about + label anchor coords [lon,lat]
