@@ -405,7 +405,11 @@ var DAG_ONLY_KEYS = {
   salaryWorkLocation: true, salaryOutsideIndiaInr: true, usWorkSalaryUsd: true, indiaTaxOnUsWorkSalaryUsd: true, indiaNotChargeableSalaryUsd: true, indiaNotChargeableSalaryTaxUsd: true, salaryWorkBasis: true, indiaSalaryOutsideIndiaUsd: true,
   // One income list (aggregateusincome-nodes.js's foreignIncomeFromIndia):
   // new structural fields on model.income.us, present on every profile.
-  foreignOtherIncome: true, seEarningsFromIndiaUsd: true, foreignFromIndia: true, usOwnSourceForIndia: true, w2WorkLocation: true
+  foreignOtherIncome: true, seEarningsFromIndiaUsd: true, foreignFromIndia: true, usOwnSourceForIndia: true, w2WorkLocation: true,
+  // Retirement distributions paid as a lump sum vs periodically (retirement-dist.js, DTAA Art. 20).
+  usRetirementLumpSumUsd: true, usRetirementPeriodicUsd: true,
+  // DTAA Art. 22 teaching / research pay excluded from wages (treaty-art22.js).
+  art22ExemptWagesUsd: true
 };
 function close(a, b) { var tol = Math.max(2, Math.abs(b) * 1e-6); return Math.abs(a - b) <= tol; }
 function deepEqual(a, b, p, diffs) {
@@ -514,7 +518,7 @@ function sortedFindings(f) { return (f || []).slice().sort(function (x, y) { ret
 // stays that way permanently, so any fuzz-generated entity profile that
 // owns ≥10% of a foreign corporation now genuinely diverges — DAG correctly
 // fires, engine categorically cannot.
-var KNOWN_EXTRA_FINDING_ID = /^(india_tds_refund_due|us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india|retirement_excess_elective_deferral|retirement_excess_ira_contribution|hsa_excess_contribution|retirement_rmd_required|s83b_election_not_filed_timely|itin_application_required|lrs_investment_tcs|nra_eci_fdap_classification_check|us_withholding_outside_us_wages|dtaa_16_2_short_stay_us|dtaa_16_2_short_stay_india|treaty_rate_not_recognized|ftc_gap|ftc_available|niit_medicare_not_creditable|underpayment_2210|cfc|cfc_below_threshold|us_pension_withholding_no_w8ben|us_social_security_india_exempt|treaty_saving_clause_citizen|greencard_treaty_nonresident|nra_art15_services_exempt|nra_us_interest_exempt|joint_return_spouse_income_india|joint_return_household_linked|joint_return_spouse_profile_missing|joint_return_spouse_two_earner_signs|joint_return_nra_spouse_no_election|joint_return_spouse_id_missing|joint_return_spouse_unknown)$/;
+var KNOWN_EXTRA_FINDING_ID = /^(treaty_article_22_teacher|india_tds_refund_due|us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india|retirement_excess_elective_deferral|retirement_excess_ira_contribution|hsa_excess_contribution|retirement_rmd_required|s83b_election_not_filed_timely|itin_application_required|lrs_investment_tcs|nra_eci_fdap_classification_check|us_withholding_outside_us_wages|dtaa_16_2_short_stay_us|dtaa_16_2_short_stay_india|treaty_rate_not_recognized|ftc_gap|ftc_available|niit_medicare_not_creditable|underpayment_2210|cfc|cfc_below_threshold|us_pension_withholding_no_w8ben|us_social_security_india_exempt|treaty_saving_clause_citizen|greencard_treaty_nonresident|nra_art15_services_exempt|nra_us_interest_exempt|joint_return_spouse_income_india|joint_return_household_linked|joint_return_spouse_profile_missing|joint_return_spouse_two_earner_signs|joint_return_nra_spouse_no_election|joint_return_spouse_id_missing|joint_return_spouse_unknown)$/;
 // cfc (Phase 7, XB-14, GILTI/NCTI quantification): the finding's detail/
 // recommendation/refs text now differs unconditionally from the frozen
 // engine's static text whenever it fires — real computed inclusion numbers
@@ -725,6 +729,7 @@ var KNOWN_TREATY_TEXT_FIELDS = {
   dtaa_16_2_short_stay_india: ["recommendation", "refs"],
   nra_fdap_flat_rate: ["recommendation"],
   form67_required: ["title", "detail", "recommendation", "refs"],
+  early_withdrawal_penalty_72t: ["title", "detail", "recommendation"],
   equity_comp_sourcing: ["recommendation", "refs"]
 };
 

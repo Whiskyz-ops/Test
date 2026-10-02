@@ -604,6 +604,51 @@ function treatyFindings(d, ctx, isNra) {
     });
   }
 
+  // DTAA Art. 22 teacher / researcher exemption and the saving clause
+  // (treaty-art22.js): applied, blocked for a citizen / green-card holder,
+  // or past the two years from arrival.
+  var a22 = require("./treaty-art22.js").art22(ctx.us, require("./treaty-art22.js").baseYearOf(ctx.router, ctx.us));
+  if (a22 && a22.claimedUsd > 0) {
+    var a22Window = a22.arrivalDate ? " (arrived " + a22.arrivalDate + "; the two years end " + a22.windowEnd + ")" : "";
+    if (a22.blockedBy) {
+      out.push({
+        id: "treaty_article_22_teacher", severity: "warning", category: "residency",
+        title: "DTAA Art. 22 teaching / research exemption blocked by the saving clause (Art. 1(3))",
+        detail: "The client claims the India–US treaty's teacher and researcher exemption on " + usd(a22.claimedUsd) + " of pay, but is a " +
+          (a22.blockedBy === "citizen" ? "US citizen" : "green-card holder") + ". The saving clause lets the US tax its citizens and residents as if the " +
+          "treaty didn't exist; its exception for Art. 22 (Art. 1(4)(b)) covers only US residents who are neither citizens nor green-card holders. " +
+          "WISING taxes this pay in full.",
+        recommendation: a22.blockedBy === "citizen"
+          ? "Remove the Art. 22 claim, and any Form 8233 given to the payer; the pay is taxable on Form 1040."
+          : "Remove the Art. 22 claim and Form 8233. The only route to it is treaty residence in India under Art. 4 (Form 1040-NR with Form 8833) — for a long-term green-card holder that is an expatriation, so take that advice first.",
+        amountUsd: 0, refs: ["DTAA Art. 1(3)", "DTAA Art. 1(4)(b)", "DTAA Art. 22"]
+      });
+    } else if (a22.exemptUsd > 0) {
+      out.push({
+        id: "treaty_article_22_teacher", severity: "info", category: "residency",
+        title: "DTAA Art. 22: " + usd(a22.exemptUsd) + " of teaching / research pay exempt from US tax",
+        detail: "The client claims the India–US treaty's teacher and researcher exemption on " + usd(a22.claimedUsd) + " of pay" + a22Window +
+          (a22.fraction < 1 ? "; " + usd(a22.exemptUsd) + " of it falls within the two years" : "") + ". " +
+          (isNra ? "As a non-resident alien the client claims it directly. "
+            : "As a US resident alien who is neither a citizen nor a green-card holder, the client keeps it under the saving clause's exception (DTAA Art. 1(4)(b)). ") +
+          "WISING leaves " + usd(a22.exemptUsd) + " out of US " + (isNra ? "income." : "wages."),
+        recommendation: "Attach Form 8833 (treaty-based return position) and give the payer Form 8233 to stop withholding. The exemption needs the client to " +
+          "have been resident in India immediately before arriving, and the pay to be for teaching or research at a university or other recognised educational " +
+          "institution; it ends two years after arrival." + (a22.arrivalDate ? "" : " Enter the arrival date on Layer 1 US so WISING can apply the two-year limit."),
+        amountUsd: 0, refs: ["DTAA Art. 22", "DTAA Art. 1(4)(b)", "Form 8833", "Form 8233"]
+      });
+    } else {
+      out.push({
+        id: "treaty_article_22_teacher", severity: "warning", category: "residency",
+        title: "DTAA Art. 22 no longer applies — the two years from arrival ended " + a22.windowEnd,
+        detail: "The client claims the India–US treaty's teacher and researcher exemption on " + usd(a22.claimedUsd) + " of pay" + a22Window +
+          ", but none of this tax year falls within the two years Art. 22 allows. WISING taxes this pay in full.",
+        recommendation: "Remove the Art. 22 claim and any Form 8233 with the payer, and check that the employer withholds US tax from now on.",
+        amountUsd: 0, refs: ["DTAA Art. 22"]
+      });
+    }
+  }
+
   if (isNra) {
     var rows = n.fdapBreakdown || [];
     var exRow = rows.filter(function (r) { return r.type === "interest_exempt"; })[0];
@@ -911,8 +956,16 @@ NODES.nraEffectiveEciFdap = {
   }
 };
 
+// §72(t) on a 1040-NR: the 10% on early distributions the US taxes — a
+// periodic pension the treaty leaves to India (DTAA Art. 20(1)) carries none
+// (retirement-dist.js treatyPeriodicExempt / TREATY_EXEMPTS_72T).
+NODES.nraAdditionalTax72tUsd = {
+  deps: ["taxpayerDobRaw", "baseYearUs"],
+  compute: function (d, ctx) { return require("./retirement-dist.js").early72tBaseAfterTreatyUsd(ctx.us, ctx.india, d.taxpayerDobRaw, d.baseYearUs || 2026) * 0.10; }
+};
+
 NODES.nraTaxResult = {
-  deps: ["nraRaw", "usFilingStatusRaw", "dedUs", "additionalMedicareOwedBoundary", "usVisaTypeRaw", "nraEffectiveEciFdap", "aggregateUsIncomeResult", "royaltiesDirectUsSourceUsdRaw"],
+  deps: ["nraRaw", "usFilingStatusRaw", "dedUs", "additionalMedicareOwedBoundary", "usVisaTypeRaw", "nraEffectiveEciFdap", "aggregateUsIncomeResult", "royaltiesDirectUsSourceUsdRaw", "nraAdditionalTax72tUsd"],
   compute: function (d, ctx) {
     var nra = d.nraRaw;
     var split = d.nraEffectiveEciFdap;
@@ -938,6 +991,10 @@ NODES.nraTaxResult = {
       ? Math.min(seUsd, eciUsd) : 0;
     var eciBeforeArt15Usd = eciUsd;
     eciUsd -= art15ExemptUsd;
+    // DTAA Art. 22 teaching / research pay: already out of the wages when the
+    // ECI was derived from them; taken out here when Layer 1 typed the ECI.
+    var art22Nra = require("./treaty-art22.js").art22(ctx.us, require("./treaty-art22.js").baseYearOf(ctx.router, ctx.us));
+    if (art22Nra && split.source === "layer1") eciUsd -= Math.min(Math.max(0, eciUsd), art22Nra.exemptUsd);
     var claim = (nra.treatyRateClaims || [])[0];
     var claimedRate = (claim && claim.elected_rate != null) ? Math.max(0, Math.min(1, Number(claim.elected_rate) / 100)) : null;
     var w8benOnFile = nra.submittedW8ben === true;
@@ -968,10 +1025,11 @@ NODES.nraTaxResult = {
     var addlMedicare = d.additionalMedicareOwedBoundary || 0;
     var art15TaxSavedUsd = art15ExemptUsd > 0
       ? bracketTax(Math.max(0, eciBeforeArt15Usd - deductionUsd), brackets) - eciTaxUsd : 0;
-    var totalTax = eciTaxUsd + fdapTaxUsd + fdapDetail.socialSecurityTaxUsd + fdapDetail.pensionTaxUsd + addlMedicare;
+    var add72tUsd = d.nraAdditionalTax72tUsd || 0;
+    var totalTax = eciTaxUsd + fdapTaxUsd + fdapDetail.socialSecurityTaxUsd + fdapDetail.pensionTaxUsd + addlMedicare + add72tUsd;
     var nraIncomeUsd = eciUsd + fdapUsd + fdapDetail.socialSecurityTaxableUsd + fdapDetail.pensionTaxableUsd;
 
-    return {
+    return Object.assign(add72tUsd > 0 ? { additionalTax72tUsd: add72tUsd } : {}, {
       filingStatus: status, worldwide: false, isNra: true,
       totalIncomeUsd: nraIncomeUsd,
       agiUsd: eciUsd, deductionUsd: deductionUsd, deductionMode: deductionMode,
@@ -992,7 +1050,7 @@ NODES.nraTaxResult = {
         article212Eligible: article212Eligible, article212AmbiguousJ1: article212AmbiguousJ1, visaType: visaType },
       feie: { claimed: false, eligible: false, taxHomeAbroad: false, testMet: false, reasons: [], appliedUsd: 0 },
       effectiveRate: nraIncomeUsd > 0 ? totalTax / nraIncomeUsd : 0
-    };
+    });
   }
 };
 

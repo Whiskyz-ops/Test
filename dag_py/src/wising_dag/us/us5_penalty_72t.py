@@ -15,6 +15,7 @@ from __future__ import annotations
 from ..core.dates import parse_date
 from ..core.graph import NodeDef
 from ..core.util import num, safe
+from .retirement_dist import early_72t_base_after_treaty_usd
 
 
 def _router_us_signal(ctx) -> bool:
@@ -61,16 +62,18 @@ NODES = {
     ),
     "baseYear": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.meta.baseYear", None)),
 
-    "earlyDistUsd": NodeDef(deps=("iraDistUsdRaw", "dist401kUsdRaw"), compute=lambda d, ctx: d["iraDistUsdRaw"] + d["dist401kUsdRaw"]),
+    # Paid before 59½ with no §72(t)(2) exception (retirement_dist.py).
+    "earlyDistUsd": NodeDef(deps=("dobRaw", "baseYear"), compute=lambda d, ctx: early_72t_base_after_treaty_usd(ctx.get("us"), ctx.get("india"), d["dobRaw"], d["baseYear"]),
+                            layer1_fields=("us.income_us_source.retirement_distributions", "us.income_us_source.ira_distributions_usd", "us.income_us_source.401k_distributions_usd")),
     "ageAtYearEndUs": NodeDef(deps=("dobRaw", "baseYear"), compute=_age_at_year_end_us),
 
     "penalty72tUsd": NodeDef(
         deps=("hasUsScope", "earlyDistUsd", "ageAtYearEndUs"), scope_gate="hasUsScope", out_of_scope_value=0,
-        compute=lambda d, ctx: d["earlyDistUsd"] * 0.10 if (d["earlyDistUsd"] > 0 and d["ageAtYearEndUs"] is not None and d["ageAtYearEndUs"] < 59) else 0,
+        compute=lambda d, ctx: d["earlyDistUsd"] * 0.10 if d["earlyDistUsd"] > 0 else 0,
     ),
     "shouldFire": NodeDef(
         deps=("hasUsScope", "earlyDistUsd", "ageAtYearEndUs"), scope_gate="hasUsScope", out_of_scope_value=False,
-        compute=lambda d, ctx: d["earlyDistUsd"] > 0 and d["ageAtYearEndUs"] is not None and d["ageAtYearEndUs"] < 59,
+        compute=lambda d, ctx: d["earlyDistUsd"] > 0,
     ),
 
     # ---- IRC §402(g) elective-deferral aggregate excess (Step 11 audit) -----

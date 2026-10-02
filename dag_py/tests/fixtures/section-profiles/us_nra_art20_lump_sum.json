@@ -1,0 +1,87 @@
+{
+  "id": "us_nra_art20_lump_sum",
+  "form": "layer1_us.html",
+  "section": "NRA (Form 1040-NR) \u2014 retirement distributions under DTAA Art. 20",
+  "story": "Indian resident, non-resident alien, born 1980-06-01 (46 in 2026), no US days, files Form 1040-NR with a W-8BEN. US pension paid monthly: $30,000. Cashed out an IRA as a $50,000 lump sum, no exception.",
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 0,
+    "date_of_birth": "1980-06-01",
+    "has_us_source_income_or_assets": true
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0,
+      "date_of_birth": "1980-06-01"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 0,
+      "spt_test_met": false,
+      "final_us_residency_status": "NRA"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "nra_specific": {
+      "files_form_1040nr": true,
+      "submitted_w8ben": true,
+      "us_eci_income_usd": 0,
+      "us_fdap_income_usd": 0
+    },
+    "income_us_source": {
+      "retirement_distributions": [
+        {
+          "payer_name": "Acme Pension Plan",
+          "plan_type": "pension",
+          "taxable_usd": 30000,
+          "payment_type": "periodic",
+          "early_exception": "none",
+          "rolled_over": false,
+          "date_paid": null,
+          "federal_withheld_usd": null
+        },
+        {
+          "payer_name": "Vanguard",
+          "plan_type": "ira",
+          "taxable_usd": 50000,
+          "payment_type": "lump_sum",
+          "early_exception": "none",
+          "rolled_over": false,
+          "date_paid": "2026-03-15",
+          "federal_withheld_usd": null
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.nra.pensionTreatyExemptUsd",
+      "value": 30000,
+      "why": "DTAA Art. 20(1): periodic pension payments to an Indian resident are taxable only in India"
+    },
+    {
+      "path": "computed.usTax.additionalTax72tUsd",
+      "value": 5000,
+      "why": "s.72(t) 10% on the 50,000 early lump sum; the treaty-exempt periodic pension carries none (engine setting pending CPA review)"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 20000,
+      "why": "Art. 20 covers only periodic payments, so the lump sum is US-source FDAP at 30% (15,000), plus the 5,000 additional tax"
+    },
+    {
+      "path": "findings[id=early_withdrawal_penalty_72t].amountUsd",
+      "value": 5000,
+      "why": "the alert counts the lump sum only, matching the 1040-NR computation"
+    }
+  ]
+}

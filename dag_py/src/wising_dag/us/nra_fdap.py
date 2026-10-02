@@ -58,24 +58,28 @@ def nra_fdap_breakdown(fdap_usd, agg, royalties_usd, rental_elected, claims, w8b
         typed.append({"type": "other", "baseUsd": fdap_usd - typed_usd, "rate": 0.30, "basis": "statutory 30%"})
     ss_usd = usd(agg.get("socialSecurityUs"))
     pension_usd = usd(agg.get("usRetirementIncomeExclSs"))
+    # DTAA Art. 20 covers pensions (periodic payments) only — see nra-fdap-util.js.
+    lump_sum_usd = min(pension_usd, num(agg.get("usRetirementLumpSumUsd")))
+    periodic_usd = pension_usd - lump_sum_usd
     extra = [
         {"type": "social_security", "baseUsd": 0.85 * ss_usd, "rate": 0.30, "basis": "§871(a)(3): 85% taxable at 30%; DTAA Art. 20(2)"},
-        ({"type": "pensions", "baseUsd": pension_usd, "rate": 0, "basis": "DTAA Art. 20(1): periodic pensions taxable only in India"} if treaty_resident
-         else {"type": "pensions", "baseUsd": pension_usd, "rate": 0.30, "basis": "30% — not resident in India, so DTAA Art. 20(1) doesn't apply"}),
+        ({"type": "pensions", "baseUsd": periodic_usd, "rate": 0, "basis": "DTAA Art. 20(1): periodic pensions taxable only in India"} if treaty_resident
+         else {"type": "pensions", "baseUsd": periodic_usd, "rate": 0.30, "basis": "30% — not resident in India, so DTAA Art. 20(1) doesn't apply"}),
+        {"type": "retirement_lump_sum", "baseUsd": lump_sum_usd, "rate": 0.30, "basis": "30% — a lump-sum withdrawal isn't a pension (periodic payments) under DTAA Art. 20"},
     ]
     rows = [r for r in typed + extra if r["baseUsd"] > 0]
     claim_type = {"dividends": "dividend", "interest": "interest", "royalties": "royaltie"}
     for r in rows:
         r["taxUsd"] = r["baseUsd"] * r["rate"]
     gap_usd = sum(gap(claim_type[r["type"]], r["baseUsd"]) for r in rows if r["type"] in claim_type)
-    lump = [r for r in rows if r["type"] not in ("social_security", "pensions")]
+    lump = [r for r in rows if r["type"] not in ("social_security", "pensions", "retirement_lump_sum")]
     lump_base = sum(r["baseUsd"] for r in lump)
     lump_tax = sum(r["taxUsd"] for r in lump)
     return {
         "rows": rows, "fdapTaxUsd": lump_tax, "effectiveRate": (lump_tax / lump_base) if lump_base > 0 else None,
         "socialSecurityTaxableUsd": 0.85 * ss_usd, "socialSecurityTaxUsd": 0.85 * ss_usd * 0.30,
-        "pensionUsd": pension_usd if treaty_resident else 0, "pensionTaxUsd": 0 if treaty_resident else 0.30 * pension_usd,
-        "pensionTaxableUsd": 0 if treaty_resident else pension_usd, "gapUsd": gap_usd,
+        "pensionUsd": periodic_usd if treaty_resident else 0, "pensionTaxUsd": (0 if treaty_resident else 0.30 * periodic_usd) + 0.30 * lump_sum_usd,
+        "pensionTaxableUsd": (0 if treaty_resident else periodic_usd) + lump_sum_usd, "gapUsd": gap_usd,
     }
 
 

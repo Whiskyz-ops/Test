@@ -36,7 +36,7 @@ const BY_ID = {
   residency: ["dtaa_16_2_short_stay_us", "dtaa_16_2_short_stay_india", "dual_residency", "dual_residency_resolved", "entity_dual_residency_poem", "dtaa_treaty_elections", "pe_article7",
     "state_treaty_not_binding", "treaty_rate_not_recognized", "us_dual_status_split_year", "nra_fdap_flat_rate",
     "nra_article_21_2_standard_deduction", "nra_eci_fdap_classification_check", "nra_j1_article_21_2_review",
-    "treaty_saving_clause_citizen", "greencard_treaty_nonresident"],
+    "treaty_saving_clause_citizen", "greencard_treaty_nonresident", "treaty_article_22_teacher"],
   feie: ["feie_ineligible", "feie_applied"],
   mismatch: ["tax_year_mismatch", "fx_basis", "retirement_mismatch", "deemed_dividend_buyback_mismatch", "equity_comp_sourcing",
     "promoter_buyback_additional_tax", "special_rate_gaming_winnings", "chapter_xiia_elected_no_holdings",

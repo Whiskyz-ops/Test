@@ -1,0 +1,95 @@
+{
+  "id": "us_retirement_rows_sepp",
+  "form": "layer1_us.html",
+  "section": "Retirement distributions (Form 1099-R rows)",
+  "story": "US citizen, single, Texas, born 1985-03-01 (41 in 2026, under 59\u00bd). Wages $50,000. Two Form 1099-Rs: a $20,000 traditional-IRA lump sum with no exception, and $12,000 of 401(k) payments taken as substantially equal periodic payments (SEPP), plus a $30,000 IRA distribution rolled over within 60 days.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365,
+    "date_of_birth": "1985-03-01"
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0,
+      "date_of_birth": "1985-03-01"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 50000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 50000
+          }
+        }
+      ],
+      "retirement_distributions": [
+        {
+          "payer_name": "Fidelity",
+          "plan_type": "ira",
+          "taxable_usd": 20000,
+          "payment_type": "lump_sum",
+          "early_exception": "none",
+          "rolled_over": false,
+          "date_paid": "2026-05-10",
+          "federal_withheld_usd": null
+        },
+        {
+          "payer_name": "Acme 401(k)",
+          "plan_type": "401k",
+          "taxable_usd": 12000,
+          "payment_type": "periodic",
+          "early_exception": "sepp",
+          "rolled_over": false,
+          "date_paid": null,
+          "federal_withheld_usd": null
+        },
+        {
+          "payer_name": "Schwab",
+          "plan_type": "ira",
+          "taxable_usd": 30000,
+          "payment_type": "lump_sum",
+          "early_exception": "none",
+          "rolled_over": true,
+          "date_paid": null,
+          "federal_withheld_usd": null
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.agiUsd",
+      "value": 82000,
+      "why": "wages 50,000 + IRA 20,000 + 401(k) 12,000; the rolled-over 30,000 isn't income"
+    },
+    {
+      "path": "findings[id=early_withdrawal_penalty_72t].amountUsd",
+      "value": 2000,
+      "why": "s.72(t): 10% of the 20,000 IRA lump sum only; the SEPP payments are excepted by s.72(t)(2)(A)(iv)"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 11210,
+      "why": "taxable 82,000 \u2212 16,100 = 65,900: 1,240 + 12% \u00d7 38,000 + 22% \u00d7 15,500 = 9,210, plus the 2,000 additional tax"
+    }
+  ]
+}

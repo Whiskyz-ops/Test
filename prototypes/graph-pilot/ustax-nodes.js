@@ -869,11 +869,9 @@ var NODES = {
   additionalTax72tUsd: {
     deps: ["taxpayerDobRaw", "baseYearUs"],
     compute: function (d, ctx) {
-      var distUsd = num(safe(ctx.us, "income_us_source.ira_distributions_usd", 0)) + num(safe(ctx.us, "income_us_source.401k_distributions_usd", 0));
-      if (!(distUsd > 0) || !d.taxpayerDobRaw) return 0;
-      var dob = new Date(d.taxpayerDobRaw);
-      if (isNaN(dob.getTime())) return 0;
-      return (d.baseYearUs || 2026) - dob.getFullYear() < 59 ? distUsd * 0.10 : 0;
+      // Distributions paid before 59½ with no §72(t)(2) exception recorded
+      // (SEPP, separation at 55+, death, disability, ...) — retirement-dist.js.
+      return require("./retirement-dist.js").early72tBaseUsd(ctx.us, d.taxpayerDobRaw, d.baseYearUs || 2026) * 0.10;
     }
   },
   usTaxResult: {

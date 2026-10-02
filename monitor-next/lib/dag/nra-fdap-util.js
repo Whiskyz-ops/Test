@@ -45,23 +45,29 @@ function nraFdapBreakdown(fdapUsd, agg, royaltiesUsd, rentalElected, claims, w8b
   } else if (fdapUsd > typedUsd) typed.push({ type: "other", baseUsd: fdapUsd - typedUsd, rate: 0.30, basis: "statutory 30%" });
   var ssUsd = num(agg.socialSecurityUs && agg.socialSecurityUs.usd);
   var pensionUsd = num(agg.usRetirementIncomeExclSs && agg.usRetirementIncomeExclSs.usd);
+  // DTAA Art. 20 covers pensions — periodic payments; a lump-sum
+  // withdrawal isn't one, so the US keeps its 30% on it (retirement-dist.js).
+  var lumpSumUsd = Math.min(pensionUsd, num(agg.usRetirementLumpSumUsd));
+  var periodicUsd = pensionUsd - lumpSumUsd;
   var extra = [
     { type: "social_security", baseUsd: 0.85 * ssUsd, rate: 0.30, basis: "§871(a)(3): 85% taxable at 30%; DTAA Art. 20(2)" },
     treatyResident
-      ? { type: "pensions", baseUsd: pensionUsd, rate: 0, basis: "DTAA Art. 20(1): periodic pensions taxable only in India" }
-      : { type: "pensions", baseUsd: pensionUsd, rate: 0.30, basis: "30% — not resident in India, so DTAA Art. 20(1) doesn't apply" }
+      ? { type: "pensions", baseUsd: periodicUsd, rate: 0, basis: "DTAA Art. 20(1): periodic pensions taxable only in India" }
+      : { type: "pensions", baseUsd: periodicUsd, rate: 0.30, basis: "30% — not resident in India, so DTAA Art. 20(1) doesn't apply" },
+    { type: "retirement_lump_sum", baseUsd: lumpSumUsd, rate: 0.30, basis: "30% — a lump-sum withdrawal isn't a pension (periodic payments) under DTAA Art. 20" }
   ];
   var rows = typed.concat(extra).filter(function (r) { return r.baseUsd > 0; });
   var claimType = { dividends: "dividend", interest: "interest", royalties: "royaltie" };
   rows.forEach(function (r) { r.taxUsd = r.baseUsd * r.rate; });
   var gapUsd = rows.reduce(function (s, r) { return s + (claimType[r.type] ? gap(claimType[r.type], r.baseUsd) : 0); }, 0);
   var sum = function (list) { return list.reduce(function (s, r) { return s + (r.taxUsd || 0); }, 0); };
-  var lumpRows = rows.filter(function (r) { return r.type !== "social_security" && r.type !== "pensions"; });
+  var lumpRows = rows.filter(function (r) { return r.type !== "social_security" && r.type !== "pensions" && r.type !== "retirement_lump_sum"; });
   var lumpBase = lumpRows.reduce(function (s, r) { return s + r.baseUsd; }, 0);
   return {
     rows: rows, fdapTaxUsd: sum(lumpRows), effectiveRate: lumpBase > 0 ? sum(lumpRows) / lumpBase : null,
     socialSecurityTaxableUsd: 0.85 * ssUsd, socialSecurityTaxUsd: 0.85 * ssUsd * 0.30,
-    pensionUsd: treatyResident ? pensionUsd : 0, pensionTaxUsd: treatyResident ? 0 : 0.30 * pensionUsd, pensionTaxableUsd: treatyResident ? 0 : pensionUsd, gapUsd: gapUsd
+    pensionUsd: treatyResident ? periodicUsd : 0, pensionTaxUsd: (treatyResident ? 0 : 0.30 * periodicUsd) + 0.30 * lumpSumUsd,
+    pensionTaxableUsd: (treatyResident ? 0 : periodicUsd) + lumpSumUsd, gapUsd: gapUsd
   };
 }
 

@@ -365,7 +365,7 @@ def _build_tax_computation_us_nra_result(u):
     # pensions (us/nra_fdap.py). The single-rate layout is kept whenever
     # every FDAP row carries the same rate. Mirrors report-batch2-nodes.js.
     nra = u["nra"]
-    fdap_rows = [r for r in (nra.get("fdapBreakdown") or []) if r["type"] not in ("social_security", "pensions")]
+    fdap_rows = [r for r in (nra.get("fdapBreakdown") or []) if r["type"] not in ("social_security", "pensions", "retirement_lump_sum")]
     mixed_fdap = len({r["rate"] for r in fdap_rows}) > 1
     ss_tax_usd = nra.get("socialSecurityTaxUsd") or 0
     pension_exempt_usd = nra.get("pensionTreatyExemptUsd") or 0
@@ -389,9 +389,25 @@ def _build_tax_computation_us_nra_result(u):
     if pension_exempt_usd > 0:
         extra_rows.append({"label": f"US pensions / IRA distributions ({usd(pension_exempt_usd)}) — not taxed in the US", "usd": 0,
                            "trace": _source("DTAA Art. 20(1): periodic pension and annuity payments to an Indian resident are taxable only in India — claim the exemption on Form 1040-NR Schedule OI (Form 8833 where required). Lump sums are not covered by Art. 20(1).")})
+    # Lump-sum withdrawals (outside DTAA Art. 20) and §72(t) — see report-batch2-nodes.js.
+    lump_row = next((r for r in (nra.get("fdapBreakdown") or []) if r["type"] == "retirement_lump_sum"), None)
+    lump_tax_usd = lump_row["taxUsd"] if lump_row else 0
+    add_72t_usd = u.get("additionalTax72tUsd") or 0
+    if lump_tax_usd > 0:
+        extra_rows.append({"label": "Tax on lump-sum retirement withdrawals (flat 30%)", "usd": lump_tax_usd,
+                           "trace": _calc("DTAA Art. 20 leaves only pensions — periodic payments — to the country of residence; a lump-sum withdrawal from an IRA / 401(k) / plan stays taxable in the US as FDAP at 30% (§871(a)). India taxes it too if the client is resident there, with credit for the US tax (s.159, Form 44)",
+                                          [{"label": "Lump-sum withdrawals", "amount": lump_row["baseUsd"]}, {"label": "Rate applied", "display": "30%"}])})
+    if add_72t_usd > 0:
+        extra_rows.append({"label": "Early-withdrawal additional tax (§72(t))", "usd": add_72t_usd,
+                           "trace": _calc("10% of retirement distributions paid before age 59½ that the US taxes, unless an exception is recorded on Layer 1 US (SEPP, separation at 55+, disability, ...). A periodic pension the treaty leaves to India carries no US tax, so no 10% either",
+                                          [{"label": "Additional tax", "amount": add_72t_usd}])})
     total_parts = [{"label": "Tax on ECI", "amount": nra["eciTaxUsd"]}, {"label": "Tax on FDAP", "amount": nra["fdapTaxUsd"]}]
     if ss_tax_usd > 0:
         total_parts.append({"label": "Tax on US Social Security", "amount": ss_tax_usd})
+    if lump_tax_usd > 0:
+        total_parts.append({"label": "Tax on lump-sum retirement withdrawals", "amount": lump_tax_usd})
+    if add_72t_usd > 0:
+        total_parts.append({"label": "§72(t) additional tax", "amount": add_72t_usd})
     total_parts.append({"label": "Additional Medicare tax", "amount": u["additionalMedicareUsd"]})
     return {
         "title": "US federal tax — Form 1040-NR (ECI graduated / FDAP flat)",

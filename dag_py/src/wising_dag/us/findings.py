@@ -692,13 +692,14 @@ def _findings_us_result(d, ctx):
     if d["us5ShouldFire"]:
         findings.append(make_finding(
             "early_withdrawal_penalty_72t", "warning", "credit",
-            f"§72(t) 10% early-withdrawal penalty on IRA/401(k) distributions ({_fmt(d['penalty72tUsd'])})",
-            f"{_fmt(d['earlyDistUsd'])} of IRA/401(k) distributions are on file for a taxpayer age {d['ageAtYearEndUs']}"
-            f" at year-end — under the 59½ threshold. Absent a statutory exception, §72(t) adds a flat 10% additional tax ({_fmt(d['penalty72tUsd'])}"
-            ") on top of ordinary income tax already computed on this same income.",
-            "Confirm whether a real exception applies (death, disability, SEPP under §72(t)(2)(A)(iv), first $10,000 for a "
-            "first-time home purchase, higher education, medical expenses over 7.5% of AGI, qualified birth/adoption up to "
-            "$5,000) — none of these are captured by Layer 1 today, so this assumes the full 10% applies until confirmed otherwise.",
+            f"§72(t) 10% early-withdrawal tax on retirement distributions ({_fmt(d['penalty72tUsd'])})",
+            f"{_fmt(d['earlyDistUsd'])} of IRA / 401(k) / plan distributions was paid before age 59½ (age {d['ageAtYearEndUs']}"
+            f" at year-end) with no §72(t) exception recorded on Layer 1 US. §72(t) adds a flat 10% additional tax ({_fmt(d['penalty72tUsd'])}"
+            ") on top of the ordinary income tax on the same income.",
+            "Check each distribution's Form 1099-R (box 7 code) and record any exception on Layer 1 US → Retirement distributions: "
+            "substantially equal periodic payments (SEPP, §72(t)(2)(A)(iv)), separation from service at 55 or later, death, disability, medical "
+            "expenses over 7.5% of AGI, first home (IRA, up to $10,000), higher education (IRA), birth or adoption (up to $5,000). File Form 5329 "
+            "when an exception applies that box 7 doesn't show.",
             d["penalty72tUsd"], ["§72(t)", "Form 5329"],
         ))
 

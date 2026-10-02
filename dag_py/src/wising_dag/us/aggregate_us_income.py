@@ -11,6 +11,8 @@ from ..core.fx_util import fx_rate
 from ..core.graph import NodeDef
 from ..core.util import js_round, num, safe
 from . import constants as C
+from .retirement_dist import totals as retirement_totals
+from .treaty_art22 import art22, base_year_of
 
 US_SEC179_MAX_USD = C.US["US_SEC179_MAX_USD"]
 US_SEC179_PHASEOUT_THRESHOLD_USD = C.US["US_SEC179_PHASEOUT_THRESHOLD_USD"]
@@ -411,12 +413,12 @@ def _business_and_se_computation(d, ctx):
 
 
 def _retirement_computation(d, ctx):
-    ui = d["uiAgg"]
-    ira_dist_usd = num(safe(ui, "ira_distributions_usd", 0))
-    dist_401k_usd = num(safe(ui, "401k_distributions_usd", 0))
-    pension_usd = num(safe(ui, "pension_income_usd", 0))
-    social_security_gross_usd = num(safe(ui, "social_security_benefits_usd", 0))
-    return {"usRetirementIncomeExclSsUsd": ira_dist_usd + dist_401k_usd + pension_usd, "socialSecurityUsUsd": social_security_gross_usd, "retirementDistributionsSubjectTo72tUsd": ira_dist_usd + dist_401k_usd}
+    # One row per 1099-R (retirement_dist.py), plus the older single figures.
+    t = retirement_totals({"income_us_source": d["uiAgg"]})
+    social_security_gross_usd = num(safe(d["uiAgg"], "social_security_benefits_usd", 0))
+    return {"usRetirementIncomeExclSsUsd": t["totalUsd"], "socialSecurityUsUsd": social_security_gross_usd,
+            "retirementDistributionsSubjectTo72tUsd": t["totalUsd"] - t["pensionUsd"],
+            "usRetirementLumpSumUsd": t["lumpSumUsd"], "usRetirementPeriodicUsd": t["periodicUsd"]}
 
 
 # ---- Capital-gains special character: §1(h)(4) collectibles (28%-capped
@@ -770,6 +772,10 @@ def _aggregate_us_income_result(d, ctx):
     # India salary for US-performed work) is ordinary US wages.
     fw_us_source = d["foreignWagesSourcing"]["usSourceUsd"] + fi["wagesUsSourceUsd"]
     wages_usd = w["wagesUsd"] + fw_us_source
+    # DTAA Art. 22 teaching / research pay (treaty_art22.py) — see aggregateusincome-nodes.js.
+    a22 = art22(ctx.get("us"), base_year_of(ctx.get("router"), ctx.get("us")))
+    art22_exempt_usd = min(wages_usd, a22["exemptUsd"]) if a22 else 0
+    wages_usd -= art22_exempt_usd
     foreign_interest = di["foreignInterestUsd"] + epf["taxableEpfInterestUsd"]
     foreign_pension = di["foreignPensionUsd"] + epf["taxableNpsWithdrawalUsd"] + fi["pensionUsd"]
 
@@ -794,6 +800,8 @@ def _aggregate_us_income_result(d, ctx):
         "usRetirementIncome": _m(ret["usRetirementIncomeExclSsUsd"] + ret["socialSecurityUsUsd"], ctx),
         "usRetirementIncomeExclSs": _m(ret["usRetirementIncomeExclSsUsd"], ctx),
         "retirementDistributionsSubjectTo72tUsd": ret["retirementDistributionsSubjectTo72tUsd"],
+        "usRetirementLumpSumUsd": ret["usRetirementLumpSumUsd"], "usRetirementPeriodicUsd": ret["usRetirementPeriodicUsd"],
+        "art22ExemptWagesUsd": art22_exempt_usd,
         "socialSecurityUs": _m(ret["socialSecurityUsUsd"], ctx),
         "taxExemptInterestUs": _m(di["taxExemptInterestUsUsd"], ctx),
         "interestUs": _m(di["interestUsUsd"], ctx), "ordinaryDividendsUs": _m(di["ordinaryDividendsUsUsd"], ctx), "qualifiedDividendsUs": _m(di["qualifiedDividendsUsUsd"], ctx),

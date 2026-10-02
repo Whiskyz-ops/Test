@@ -40,6 +40,8 @@ from ..core.util import js_num_str, js_round, num, safe
 from . import constants as C
 from .ustax import bracket_breakdown, bracket_tax, compute_salt_cap, compute_us_tax_core
 from .nra_fdap import nra_exempt_interest_usd, nra_fdap_breakdown, nra_interest_split_recorded
+from .retirement_dist import early_72t_base_after_treaty_usd
+from .treaty_art22 import art22, base_year_of
 
 T = C.US
 
@@ -405,6 +407,46 @@ def _treaty_findings(d, ctx, is_nra):
             0, ["DTAA Art. 4", "Treas. Reg. §301.7701(b)-7", "IRC §7701(b)(6)", "IRC §877A", "Form 8833", "Form 8854"],
         ))
 
+    # DTAA Art. 22 teacher / researcher exemption and the saving clause — see ustax-full-nodes.js.
+    a22 = art22(ctx.get("us"), base_year_of(ctx.get("router"), ctx.get("us")))
+    if a22 and a22["claimedUsd"] > 0:
+        a22_window = f" (arrived {a22['arrivalDate']}; the two years end {a22['windowEnd']})" if a22["arrivalDate"] else ""
+        if a22["blockedBy"]:
+            out.append(make_finding(
+                "treaty_article_22_teacher", "warning", "residency",
+                "DTAA Art. 22 teaching / research exemption blocked by the saving clause (Art. 1(3))",
+                "The client claims the India–US treaty's teacher and researcher exemption on " + _usd(a22["claimedUsd"]) + " of pay, but is a "
+                + ("US citizen" if a22["blockedBy"] == "citizen" else "green-card holder") + ". The saving clause lets the US tax its citizens and residents as if the "
+                "treaty didn't exist; its exception for Art. 22 (Art. 1(4)(b)) covers only US residents who are neither citizens nor green-card holders. "
+                "WISING taxes this pay in full.",
+                ("Remove the Art. 22 claim, and any Form 8233 given to the payer; the pay is taxable on Form 1040." if a22["blockedBy"] == "citizen"
+                 else "Remove the Art. 22 claim and Form 8233. The only route to it is treaty residence in India under Art. 4 (Form 1040-NR with Form 8833) — for a long-term green-card holder that is an expatriation, so take that advice first."),
+                0, ["DTAA Art. 1(3)", "DTAA Art. 1(4)(b)", "DTAA Art. 22"],
+            ))
+        elif a22["exemptUsd"] > 0:
+            out.append(make_finding(
+                "treaty_article_22_teacher", "info", "residency",
+                "DTAA Art. 22: " + _usd(a22["exemptUsd"]) + " of teaching / research pay exempt from US tax",
+                "The client claims the India–US treaty's teacher and researcher exemption on " + _usd(a22["claimedUsd"]) + " of pay" + a22_window
+                + ("; " + _usd(a22["exemptUsd"]) + " of it falls within the two years" if a22["fraction"] < 1 else "") + ". "
+                + ("As a non-resident alien the client claims it directly. " if is_nra
+                   else "As a US resident alien who is neither a citizen nor a green-card holder, the client keeps it under the saving clause's exception (DTAA Art. 1(4)(b)). ")
+                + "WISING leaves " + _usd(a22["exemptUsd"]) + " out of US " + ("income." if is_nra else "wages."),
+                "Attach Form 8833 (treaty-based return position) and give the payer Form 8233 to stop withholding. The exemption needs the client to "
+                "have been resident in India immediately before arriving, and the pay to be for teaching or research at a university or other recognised educational "
+                "institution; it ends two years after arrival." + ("" if a22["arrivalDate"] else " Enter the arrival date on Layer 1 US so WISING can apply the two-year limit."),
+                0, ["DTAA Art. 22", "DTAA Art. 1(4)(b)", "Form 8833", "Form 8233"],
+            ))
+        else:
+            out.append(make_finding(
+                "treaty_article_22_teacher", "warning", "residency",
+                "DTAA Art. 22 no longer applies — the two years from arrival ended " + str(a22["windowEnd"]),
+                "The client claims the India–US treaty's teacher and researcher exemption on " + _usd(a22["claimedUsd"]) + " of pay" + a22_window
+                + ", but none of this tax year falls within the two years Art. 22 allows. WISING taxes this pay in full.",
+                "Remove the Art. 22 claim and any Form 8233 with the payer, and check that the employer withholds US tax from now on.",
+                0, ["DTAA Art. 22"],
+            ))
+
     if is_nra:
         rows = n.get("fdapBreakdown") or []
         ex_row = next((r for r in rows if r["type"] == "interest_exempt"), None)
@@ -715,6 +757,11 @@ def _nra_effective_eci_fdap(d, ctx):
     return {"eciUsd": dv["derivedEciUsd"] + rental, "fdapUsd": dv["derivedFdapUsd"] - rental, "source": "derived"}
 
 
+# §72(t) on a 1040-NR — see ustax-full-nodes.js's nraAdditionalTax72tUsd.
+def _nra_additional_tax_72t_usd(d, ctx):
+    return early_72t_base_after_treaty_usd(ctx.get("us"), ctx.get("india"), d["taxpayerDobRaw"], d["baseYearUs"] or 2026) * 0.10
+
+
 def _nra_tax_result(d, ctx):
     # A married NRA files 1040-NR at married-filing-separately rates (joint
     # rates need a §6013(g)/(h) election, which routes to the resident
@@ -736,6 +783,10 @@ def _nra_tax_result(d, ctx):
                                                 and us_days_art15 < 90 and se_usd > 0) else 0
     eci_before_art15_usd = eci_usd
     eci_usd -= art15_exempt_usd
+    # DTAA Art. 22 — see ustax-full-nodes.js.
+    a22 = art22(ctx.get("us"), base_year_of(ctx.get("router"), ctx.get("us")))
+    if a22 and split["source"] == "layer1":
+        eci_usd -= min(max(0.0, eci_usd), a22["exemptUsd"])
     claims = d["nraRaw"]["treatyRateClaims"] or []
     claim = claims[0] if claims else None
     claimed_rate = max(0.0, min(1.0, num(claim["elected_rate"]) / 100)) if (claim and claim.get("elected_rate") is not None) else None
@@ -765,10 +816,12 @@ def _nra_tax_result(d, ctx):
     fdap_tax_usd = detail["fdapTaxUsd"]
     addl_medicare = d["additionalMedicareOwedBoundary"] or 0
     art15_tax_saved_usd = (bracket_tax(max(0.0, eci_before_art15_usd - deduction_usd), brackets) - eci_tax_usd) if art15_exempt_usd > 0 else 0
-    total_tax = eci_tax_usd + fdap_tax_usd + detail["socialSecurityTaxUsd"] + detail["pensionTaxUsd"] + addl_medicare
+    add_72t_usd = d.get("nraAdditionalTax72tUsd") or 0
+    total_tax = eci_tax_usd + fdap_tax_usd + detail["socialSecurityTaxUsd"] + detail["pensionTaxUsd"] + addl_medicare + add_72t_usd
     nra_income_usd = eci_usd + fdap_usd + detail["socialSecurityTaxableUsd"] + detail["pensionTaxableUsd"]
 
     return {
+        **({"additionalTax72tUsd": add_72t_usd} if add_72t_usd > 0 else {}),
         "filingStatus": status, "worldwide": False, "isNra": True,
         "totalIncomeUsd": nra_income_usd,
         "agiUsd": eci_usd, "deductionUsd": deduction_usd, "deductionMode": deduction_mode,
@@ -1043,8 +1096,10 @@ def build(base):
     r.register("nraEffectiveEciFdap", NodeDef(
         deps=("nraSplitDeclaredRaw", "nraEciIncomeUsdRaw", "nraFdapIncomeUsdRaw", "nraDerivedEciFdapResult", "aggregateUsIncomeResult"),
         compute=_nra_effective_eci_fdap, layer1_fields=("us.nra_specific.rental_net_basis_election",)))
+    r.register("nraAdditionalTax72tUsd", NodeDef(deps=("taxpayerDobRaw", "baseYearUs"), compute=_nra_additional_tax_72t_usd,
+                                                 layer1_fields=("us.income_us_source.retirement_distributions", "india.residency_detail.final_india_residency_status")))
     r.register("nraTaxResult", NodeDef(
-        deps=("nraRaw", "nraFdapIncomeUsdRaw", "nraEciIncomeUsdRaw", "usFilingStatusRaw", "dedUs", "additionalMedicareOwedBoundary", "usVisaTypeRaw", "nraEffectiveEciFdap", "aggregateUsIncomeResult", "royaltiesDirectUsSourceUsdRaw"),
+        deps=("nraRaw", "nraFdapIncomeUsdRaw", "nraEciIncomeUsdRaw", "usFilingStatusRaw", "dedUs", "additionalMedicareOwedBoundary", "usVisaTypeRaw", "nraEffectiveEciFdap", "aggregateUsIncomeResult", "royaltiesDirectUsSourceUsdRaw", "nraAdditionalTax72tUsd"),
         compute=_nra_tax_result, layer1_fields=("us.nra_specific.rental_net_basis_election",),
     ))
 

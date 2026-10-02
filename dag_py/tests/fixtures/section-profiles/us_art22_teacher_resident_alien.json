@@ -1,0 +1,68 @@
+{
+  "id": "us_art22_teacher_resident_alien",
+  "form": "layer1_us.html",
+  "section": "Residency \u2014 DTAA Art. 22 teachers and researchers",
+  "story": "Indian professor who arrived on 1 July 2024 to teach at a US university, resident in India just before. In the US all of 2026 (a resident alien under the substantial presence test), no green card. University pay $100,000, all for teaching.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 365,
+      "spt_test_met": true,
+      "final_us_residency_status": "RESIDENT_ALIEN",
+      "article_22_claim": true,
+      "article_22_arrival_date": "2024-07-01",
+      "article_22_exempt_wages_usd": 100000
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "State University",
+          "wages_box1_usd": 100000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 100000
+          }
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.agiUsd",
+      "value": 50411,
+      "why": "100,000 university pay; Art. 22 exempts the part earned inside the two-year window (arrival 2024-07-01, ends 2026-07-01): 181/365 \u00d7 100,000 = 49,589, leaving 50,411"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 3869,
+      "why": "taxable 50,411 \u2212 16,100 = 34,311: 1,240 + 12% \u00d7 21,911 = 3,869"
+    },
+    {
+      "path": "findings[id=treaty_article_22_teacher].severity",
+      "value": "info",
+      "why": "Art. 1(4)(b) keeps Art. 22 for a resident alien who isn't a citizen or green-card holder"
+    }
+  ]
+}

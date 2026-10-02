@@ -52,6 +52,8 @@ def test_aggregate_us_income_result_matches_golden(fixture_id):
     # graph, where indiaIncomeForUsBoundary stays None, so every value is
     # still the frozen engine's.
     exclude |= {"foreignOtherIncome", "seEarningsFromIndiaUsd", "foreignFromIndia", "usOwnSourceForIndia", "w2WorkLocation"}
+    # Retirement distributions paid as a lump sum vs periodically (DTAA Art. 20): DAG-only.
+    exclude |= {"usRetirementLumpSumUsd", "usRetirementPeriodicUsd", "art22ExemptWagesUsd"}
     # cfcPerEntityTrace (entity-routing fix, conftest.py's own docstring):
     # sec962Elected reclassifies to True for a real C-corp shareholder,
     # regardless of the raw flag — a real, permanent divergence for this one

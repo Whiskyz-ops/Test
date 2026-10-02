@@ -1,0 +1,68 @@
+{
+  "id": "us_art22_teacher_green_card",
+  "form": "layer1_us.html",
+  "section": "Residency \u2014 DTAA Art. 22 teachers and researchers",
+  "story": "Same professor as us_art22_teacher_resident_alien, but holding a green card. The Art. 22 box is ticked anyway.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": false,
+    "has_green_card": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": true,
+      "us_days_current_year": 365,
+      "spt_test_met": true,
+      "final_us_residency_status": "GREEN_CARD",
+      "article_22_claim": true,
+      "article_22_arrival_date": "2024-07-01",
+      "article_22_exempt_wages_usd": 100000
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "State University",
+          "wages_box1_usd": 100000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 100000
+          }
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.agiUsd",
+      "value": 100000,
+      "why": "the claim is blocked: all 100,000 stays in income"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 13170,
+      "why": "taxable 100,000 \u2212 16,100 = 83,900: 1,240 + 12% \u00d7 38,000 + 22% \u00d7 33,500 = 13,170"
+    },
+    {
+      "path": "findings[id=treaty_article_22_teacher].severity",
+      "value": "warning",
+      "why": "the saving clause (Art. 1(3)) lets the US tax a green-card holder as if the treaty didn't exist, and Art. 1(4)(b) doesn't reach green-card holders"
+    }
+  ]
+}

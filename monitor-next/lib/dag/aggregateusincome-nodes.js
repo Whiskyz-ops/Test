@@ -723,11 +723,13 @@ var NODES = {
     deps: ["uiAgg"],
     compute: function (d) {
       var ui = d.uiAgg;
-      var iraDistUsd = num(safe(ui, "ira_distributions_usd", 0));
-      var dist401kUsd = num(safe(ui, "401k_distributions_usd", 0));
-      var pensionUsd = num(safe(ui, "pension_income_usd", 0));
+      // One row per 1099-R (retirement-dist.js), plus the older single figures.
+      var t = require("./retirement-dist.js").totals({ income_us_source: ui });
       var socialSecurityGrossUsd = num(safe(ui, "social_security_benefits_usd", 0));
-      return { usRetirementIncomeExclSsUsd: iraDistUsd + dist401kUsd + pensionUsd, socialSecurityUsUsd: socialSecurityGrossUsd, retirementDistributionsSubjectTo72tUsd: iraDistUsd + dist401kUsd };
+      return { usRetirementIncomeExclSsUsd: t.totalUsd, socialSecurityUsUsd: socialSecurityGrossUsd, retirementDistributionsSubjectTo72tUsd: t.totalUsd - t.pensionUsd,
+        // Paid as a lump sum vs periodically (DTAA Art. 20: only periodic
+        // pensions are taxable only in the country of residence).
+        usRetirementLumpSumUsd: t.lumpSumUsd, usRetirementPeriodicUsd: t.periodicUsd };
     }
   },
 
@@ -919,6 +921,12 @@ var NODES = {
       // income, just not foreign-source.
       var fwUsSourceUsd = d.foreignWagesSourcing.usSourceUsd + fi.wagesUsSourceUsd;
       var wagesUsd = w.wagesUsd + fwUsSourceUsd;
+      // DTAA Art. 22: teaching / research pay exempt for up to two years
+      // (treaty-art22.js; kept for a resident alien by the saving clause's
+      // Art. 1(4)(b) exception, denied to a citizen or green-card holder).
+      var art22 = require("./treaty-art22.js").art22(ctx.us, require("./treaty-art22.js").baseYearOf(ctx.router, ctx.us));
+      var art22ExemptUsd = art22 ? Math.min(wagesUsd, art22.exemptUsd) : 0;
+      wagesUsd -= art22ExemptUsd;
       var foreignInterest = di.foreignInterestUsd + epf.taxableEpfInterestUsd;
       var foreignPension = di.foreignPensionUsd + epf.taxableNpsWithdrawalUsd + fi.pensionUsd;
 
@@ -943,6 +951,8 @@ var NODES = {
         usRetirementIncome: m(ret.usRetirementIncomeExclSsUsd + ret.socialSecurityUsUsd, ctx),
         usRetirementIncomeExclSs: m(ret.usRetirementIncomeExclSsUsd, ctx),
         retirementDistributionsSubjectTo72tUsd: ret.retirementDistributionsSubjectTo72tUsd,
+        usRetirementLumpSumUsd: ret.usRetirementLumpSumUsd, usRetirementPeriodicUsd: ret.usRetirementPeriodicUsd,
+        art22ExemptWagesUsd: art22ExemptUsd,
         socialSecurityUs: m(ret.socialSecurityUsUsd, ctx),
         taxExemptInterestUs: m(di.taxExemptInterestUsUsd, ctx),
         interestUs: m(di.interestUsUsd, ctx), ordinaryDividendsUs: m(di.ordinaryDividendsUsUsd, ctx), qualifiedDividendsUs: m(di.qualifiedDividendsUsUsd, ctx),

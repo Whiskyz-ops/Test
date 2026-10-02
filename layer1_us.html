@@ -1399,6 +1399,28 @@
                     </div>
 
                     <!-- Exempt Individual Details (Dynamic) -->
+                    <!-- DTAA Art. 22 teachers / researchers (treaty-art22.js): kept for a US
+                         resident alien by the saving clause's Art. 1(4)(b) exception; a
+                         citizen or green-card holder can't use it. -->
+                    <div class="p-4 bg-black/20 border border-white/5 rounded-xl flex flex-col gap-3 mt-2">
+                        <label class="flex items-center justify-between gap-4 cursor-pointer">
+                            <span class="flex flex-col">
+                                <span class="text-[10px] font-bold text-white/80">Indian teacher / researcher treaty exemption (DTAA Art. 22)</span>
+                                <span class="text-[9px] text-white/40">Pay for teaching or research at a university or similar institution, for up to two years from arrival, by someone resident in India just before arriving.</span>
+                            </span>
+                            <input type="checkbox" id="res-art22-claim" onchange="updateResidencyField('article_22_claim', this.checked); toggleArt22(this.checked)" class="w-4 h-4 accent-brandCyan">
+                        </label>
+                        <div id="div-art22-fields" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Date of arrival in the US</label>
+                                <input type="date" id="res-art22-arrival" onchange="updateResidencyField('article_22_arrival_date', this.value || null)" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1.5 focus:border-brandCyan focus:ring-0 [color-scheme:dark]">
+                            </div>
+                            <div>
+                                <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Teaching / research pay this year (USD)</label>
+                                <input type="text" inputmode="numeric" id="res-art22-wages" oninput="updateResidencyField('article_22_exempt_wages_usd', parseFormattedNumber(this.value) || null)" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1.5 focus:border-brandCyan focus:ring-0 font-mono">
+                            </div>
+                        </div>
+                    </div>
                     <div id="exempt-details-container" class="hidden p-4 bg-black/20 border border-white/5 rounded-xl flex flex-col gap-4 mt-2">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -2246,6 +2268,19 @@
                 <div class="flex justify-between items-center border-b border-white/5 pb-2">
                     <span class="text-xs font-black uppercase tracking-widest text-brandCyan">Other Income (Schedule 1 & 1099-G/SSA)</span>
                     <button type="button" onclick="triggerBizUpload('passive_other')" class="px-2 py-1 bg-brandCyan/10 hover:bg-brandCyan/20 text-brandCyan border border-brandCyan/30 rounded text-[8px] font-black uppercase tracking-widest transition-all">Upload Year-Round Statements</button>
+                </div>
+                <!-- Retirement distributions (Form 1099-R), one row each: the engine's
+                     retirement-dist.js reads them for income, the §72(t) 10% on early
+                     withdrawals (with its exceptions) and, on a 1040-NR, DTAA Art. 20
+                     (periodic pensions only). -->
+                <div class="flex flex-col gap-3 p-4 bg-white/5 border border-white/10 rounded-xl mb-4">
+                    <div class="flex items-center justify-between gap-4">
+                        <span class="text-[9px] font-black uppercase tracking-widest text-white/60">Retirement Distributions (Form 1099-R)</span>
+                        <span id="ret-dist-total" class="text-[10px] font-mono text-brandCyan"></span>
+                    </div>
+                    <p class="text-[10px] text-white/50">One row per Form 1099-R: IRA, Roth IRA, 401(k), pension or other plan. Before age 59½ a 10% additional tax applies (§72(t)) unless an exception is recorded. For a non-resident alien resident in India, only periodic payments are exempt under the treaty (DTAA Art. 20); lump sums stay taxable in the US.</p>
+                    <div id="ret-dist-list" class="flex flex-col gap-2"></div>
+                    <button type="button" onclick="addRetDist()" class="w-full py-2 bg-white/5 hover:bg-white/10 border border-white/10 border-dashed rounded-xl text-[10px] font-bold text-white/60">+ Add distribution</button>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -11688,6 +11723,68 @@ div.innerHTML = `
 
         usState.income_us_source.stcg_us_source_usd = stcg;
         usState.income_us_source.ltcg_us_source_usd = ltcg;
+    }
+
+    // ---- Retirement distributions (income_us_source.retirement_distributions) ----
+    const RET_PLAN_TYPES = [['ira', 'Traditional IRA'], ['roth_ira', 'Roth IRA'], ['401k', '401(k) / 403(b)'], ['pension', 'Pension / annuity'], ['other_plan', 'Other plan']];
+    const RET_EXCEPTIONS = [['none', 'None'], ['sepp', 'SEPP (substantially equal periodic payments)'], ['separation_age_55', 'Left the employer at 55 or later'],
+        ['disability', 'Disability'], ['death', 'Death (paid to a beneficiary)'], ['medical', 'Medical expenses over 7.5% of AGI'], ['first_home', 'First home (IRA, up to $10,000)'],
+        ['education', 'Higher education (IRA)'], ['birth_adoption', 'Birth or adoption (up to $5,000)'], ['other', 'Other exception']];
+    function retDistList() {
+        if (!usState.income_us_source) usState.income_us_source = {};
+        if (!Array.isArray(usState.income_us_source.retirement_distributions)) usState.income_us_source.retirement_distributions = [];
+        return usState.income_us_source.retirement_distributions;
+    }
+    function retDistRows() { const l = usState.income_us_source && usState.income_us_source.retirement_distributions; return Array.isArray(l) ? l : []; }
+    function retEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+    function renderRetDists() {
+        const box = document.getElementById('ret-dist-list');
+        if (!box) return;
+        const F = 'w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1.5 focus:border-brandCyan focus:ring-0', L = 'block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1';
+        const opts = (list, v) => list.map(([k, l]) => `<option value="${k}" class="bg-black" ${v === k ? 'selected' : ''}>${l}</option>`).join('');
+        const money = (n) => (n === null || n === undefined || n === '') ? '' : Number(n).toLocaleString('en-US');
+        box.innerHTML = retDistRows().map((r, i) => `
+            <div class="grid grid-cols-2 md:grid-cols-12 gap-2 items-end p-3 bg-[#121212] border border-white/10 rounded-xl">
+                <div class="md:col-span-3"><label class="${L}">Plan</label><select id="rd-plan-${i}" onchange="updateRetDist(${i}, 'plan_type', this.value)" class="${F}">${opts(RET_PLAN_TYPES, r.plan_type)}</select></div>
+                <div class="md:col-span-3"><label class="${L}">Payer</label><input type="text" id="rd-payer-${i}" value="${retEsc(r.payer_name)}" oninput="updateRetDist(${i}, 'payer_name', this.value)" class="${F}"></div>
+                <div class="md:col-span-2"><label class="${L}">Taxable (1099-R box 2a)</label><input type="text" inputmode="numeric" id="rd-taxable-${i}" value="${money(r.taxable_usd)}" oninput="updateRetDist(${i}, 'taxable_usd', this.value)" class="${F} font-mono"></div>
+                <div class="md:col-span-2"><label class="${L}">Paid as</label><select id="rd-type-${i}" onchange="updateRetDist(${i}, 'payment_type', this.value)" class="${F}">${opts([['periodic', 'Periodic payments'], ['lump_sum', 'Lump sum']], r.payment_type)}</select></div>
+                <div class="md:col-span-2"><label class="${L}">Date paid</label><input type="date" id="rd-date-${i}" value="${retEsc(r.date_paid)}" onchange="updateRetDist(${i}, 'date_paid', this.value)" class="${F} [color-scheme:dark]"></div>
+                <div class="md:col-span-4"><label class="${L}">§72(t) exception (if paid before 59½)</label><select id="rd-exc-${i}" onchange="updateRetDist(${i}, 'early_exception', this.value)" class="${F}">${opts(RET_EXCEPTIONS, r.early_exception || 'none')}</select></div>
+                <div class="md:col-span-3"><label class="${L}">Federal tax withheld (box 4)</label><input type="text" inputmode="numeric" id="rd-wh-${i}" value="${money(r.federal_withheld_usd)}" oninput="updateRetDist(${i}, 'federal_withheld_usd', this.value)" class="${F} font-mono"></div>
+                <label class="md:col-span-4 flex items-center gap-2 text-[10px] text-white/70 pb-2"><input type="checkbox" id="rd-roll-${i}" ${r.rolled_over === true ? 'checked' : ''} onchange="updateRetDist(${i}, 'rolled_over', this.checked)" class="w-4 h-4 accent-brandCyan"> Rolled over within 60 days (not taxable)</label>
+                <div class="md:col-span-1 flex justify-end"><button type="button" onclick="removeRetDist(${i})" aria-label="Remove this distribution" class="px-2 py-1.5 text-xs text-white/50 hover:text-red-400">✕</button></div>
+            </div>`).join('');
+        refreshRetDistTotal();
+    }
+    function refreshRetDistTotal() {
+        const el = document.getElementById('ret-dist-total');
+        if (!el) return;
+        const t = retDistRows().filter(r => r.rolled_over !== true).reduce((a, r) => a + (Number(r.taxable_usd) || 0), 0);
+        el.textContent = t > 0 ? 'Taxable $' + t.toLocaleString('en-US') : '';
+    }
+    function addRetDist() {
+        retDistList().push({ plan_type: 'ira', payer_name: null, taxable_usd: null, payment_type: 'lump_sum', early_exception: 'none', date_paid: null, rolled_over: false, federal_withheld_usd: null });
+        renderRetDists();
+        try { recalculateDerivedFields(); persistUsState(); } catch (e) {}
+    }
+    function removeRetDist(i) {
+        retDistList().splice(i, 1);
+        renderRetDists();
+        try { recalculateDerivedFields(); persistUsState(); } catch (e) {}
+    }
+    function updateRetDist(i, field, val) {
+        const r = retDistRows()[i];
+        if (!r) return;
+        if (field === 'taxable_usd' || field === 'federal_withheld_usd') r[field] = String(val).trim() === '' ? null : (parseFormattedNumber(val) || 0);
+        else if (field === 'rolled_over') r[field] = val === true;
+        else r[field] = val === '' ? null : val;
+        refreshRetDistTotal();
+        try { recalculateDerivedFields(); persistUsState(); } catch (e) {}
+    }
+    function toggleArt22(on) {
+        const box = document.getElementById('div-art22-fields');
+        if (box) box.classList.toggle('hidden', !on);
     }
 
     function recalculateDerivedFields() {
@@ -21662,6 +21759,9 @@ div.innerHTML = `
                 // has_real_estate) isn't in the explicit list above — keep it
                 // rather than resetting it to the blank default.
                 copyUnhandledScalars(savedState.income_us_source, usState.income_us_source);
+                if (Array.isArray(savedState.income_us_source.retirement_distributions)) {
+                    usState.income_us_source.retirement_distributions = savedState.income_us_source.retirement_distributions.map(r => Object.assign({}, r));
+                }
             }
             if (savedState.income_foreign_source) {
                 Object.assign(usState.income_foreign_source, savedState.income_foreign_source);
@@ -21844,6 +21944,7 @@ div.innerHTML = `
             if(document.getElementById('res-exempt-student-override')) document.getElementById('res-exempt-student-override').checked = usState.us_residency_detail.exempt_student_closer_conn_exception || false;
             if(document.getElementById('res-exempt-scholar-override')) document.getElementById('res-exempt-scholar-override').checked = usState.us_residency_detail.exempt_scholar_lookback_exception || false;
             if(document.getElementById('res-closer-conn')) document.getElementById('res-closer-conn').checked = usState.us_residency_detail.closer_connection_claim || false;
+            toggleArt22(usState.us_residency_detail.article_22_claim === true);
             if(document.getElementById('res-first-yr')) document.getElementById('res-first-yr').checked = usState.us_residency_detail.first_year_choice_election || false;
             // Restore entry date field and visibility
             const firstYrEntryContainer = document.getElementById('div-first-yr-entry-date');
@@ -21928,6 +22029,7 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             if(document.getElementById('inc-us-unemployment')) document.getElementById('inc-us-unemployment').value = usState.income_us_source.unemployment_compensation_usd || '';
             if(document.getElementById('inc-us-social-security')) document.getElementById('inc-us-social-security').value = usState.income_us_source.social_security_benefits_usd || '';
             if(document.getElementById('inc-us-alimony')) document.getElementById('inc-us-alimony').value = usState.income_us_source.alimony_received_usd || '';
+            renderRetDists();
             if(document.getElementById('inc-us-royalties')) document.getElementById('inc-us-royalties').value = usState.income_us_source.royalties_direct_us_source_usd || '';
             if(document.getElementById('inc-us-cod')) document.getElementById('inc-us-cod').value = usState.income_us_source.cancellation_of_debt_usd || '';
             if(document.getElementById('inc-us-hsa-dist')) document.getElementById('inc-us-hsa-dist').value = usState.income_us_source.hsa_msa_distributions_usd || '';

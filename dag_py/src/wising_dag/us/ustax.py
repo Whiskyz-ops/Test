@@ -18,6 +18,7 @@ from ..core.dates import parse_date
 from ..core.graph import NodeDef
 from ..core.util import js_num_str, js_round, num, safe
 from . import constants as C
+from .retirement_dist import early_72t_base_usd
 
 T = C.US
 FEIE_MAX_USD = C.FEIE_MAX_USD
@@ -739,14 +740,8 @@ def additional_medicare_owed_usd(us) -> float:
     return max(0.0, (wages - threshold) * 0.009)
 
 def _additional_tax_72t_usd(d, ctx):
-    dist_usd = num(safe(ctx.get("us"), "income_us_source.ira_distributions_usd", 0)) + num(safe(ctx.get("us"), "income_us_source.401k_distributions_usd", 0))
-    dob_raw = d["taxpayerDobRaw"]
-    if not dist_usd > 0 or not dob_raw:
-        return 0
-    m = re.match(r"^(\d{4})", str(dob_raw))
-    if not m:
-        return 0
-    return dist_usd * 0.10 if (d["baseYearUs"] or 2026) - int(m.group(1)) < 59 else 0
+    # Paid before 59½ with no §72(t)(2) exception (SEPP, ...) — retirement_dist.py.
+    return early_72t_base_usd(ctx.get("us"), d["taxpayerDobRaw"], d["baseYearUs"] or 2026) * 0.10
 
 
 def _us_tax_result(d, ctx):

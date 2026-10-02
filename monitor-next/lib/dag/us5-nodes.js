@@ -42,7 +42,9 @@ var NODES = {
   dobRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.router, "date_of_birth", safe(ctx.india, "profile.date_of_birth", safe(ctx.us, "profile.date_of_birth", null))); } },
   baseYear: { deps: [], compute: function (d, ctx) { return ctx.model.meta.baseYear; } },
 
-  earlyDistUsd: { deps: ["iraDistUsdRaw", "dist401kUsdRaw"], compute: function (d) { return d.iraDistUsdRaw + d.dist401kUsdRaw; } },
+  // Distributions paid before 59½ with no §72(t)(2) exception (SEPP, ...)
+  // — the same rows the US tax's §72(t) additional tax uses (retirement-dist.js).
+  earlyDistUsd: { deps: ["dobRaw", "baseYear"], compute: function (d, ctx) { return require("./retirement-dist.js").early72tBaseAfterTreatyUsd(ctx.us, ctx.india, d.dobRaw, d.baseYear); } },
   ageAtYearEndUs: {
     deps: ["dobRaw", "baseYear"],
     compute: function (d) {
@@ -58,13 +60,13 @@ var NODES = {
     deps: ["hasUsScope", "earlyDistUsd", "ageAtYearEndUs"],
     scopeGate: "hasUsScope",
     outOfScopeValue: 0,
-    compute: function (d) { return (d.earlyDistUsd > 0 && d.ageAtYearEndUs != null && d.ageAtYearEndUs < 59) ? d.earlyDistUsd * 0.10 : 0; }
+    compute: function (d) { return d.earlyDistUsd > 0 ? d.earlyDistUsd * 0.10 : 0; }
   },
   shouldFire: {
     deps: ["hasUsScope", "earlyDistUsd", "ageAtYearEndUs"],
     scopeGate: "hasUsScope",
     outOfScopeValue: false,
-    compute: function (d) { return d.earlyDistUsd > 0 && d.ageAtYearEndUs != null && d.ageAtYearEndUs < 59; }
+    compute: function (d) { return d.earlyDistUsd > 0; }
   },
 
   // ---- IRC §402(g) elective-deferral aggregate excess (Step 11 audit) -----

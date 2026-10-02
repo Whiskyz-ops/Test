@@ -110,7 +110,7 @@ NODES.buildTaxComputationUsResult = {
       // Per-income-type FDAP rates, Art. 20(2) Social Security and Art. 20(1)
       // pensions (nra-fdap-util.js). The single-rate layout is kept whenever
       // every FDAP row carries the same rate.
-      var fdapRows = (u.nra.fdapBreakdown || []).filter(function (r) { return r.type !== "social_security" && r.type !== "pensions"; });
+      var fdapRows = (u.nra.fdapBreakdown || []).filter(function (r) { return r.type !== "social_security" && r.type !== "pensions" && r.type !== "retirement_lump_sum"; });
       var mixedFdap = fdapRows.map(function (r) { return r.rate; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).length > 1;
       var ssTaxUsd = u.nra.socialSecurityTaxUsd || 0, pensionExemptUsd = u.nra.pensionTreatyExemptUsd || 0;
       var pct = function (r) { return Math.round(r * 100) + "%"; };
@@ -131,11 +131,25 @@ NODES.buildTaxComputationUsResult = {
         ]) });
       if (pensionExemptUsd > 0) extraRows.push({ label: "US pensions / IRA distributions (" + usd(pensionExemptUsd) + ") — not taxed in the US", usd: 0,
         trace: source("DTAA Art. 20(1): periodic pension and annuity payments to an Indian resident are taxable only in India — claim the exemption on Form 1040-NR Schedule OI (Form 8833 where required). Lump sums are not covered by Art. 20(1).") });
+      // Lump-sum retirement withdrawals: outside DTAA Art. 20, taxed at 30%;
+      // and the §72(t) 10% on early distributions the US taxes.
+      var lumpRow = (u.nra.fdapBreakdown || []).filter(function (r) { return r.type === "retirement_lump_sum"; })[0];
+      var lumpTaxUsd = lumpRow ? lumpRow.taxUsd : 0, add72tUsd = u.additionalTax72tUsd || 0;
+      if (lumpTaxUsd > 0) extraRows.push({ label: "Tax on lump-sum retirement withdrawals (flat 30%)", usd: lumpTaxUsd,
+        trace: calc("DTAA Art. 20 leaves only pensions — periodic payments — to the country of residence; a lump-sum withdrawal from an IRA / 401(k) / plan stays taxable in the US as FDAP at 30% (§871(a)). India taxes it too if the client is resident there, with credit for the US tax (s.159, Form 44)", [
+          { label: "Lump-sum withdrawals", amount: lumpRow.baseUsd }, { label: "Rate applied", display: "30%" }
+        ]) });
+      if (add72tUsd > 0) extraRows.push({ label: "Early-withdrawal additional tax (§72(t))", usd: add72tUsd,
+        trace: calc("10% of retirement distributions paid before age 59½ that the US taxes, unless an exception is recorded on Layer 1 US (SEPP, separation at 55+, disability, ...). A periodic pension the treaty leaves to India carries no US tax, so no 10% either", [
+          { label: "Additional tax", amount: add72tUsd }
+        ]) });
       var totalParts = [
         { label: "Tax on ECI", amount: u.nra.eciTaxUsd },
         { label: "Tax on FDAP", amount: u.nra.fdapTaxUsd }
       ];
       if (ssTaxUsd > 0) totalParts.push({ label: "Tax on US Social Security", amount: ssTaxUsd });
+      if (lumpTaxUsd > 0) totalParts.push({ label: "Tax on lump-sum retirement withdrawals", amount: lumpTaxUsd });
+      if (add72tUsd > 0) totalParts.push({ label: "§72(t) additional tax", amount: add72tUsd });
       totalParts.push({ label: "Additional Medicare tax", amount: u.additionalMedicareUsd });
       return {
         title: "US federal tax — Form 1040-NR (ECI graduated / FDAP flat)",
