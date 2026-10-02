@@ -3963,10 +3963,25 @@
                             <input type="text" inputmode="numeric" id="os-gaming" oninput="updateOSField('online_gaming_winnings_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-purple-400 focus:ring-0 font-mono" placeholder="₹ 0">
                         
                         </div>
-                        <div>
-                            <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Unexplained Income (Unexplained Income & Investments)</label>
-                            <input type="text" inputmode="numeric" id="os-unexplained" oninput="updateOSField('unexplained_income_115BBE_inr', this.value)" class="inr-input w-full bg-white/5 border border-red-500/50 rounded-xl text-xs text-white px-3 py-2 focus:border-red-500 focus:ring-0 font-mono" placeholder="₹ 0">
-                            <p class="text-[8px] text-red-400/80 mt-1">Taxed at flat 78% (60% tax + 25% surcharge + 4% cess).</p>
+                        <!-- Unexplained income (s.195, formerly ss.68-69D / s.115BBE): not an
+                             income type a client volunteers — it arises when AIS flags credits,
+                             deposits or investments without a documented source, or the
+                             assessing officer adds them. Asked as a question; the amount only
+                             opens on "Yes" and the engine ignores it on "No". -->
+                        <div class="md:col-span-2 p-3 bg-white/5 border border-white/10 rounded-xl flex flex-col gap-3">
+                            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                                <span class="text-xs text-white/80">Has any amount been treated as unexplained income (s.195, formerly ss.68–69D) — flagged in AIS or added by the assessing officer?</span>
+                                <select id="os-unexplained-offered" onchange="setUnexplainedOffered(this.value)" class="bg-white/5 border border-white/10 rounded-lg text-xs text-white px-2 py-1.5 focus:border-brandGold focus:ring-0">
+                                    <option value="" class="bg-black">Not answered</option>
+                                    <option value="no" class="bg-black">No</option>
+                                    <option value="yes" class="bg-black">Yes</option>
+                                </select>
+                            </div>
+                            <div id="div-os-unexplained" class="hidden">
+                                <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Amount offered in the return as unexplained income (₹)</label>
+                                <input type="text" inputmode="numeric" id="os-unexplained" oninput="updateOSField('unexplained_income_115BBE_inr', this.value)" class="inr-input w-full bg-white/5 border border-red-500/50 rounded-xl text-xs text-white px-3 py-2 focus:border-red-500 focus:ring-0 font-mono" placeholder="₹ 0">
+                                <p class="text-[8px] text-red-400/80 mt-1">Taxed at a special flat rate with no deductions, exemptions or loss set-off. WISING raises it as a conflict; it isn't yet added to the India tax figure. Offering it in the return avoids the higher penalty that applies when the assessing officer finds it.</p>
+                            </div>
 
                     </div>
             <!-- Agricultural Income (Agricultural Income Exemption) -->
@@ -5288,6 +5303,8 @@
             state.domestic_income.has_agricultural_income = state.domestic_income.has_agricultural_income === true || anyOn(o => o.domestic_income.has_agricultural_income);
             if (state.other_sources) {
                 state.other_sources.has_other_sources_income = state.other_sources.has_other_sources_income === true || anyOn(o => o.other_sources.has_other_sources_income);
+                // The unexplained-income answer is for the year, not one quarter.
+                if (state.other_sources.unexplained_income_offered == null && anyOn(o => o.other_sources.unexplained_income_offered)) state.other_sources.unexplained_income_offered = true;
             }
             if (state.lrs_outbound) {
                 state.lrs_outbound.has_received_foreign_income = state.lrs_outbound.has_received_foreign_income === true || anyOn(o => o.lrs_outbound.has_received_foreign_income);
@@ -12079,6 +12096,31 @@ ${isProf ? '' : `
         state.other_sources.joint_account_own_share_percent = n === null || isNaN(n) ? null : n;
     }
 
+    // Unexplained income question (see #div-os-unexplained).
+    function refreshUnexplainedUI() {
+        const os = state.other_sources || {};
+        const sel = document.getElementById('os-unexplained-offered');
+        const box = document.getElementById('div-os-unexplained');
+        const flag = os.unexplained_income_offered;
+        // Data entered before the question existed: an amount on file counts as "Yes".
+        const shown = flag === true || (flag !== false && Number(os.unexplained_income_115BBE_inr) > 0);
+        if (sel) sel.value = flag === true || (flag == null && shown) ? 'yes' : flag === false ? 'no' : '';
+        if (box) box.classList.toggle('hidden', !shown);
+    }
+    function setUnexplainedOffered(val) {
+        const os = state.other_sources;
+        os.unexplained_income_offered = val === 'yes' ? true : val === 'no' ? false : null;
+        if (val === 'no') {
+            os.unexplained_income_115BBE_inr = null;
+            clearMasterSwitchAllQuarters(qs => { qs.other_sources.unexplained_income_115BBE_inr = null; qs.other_sources.unexplained_income_offered = false; });
+            const inp = document.getElementById('os-unexplained'); if (inp) inp.value = '';
+        }
+        if (val === 'yes') os.has_other_sources_income = true;
+        refreshUnexplainedUI();
+        evaluateSurchargeBuckets();
+        if (typeof saveState === 'function') saveState();
+    }
+
     function updateOSField(field, val) {
         state.other_sources.has_other_sources_income = true;
         state.other_sources[field] = val === '' ? null : parseINRCurrency(val);
@@ -14569,6 +14611,7 @@ ${isProf ? '' : `
             if (giftsMarriage) giftsMarriage.checked = os.gifts_exemption_marriage || false;
             const giftsRelative = document.getElementById('os-gifts-relative');
             if (giftsRelative) giftsRelative.checked = os.gifts_exemption_relative || false;
+            refreshUnexplainedUI();
         }
 
         // Deductions Step

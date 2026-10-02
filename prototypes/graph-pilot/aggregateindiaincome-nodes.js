@@ -44,6 +44,12 @@ function safe(obj, path, dflt) {
   return cur === undefined || cur === null ? dflt : cur;
 }
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
+// Unexplained income offered in the return (Layer 1 India's question
+// other_sources.unexplained_income_offered): 0 when answered No.
+function unexplainedOfferedInr(os) {
+  if (safe(os, "unexplained_income_offered", null) === false) return 0;
+  return num(safe(os, "unexplained_income_115BBE_inr", 0));
+}
 function monthsBetween(fromStr, toStr) {
   if (!fromStr || !toStr) return null;
   var a = new Date(fromStr), b = new Date(toStr);
@@ -447,7 +453,10 @@ var NODES = {
 
   // Closes AGG-1's LAST remaining knownMissing side-channel (normalize.js
   // L1303) — needed for CFL-6 batch 2's s115bbe_unexplained_income finding.
-  unexplained115bbeInrAgg: { deps: ["osAgg"], compute: function (d) { return num(safe(d.osAgg, "unexplained_income_115BBE_inr", 0)); } },
+  // Unexplained income (s.195, formerly s.115BBE) counts unless Layer 1
+  // India's question "treated as unexplained income?" was answered No; an
+  // amount on file with no answer (data from before the question) counts.
+  unexplained115bbeInrAgg: { deps: ["osAgg"], compute: function (d) { return unexplainedOfferedInr(d.osAgg); } },
 
   indiaResidencyStatusRawAgg: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.final_india_residency_status", null); } },
   // IN-38: the DTAA Article 4 tie-break to the US doesn't change domestic
@@ -787,7 +796,7 @@ var NODES = {
       var dividendInr = num(safe(os, "dividend_inr", 0));
       var specialRate115bbInr = num(safe(os, "winnings_lottery_gaming_inr", 0)) + num(safe(os, "online_gaming_winnings_inr", 0));
       var agriculturalIncomeInr = num(safe(di, "agricultural_income_inr", 0));
-      var unexplained115bbeInr = num(safe(os, "unexplained_income_115BBE_inr", 0));
+      var unexplained115bbeInr = unexplainedOfferedInr(os);
 
       var bc = d.businessComputation, cg = d.capitalGainsComputation;
       var total = salaryInr + bc.businessInr + housePropertyInr + interestInr + dividendInr + cg.stcgInr + cg.ltcgInr +

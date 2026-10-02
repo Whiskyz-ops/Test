@@ -25,6 +25,16 @@ GROUP_C_CLASSES = C.INDIA["CG_GROUP_C_CLASSES"]
 S50AA_UNLISTED_DEBT_CUTOFF = "2024-07-23"
 
 
+
+
+def _unexplained_offered_inr(os_) -> float:
+    """Unexplained income offered in the return: 0 when Layer 1 India's
+    question (other_sources.unexplained_income_offered) was answered No.
+    Mirrors aggregateindiaincome-nodes.js unexplainedOfferedInr."""
+    if safe(os_, "unexplained_income_offered", None) is False:
+        return 0.0
+    return num(safe(os_, "unexplained_income_115BBE_inr", 0))
+
 def _inr_to_usd(inr, ctx) -> float:
     return num(inr) / fx_rate(ctx)
 
@@ -750,7 +760,7 @@ def _india_income_model_result(d, ctx):
     salary_inr = d["salaryIncomeComputation"]["taxableSalaryInr"]
     salary_inr, hp_props, house_property_inr, interest_inr, dividend_inr, special_rate_115bb_inr = _di_income_bases(di, os_, salary_inr, ctx.get("india"))
     agricultural_income_inr = num(safe(di, "agricultural_income_inr", 0))
-    unexplained_115bbe_inr = num(safe(os_, "unexplained_income_115BBE_inr", 0))
+    unexplained_115bbe_inr = _unexplained_offered_inr(os_)
 
     bc, cg = d["businessComputation"], d["capitalGainsComputation"]
     total = (
@@ -972,7 +982,7 @@ NODES = {
     "fnoIncomeInrAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: num(safe(d["diAgg"], "business_income.non_speculative_income_inr", 0)), layer1_fields=("india.domestic_income.business_income.non_speculative_income_inr",)),
     "speculativeIncomeInrAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: num(safe(d["diAgg"], "business_income.speculative_income_inr", 0)), layer1_fields=("india.domestic_income.business_income.speculative_income_inr",)),
     "agriculturalIncomeInrAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: num(safe(d["diAgg"], "agricultural_income_inr", 0)), layer1_fields=("india.domestic_income.agricultural_income_inr",)),
-    "unexplained115bbeInrAgg": NodeDef(deps=("osAgg",), compute=lambda d, ctx: num(safe(d["osAgg"], "unexplained_income_115BBE_inr", 0)), layer1_fields=("india.other_sources.unexplained_income_115BBE_inr",)),
+    "unexplained115bbeInrAgg": NodeDef(deps=("osAgg",), compute=lambda d, ctx: _unexplained_offered_inr(d["osAgg"]), layer1_fields=("india.other_sources.unexplained_income_offered", "india.other_sources.unexplained_income_115BBE_inr",)),
     "indiaResidencyStatusRawAgg": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "residency_detail.final_india_residency_status", None), layer1_fields=("india.residency_detail.final_india_residency_status",)),
     "indiaDtaaWorldwideCededAgg": NodeDef(deps=(), compute=lambda d, ctx: dtaa_worldwide_ceded(ctx.get("india")), layer1_fields=("india.residency_detail.dtaa_worldwide_ceded", "india.dtaa.dtaa_treaty_residence", "india.dtaa.dtaa_forced_nr")),
     "presumptiveEligibilityAgg": NodeDef(
