@@ -34,9 +34,18 @@
  *    sepp_change_date, else the row's date paid, else 31 December. With no
  *    start date the break is taken as it stands.
  *  - A break in this tax year: the 10% falls due now on every earlier SEPP
- *    payment taken before 59½ (sepp_prior_payments_usd), plus interest for
- *    the deferral, which isn't computed; this year's payment loses the
- *    exception unless it was paid before the change. A break in an earlier
+ *    payment taken before 59½, plus interest for the deferral periods
+ *    (Pub. 590-B; reported on Form 5329 line 4). The earlier payments come
+ *    year by year from sepp_prior_payments_by_year ({ "2023": 21102, ... }),
+ *    else — for a fixed method — from the method's annual amount for each
+ *    year from the start year to the year before the change (the series
+ *    held in those years); sepp_prior_payments_usd (a total) overrides the
+ *    recapture base. Interest on each year's 10% runs from that year's
+ *    return due date (15 April of the next year) to the due date of the
+ *    return for the year of the change, at the IRS underpayment rate
+ *    compounded daily (irs-interest.js). It's left out when the yearly
+ *    amounts aren't known or don't add up to the total entered. This year's
+ *    payment loses the exception unless it was paid before the change. A break in an earlier
  *    year: the recapture belonged on that year's return, and this year's
  *    payments have no exception. A change in a later year doesn't touch
  *    this return.
@@ -86,11 +95,46 @@ function seppAnalysis(r, dobRaw, baseYear) {
   var broken = modified && (!end || before(change, end));
   var brokenThisYear = broken && change[0] === year, brokenEarlier = broken && change[0] < year;
   var paid = ymd(r.date_paid);
+  var rec = brokenThisYear ? seppRecapture(r, calc, dobRaw, change)
+    : { baseUsd: 0, scheduleSource: null, schedule: [], interestUsd: 0, interestStatus: null, assumedRates: false, yearsBeforeRates: [] };
   return { payerName: r.payer_name || null, calc: calc, paidUsd: paidUsd, firstYear: firstYear, mismatch: mismatch, autoBreak: autoBreak,
     marked: marked, changeDate: fmtDate(change), changeYear: change ? change[0] : null, periodEnd: fmtDate(end), missingStartDate: !end,
     afterPeriod: modified && !broken, brokenThisYear: brokenThisYear, brokenEarlier: brokenEarlier,
-    priorPaymentsUsd: Math.max(0, num(r.sepp_prior_payments_usd)),
+    priorPaymentsUsd: rec.baseUsd, schedule: rec.schedule, scheduleSource: rec.scheduleSource, interestUsd: rec.interestUsd,
+    interestStatus: rec.interestStatus, assumedRates: rec.assumedRates, yearsBeforeRates: rec.yearsBeforeRates, interestTo: brokenThisYear ? fmtDate([change[0] + 1, 4, 15]) : null,
     losesException: brokenEarlier || (brokenThisYear && !(paid && before(paid, change))) };
+}
+// The earlier payments, year by year, and the recapture interest (see the
+// header). interestStatus: "computed" | "no_schedule" | "schedule_differs" |
+// "before_rates" (a year before the loaded rates: interest left out) — plus
+// assumedRates when days past the last published quarter used its rate.
+function seppRecapture(r, calc, dobRaw, change) {
+  var schedule = [], source = null, by = r.sepp_prior_payments_by_year, h = age59HalfDate(dobRaw), st = ymd(r.sepp_start_date);
+  if (by && typeof by === "object" && !Array.isArray(by)) {
+    Object.keys(by).forEach(function (y) { var n = Number(y), a = num(by[y]); if (n < change[0] && a > 0) schedule.push({ year: n, amountUsd: a }); });
+    if (schedule.length) source = "entered";
+  }
+  if (!source && st && calc.annualUsd != null && !calc.usesRmd) {
+    for (var y = st[0]; y < change[0]; y++) if (!h || before([y, 12, 31], h)) schedule.push({ year: y, amountUsd: calc.annualUsd });
+    if (schedule.length) source = "method";
+  }
+  schedule.sort(function (a, b) { return a.year - b.year; });
+  var sum = schedule.reduce(function (s, x) { return s + x.amountUsd; }, 0);
+  var total = Math.max(0, num(r.sepp_prior_payments_usd));
+  var baseUsd = total > 0 ? total : sum;
+  var out = { baseUsd: baseUsd, scheduleSource: source, schedule: schedule, interestUsd: 0, interestStatus: "no_schedule", assumedRates: false, yearsBeforeRates: [] };
+  if (!schedule.length) return out;
+  if (Math.abs(sum - baseUsd) > Math.max(2 * schedule.length, baseUsd * 0.001)) { out.interestStatus = "schedule_differs"; return out; }
+  var I = require("./irs-interest.js"), toDate = [change[0] + 1, 4, 15], totalInterest = 0;
+  schedule.forEach(function (x) {
+    var res = I.interest(x.amountUsd * 0.10, [x.year + 1, 4, 15], toDate);
+    x.interestUsd = res.interestUsd;
+    if (res.beforeTable) out.yearsBeforeRates.push(x.year); else totalInterest += res.interestUsd;
+    if (res.assumedAfter) out.assumedRates = true;
+  });
+  out.interestUsd = Math.round(totalInterest * 100) / 100;
+  out.interestStatus = out.yearsBeforeRates.length ? "before_rates" : "computed";
+  return out;
 }
 function seppLost(r, dobRaw, baseYear) { return r.early_exception === "sepp" && seppAnalysis(r, dobRaw, baseYear).losesException; }
 // Periodic for the treaty (Art. 20): marked periodic (or no type, older
@@ -159,19 +203,21 @@ function seppRecaptureBaseUsd(us, dobRaw, baseYear) { return seppStatus(us, dobR
 // Every SEPP row's analysis, for the alerts, plus the recapture base.
 function seppStatus(us, dobRaw, baseYear) {
   var ui = (us && us.income_us_source) || {};
-  var out = { recaptureBaseUsd: 0, rows: [] };
+  var out = { recaptureBaseUsd: 0, interestUsd: 0, rows: [] };
   (Array.isArray(ui.retirement_distributions) ? ui.retirement_distributions : []).forEach(function (r) {
     if (!r || r.early_exception !== "sepp") return;
     var a = seppAnalysis(r, dobRaw, baseYear);
     out.rows.push(a);
-    if (a.brokenThisYear) out.recaptureBaseUsd += a.priorPaymentsUsd;
+    if (a.brokenThisYear) { out.recaptureBaseUsd += a.priorPaymentsUsd; out.interestUsd += a.interestUsd; }
   });
   return out;
 }
 // The whole §72(t) additional tax for the year: 10% of this year's early
 // distributions (after the treaty) plus 10% of the recaptured SEPP payments.
 function additionalTax72tUsd(us, india, dobRaw, baseYear) {
-  return (early72tBaseAfterTreatyUsd(us, india, dobRaw, baseYear) + seppRecaptureBaseUsd(us, dobRaw, baseYear)) * 0.10;
+  var sepp = seppStatus(us, dobRaw, baseYear);
+  // The recapture interest is part of the tax increase (§72(t)(4)(A)).
+  return (early72tBaseAfterTreatyUsd(us, india, dobRaw, baseYear) + sepp.recaptureBaseUsd) * 0.10 + sepp.interestUsd;
 }
 
 // DTAA Art. 20 leaves periodic payments (pensions, and SEPP payments while

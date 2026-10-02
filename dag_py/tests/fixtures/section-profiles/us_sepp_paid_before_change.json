@@ -66,8 +66,8 @@
   "expect": [
     {
       "path": "findings[id=sepp_recapture_72t].amountUsd",
-      "value": 6330.5,
-      "why": "broken in 2026 inside the period: 10% of $63,305"
+      "value": 7294.54,
+      "why": "6,330.50 recapture + interest on each year's 10% (2,110.16) from 15 Apr of the next year to 15 Apr 2027 at the IRS underpayment rates, compounded daily: 2023 504.79 + 2024 311.03 + 2025 148.22 = 964.04 (2027 at the last published rate, 7%)"
     },
     {
       "path": "findings[id=early_withdrawal_penalty_72t]",
@@ -76,8 +76,8 @@
     },
     {
       "path": "computed.usTax.totalTaxBeforeFtcUsd",
-      "value": 13143,
-      "why": "6,812.44 + 6,330.50 recapture"
+      "value": 14107,
+      "why": "6,812.44 + 6,330.50 + 964.04 = 14,106.98"
     }
   ]
 }

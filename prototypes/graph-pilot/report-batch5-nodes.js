@@ -142,6 +142,19 @@ function seppCalcLine(a) {
     (c.rate && c.rate.over ? " The rate " + c.rate.pct + "% is above the permitted " + c.rate.limitPct + "% (the greater of 5% and 120% of the federal mid-term rate" +
       (c.rate.midtermGiven ? "" : "; enter the mid-term rate if it allows more") + "): payments set at that rate don't qualify as SEPP." : "");
 }
+// What the recapture interest is, or why it's missing.
+function seppInterestText(a) {
+  var who = seppWho(a) + ": ";
+  if (a.interestStatus === "computed" || a.interestStatus === "before_rates")
+    return who + usd(a.interestUsd) + " of interest on " + a.schedule.map(function (x) { return x.year + " (" + usd(x.amountUsd) + ")"; }).join(", ") +
+      (a.scheduleSource === "method" ? " — yearly amounts from the method, as the series held in those years" : "") +
+      ", each year's 10% from 15 April of the next year to " + a.interestTo + ", at the IRS underpayment rate compounded daily" +
+      (a.yearsBeforeRates.length ? "; no interest worked out for " + a.yearsBeforeRates.join(", ") + " (rates before 2017 aren't loaded)" : "") +
+      (a.assumedRates ? "; quarters after December 2026 taken at the last published rate (7%)" : "");
+  return who + "interest not worked out — " + (a.interestStatus === "schedule_differs"
+    ? "the yearly amounts don't add up to the total of earlier payments entered"
+    : "enter the earlier SEPP payments year by year on Layer 1 US");
+}
 function seppWhy(a) {
   return seppWho(a) + (a.autoBreak ? ": paid " + usd(a.paidUsd) + ", not the " + usd(a.calc.annualUsd) + " its method requires" : ": marked as changed or stopped") +
     " (" + a.changeDate + (a.periodEnd ? "; the required period runs to " + a.periodEnd : "") + ")";
@@ -159,19 +172,20 @@ NODES.earlyWithdrawalPenalty72tFinding = {
     var after = srows.filter(function (a) { return a.afterPeriod; });
     if (thisYear.length) out.push({
       id: "sepp_recapture_72t", severity: "critical", category: "credit",
-      title: "Broken SEPP: §72(t) 10% recaptured on earlier payments (" + usd(recaptureBaseUsd * 0.10) + " plus interest)",
+      title: "Broken SEPP: §72(t) 10% recaptured on earlier payments (" + usd(recaptureBaseUsd * 0.10) + " + " + usd(sepp.interestUsd) + " interest)",
       detail: "A substantially equal periodic payment series (SEPP) was changed this year, before the later of five years from the first payment and " +
         "age 59½: " + thisYear.map(seppWhy).join("; ") + ". Under §72(t)(4) the exception is lost for every payment already taken: 10% of the " +
         usd(recaptureBaseUsd) + " of earlier SEPP payments taken before 59½ (" + usd(recaptureBaseUsd * 0.10) + ") is added to this year's tax, plus " +
-        "interest for each year it was deferred, which isn't included here. This year's payments from that account made on or after the change get " +
+        "interest for each year it was deferred. " + thisYear.map(seppInterestText).join("; ") + ". This year's payments from that account made on or after the change get " +
         "no exception either, and for a non-resident filing Form 1040-NR they are no longer periodic payments under the treaty (DTAA Art. 20), so " +
         "the US taxes them like a lump sum.",
       recommendation: "Confirm the series was really changed (a different amount from the method's, an extra withdrawal, a rollover or transfer out " +
-        "of the account, or stopping early all count; running out of money doesn't). Report the recapture and the interest on Form 5329 and " +
-        "Schedule 2 for this year. If earlier SEPP payments were left out of US tax as periodic payments under the treaty, review those years' " +
-        "returns for amendment." + (thisYear.some(function (a) { return a.priorPaymentsUsd === 0; }) ? " Enter the earlier SEPP payments on Layer 1 US so WISING can work out the recapture." : "") +
+        "of the account, or stopping early all count; running out of money doesn't). Report the recapture and the interest on Form 5329 " +
+        "line 4, with an explanation attached showing each year's amount and interest (Pub. 590-B), and Schedule 2 for this year. If earlier SEPP payments were left out of US tax as periodic payments under the treaty, review those years' " +
+        "returns for amendment. The interest uses a standard method (underpayment rate, daily compounding, return due dates); the IRS doesn't " +
+        "prescribe one, so agree it with the CPA." + (thisYear.some(function (a) { return a.priorPaymentsUsd === 0; }) ? " Enter the earlier SEPP payments on Layer 1 US so WISING can work out the recapture." : "") +
         (thisYear.some(function (a) { return a.missingStartDate; }) ? " Enter the SEPP start date on Layer 1 US: a change after the later of five years and age 59½ isn't a break, and WISING can only check that with the date." : ""),
-      amountUsd: recaptureBaseUsd * 0.10, refs: ["§72(t)(4)", "Notice 2022-6", "Form 5329", "DTAA Art. 20"]
+      amountUsd: recaptureBaseUsd * 0.10 + sepp.interestUsd, refs: ["§72(t)(4)", "Notice 2022-6", "Form 5329", "§6621", "§6622", "DTAA Art. 20"]
     });
     else if (earlier.length) out.push({
       id: "sepp_recapture_72t", severity: "warning", category: "credit",

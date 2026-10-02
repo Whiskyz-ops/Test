@@ -285,6 +285,18 @@ def _sepp_calc_line(a):
     return line
 
 
+def _sepp_interest_text(a):
+    who = _sepp_who(a) + ": "
+    if a["interestStatus"] in ("computed", "before_rates"):
+        return (who + _fmt(a["interestUsd"]) + " of interest on " + ", ".join(f"{x['year']} ({_fmt(x['amountUsd'])})" for x in a["schedule"])
+                + (" — yearly amounts from the method, as the series held in those years" if a["scheduleSource"] == "method" else "")
+                + ", each year's 10% from 15 April of the next year to " + a["interestTo"] + ", at the IRS underpayment rate compounded daily"
+                + ("; no interest worked out for " + ", ".join(str(y) for y in a["yearsBeforeRates"]) + " (rates before 2017 aren't loaded)" if a["yearsBeforeRates"] else "")
+                + ("; quarters after December 2026 taken at the last published rate (7%)" if a["assumedRates"] else ""))
+    return who + "interest not worked out — " + ("the yearly amounts don't add up to the total of earlier payments entered" if a["interestStatus"] == "schedule_differs"
+                                                  else "enter the earlier SEPP payments year by year on Layer 1 US")
+
+
 def _sepp_why(a):
     return (_sepp_who(a) + (": paid " + _fmt(a["paidUsd"]) + ", not the " + _fmt(a["calc"]["annualUsd"]) + " its method requires" if a["autoBreak"] else ": marked as changed or stopped")
             + " (" + a["changeDate"] + ("; the required period runs to " + a["periodEnd"] if a["periodEnd"] else "") + ")")
@@ -757,19 +769,20 @@ def _findings_us_result(d, ctx):
     if this_year:
         findings.append(make_finding(
             "sepp_recapture_72t", "critical", "credit",
-            f"Broken SEPP: §72(t) 10% recaptured on earlier payments ({_fmt(recapture_base_usd * 0.10)} plus interest)",
+            f"Broken SEPP: §72(t) 10% recaptured on earlier payments ({_fmt(recapture_base_usd * 0.10)} + {_fmt(sepp['interestUsd'])} interest)",
             "A substantially equal periodic payment series (SEPP) was changed this year, before the later of five years from the first payment and "
             "age 59½: " + "; ".join(_sepp_why(a) for a in this_year) + ". Under §72(t)(4) the exception is lost for every payment already taken: 10% of the "
             + _fmt(recapture_base_usd) + " of earlier SEPP payments taken before 59½ (" + _fmt(recapture_base_usd * 0.10) + ") is added to this year's tax, plus "
-            "interest for each year it was deferred, which isn't included here. This year's payments from that account made on or after the change get "
+            "interest for each year it was deferred. " + "; ".join(_sepp_interest_text(a) for a in this_year) + ". This year's payments from that account made on or after the change get "
             "no exception either, and for a non-resident filing Form 1040-NR they are no longer periodic payments under the treaty (DTAA Art. 20), so "
             "the US taxes them like a lump sum.",
             "Confirm the series was really changed (a different amount from the method's, an extra withdrawal, a rollover or transfer out "
-            "of the account, or stopping early all count; running out of money doesn't). Report the recapture and the interest on Form 5329 and "
-            "Schedule 2 for this year. If earlier SEPP payments were left out of US tax as periodic payments under the treaty, review those years' "
-            "returns for amendment." + (" Enter the earlier SEPP payments on Layer 1 US so WISING can work out the recapture." if any(a["priorPaymentsUsd"] == 0 for a in this_year) else "")
+            "of the account, or stopping early all count; running out of money doesn't). Report the recapture and the interest on Form 5329 "
+            "line 4, with an explanation attached showing each year's amount and interest (Pub. 590-B), and Schedule 2 for this year. If earlier SEPP payments were left out of US tax as periodic payments under the treaty, review those years' "
+            "returns for amendment. The interest uses a standard method (underpayment rate, daily compounding, return due dates); the IRS doesn't "
+            "prescribe one, so agree it with the CPA." + (" Enter the earlier SEPP payments on Layer 1 US so WISING can work out the recapture." if any(a["priorPaymentsUsd"] == 0 for a in this_year) else "")
             + (" Enter the SEPP start date on Layer 1 US: a change after the later of five years and age 59½ isn't a break, and WISING can only check that with the date." if any(a["missingStartDate"] for a in this_year) else ""),
-            recapture_base_usd * 0.10, ["§72(t)(4)", "Notice 2022-6", "Form 5329", "DTAA Art. 20"],
+            recapture_base_usd * 0.10 + sepp["interestUsd"], ["§72(t)(4)", "Notice 2022-6", "Form 5329", "§6621", "§6622", "DTAA Art. 20"],
         ))
     elif earlier:
         findings.append(make_finding(

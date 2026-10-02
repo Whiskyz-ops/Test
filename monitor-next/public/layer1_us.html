@@ -11780,11 +11780,30 @@ div.innerHTML = `
                     <label class="md:col-span-4 flex items-center gap-2 text-[10px] text-white/70 pb-2 ${r.sepp_method && r.sepp_method !== 'rmd' ? '' : 'hidden'}"><input type="checkbox" id="rd-sepp-switch-${i}" ${r.sepp_switched_to_rmd === true ? 'checked' : ''} onchange="updateRetDist(${i}, 'sepp_switched_to_rmd', this.checked)" class="w-4 h-4 accent-brandCyan"> Switched once to the RMD method (allowed)</label>
                     <label class="md:col-span-5 flex items-center gap-2 text-[10px] text-white/70 pb-2"><input type="checkbox" id="rd-sepp-broken-${i}" ${r.sepp_broken === true ? 'checked' : ''} onchange="updateRetDist(${i}, 'sepp_broken', this.checked)" class="w-4 h-4 accent-brandCyan"> Series changed or stopped (extra withdrawal, different amount, transfer out, stopped)</label>
                     <div class="md:col-span-3"><label class="${L}">Date of the change</label><input type="date" id="rd-sepp-change-${i}" value="${retEsc(r.sepp_change_date)}" onchange="updateRetDist(${i}, 'sepp_change_date', this.value)" class="${F} [color-scheme:dark]"></div>
-                    <div class="md:col-span-4"><label class="${L}">Earlier SEPP payments taken before 59½ (all prior years)</label><input type="text" inputmode="numeric" id="rd-sepp-prior-${i}" value="${money(r.sepp_prior_payments_usd)}" oninput="updateRetDist(${i}, 'sepp_prior_payments_usd', this.value)" class="${F} font-mono"></div>
+                    <div class="md:col-span-4"><label class="${L}">Earlier SEPP payments before 59½ — total (if no yearly split)</label><input type="text" inputmode="numeric" id="rd-sepp-prior-${i}" value="${money(r.sepp_prior_payments_usd)}" oninput="updateRetDist(${i}, 'sepp_prior_payments_usd', this.value)" class="${F} font-mono"></div>
+                    ${retSeppYears(r).length ? `<div class="col-span-2 md:col-span-12"><label class="${L}">Earlier SEPP payments by year (for the recapture interest; leave blank to use the method's amount for a fixed method)</label>
+                        <div class="grid grid-cols-3 md:grid-cols-6 gap-2">${retSeppYears(r).map(y => `<div><span class="text-[9px] text-white/40">${y}</span><input type="text" inputmode="numeric" id="rd-sepp-y${y}-${i}" value="${money((r.sepp_prior_payments_by_year || {})[y])}" oninput="updateRetDistYear(${i}, '${y}', this.value)" class="${F} font-mono"></div>`).join('')}</div></div>` : ''}
                 </div>` : ''}
                 <div class="md:col-span-1 flex justify-end"><button type="button" onclick="removeRetDist(${i})" aria-label="Remove this distribution" class="px-2 py-1.5 text-xs text-white/50 hover:text-red-400">✕</button></div>
             </div>`).join('');
         refreshRetDistTotal();
+    }
+    // Years before this tax year since the SEPP started (max 30), for the
+    // by-year earlier payments (sepp_prior_payments_by_year).
+    function retSeppYears(r) {
+        const m = /^(\d{4})/.exec(String(r.sepp_start_date || ''));
+        const taxYear = Number((usState.metadata && usState.metadata.us_calendar_year) || 2026);
+        const out = [];
+        if (m) for (let y = Math.max(Number(m[1]), taxYear - 30); y < taxYear; y++) out.push(String(y));
+        return out;
+    }
+    function updateRetDistYear(i, year, val) {
+        const r = retDistRows()[i];
+        if (!r) return;
+        const by = Object.assign({}, r.sepp_prior_payments_by_year || {});
+        if (String(val).trim() === '') delete by[year]; else by[year] = parseFormattedNumber(val) || 0;
+        if (Object.keys(by).length) r.sepp_prior_payments_by_year = by; else delete r.sepp_prior_payments_by_year;
+        try { recalculateDerivedFields(); persistUsState(); } catch (e) {}
     }
     function refreshRetDistTotal() {
         const el = document.getElementById('ret-dist-total');
@@ -11813,7 +11832,7 @@ div.innerHTML = `
         if (field === 'early_exception' && val === 'sepp') r.payment_type = 'periodic';
         // SEPP fields depend on the exception, method, table and switch:
         // redraw when one of those changes.
-        if (['early_exception', 'sepp_method', 'sepp_life_table', 'sepp_switched_to_rmd'].indexOf(field) >= 0) renderRetDists();
+        if (['early_exception', 'sepp_method', 'sepp_life_table', 'sepp_switched_to_rmd', 'sepp_start_date'].indexOf(field) >= 0) renderRetDists();
         refreshRetDistTotal();
         try { recalculateDerivedFields(); persistUsState(); } catch (e) {}
     }

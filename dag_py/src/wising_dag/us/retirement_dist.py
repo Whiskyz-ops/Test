@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import re
 
-from ..core.util import num
+from ..core.util import js_round, num
+from .irs_interest import interest as irs_interest
 from .sepp_calc import differs as sepp_differs, required as sepp_required
 
 PLAN_TYPES = ("ira", "roth_ira", "401k", "pension", "other_plan")
@@ -60,12 +61,63 @@ def sepp_analysis(r, dob_raw, base_year) -> dict:
     broken_this_year = broken and change[0] == year
     broken_earlier = broken and change[0] < year
     paid = _ymd(r.get("date_paid"))
+    rec = (_sepp_recapture(r, calc, dob_raw, change) if broken_this_year
+           else {"baseUsd": 0.0, "scheduleSource": None, "schedule": [], "interestUsd": 0, "interestStatus": None, "assumedRates": False, "yearsBeforeRates": []})
     return {"payerName": r.get("payer_name") or None, "calc": calc, "paidUsd": paid_usd, "firstYear": first_year, "mismatch": mismatch,
             "autoBreak": auto_break, "marked": marked, "changeDate": _fmt_date(change), "changeYear": change[0] if change else None,
             "periodEnd": _fmt_date(end), "missingStartDate": end is None, "afterPeriod": modified and not broken,
             "brokenThisYear": broken_this_year, "brokenEarlier": broken_earlier,
-            "priorPaymentsUsd": max(0.0, num(r.get("sepp_prior_payments_usd"))),
+            "priorPaymentsUsd": rec["baseUsd"], "schedule": rec["schedule"], "scheduleSource": rec["scheduleSource"], "interestUsd": rec["interestUsd"],
+            "interestStatus": rec["interestStatus"], "assumedRates": rec["assumedRates"], "yearsBeforeRates": rec["yearsBeforeRates"],
+            "interestTo": _fmt_date((change[0] + 1, 4, 15)) if broken_this_year else None,
             "losesException": broken_earlier or (broken_this_year and not (paid and paid < change))}
+
+
+def _sepp_recapture(r, calc, dob_raw, change) -> dict:
+    """The earlier payments, year by year, and the recapture interest — see retirement-dist.js seppRecapture."""
+    schedule, source, by, h, st = [], None, r.get("sepp_prior_payments_by_year"), age_59_half_date(dob_raw), _ymd(r.get("sepp_start_date"))
+    if isinstance(by, dict):
+        for y, a in by.items():
+            try:
+                n = int(y)
+            except (TypeError, ValueError):
+                continue
+            if n < change[0] and num(a) > 0:
+                schedule.append({"year": n, "amountUsd": num(a)})
+        if schedule:
+            source = "entered"
+    if not source and st and calc["annualUsd"] is not None and not calc["usesRmd"]:
+        for y in range(st[0], change[0]):
+            if not h or (y, 12, 31) < h:
+                schedule.append({"year": y, "amountUsd": calc["annualUsd"]})
+        if schedule:
+            source = "method"
+    schedule.sort(key=lambda x: x["year"])
+    total_sum = 0.0
+    for x in schedule:
+        total_sum += x["amountUsd"]
+    total = max(0.0, num(r.get("sepp_prior_payments_usd")))
+    base_usd = total if total > 0 else total_sum
+    out = {"baseUsd": base_usd, "scheduleSource": source, "schedule": schedule, "interestUsd": 0, "interestStatus": "no_schedule",
+           "assumedRates": False, "yearsBeforeRates": []}
+    if not schedule:
+        return out
+    if abs(total_sum - base_usd) > max(2 * len(schedule), base_usd * 0.001):
+        out["interestStatus"] = "schedule_differs"
+        return out
+    to_date, total_interest = (change[0] + 1, 4, 15), 0.0
+    for x in schedule:
+        res = irs_interest(x["amountUsd"] * 0.10, (x["year"] + 1, 4, 15), to_date)
+        x["interestUsd"] = res["interestUsd"]
+        if res["beforeTable"]:
+            out["yearsBeforeRates"].append(x["year"])
+        else:
+            total_interest += res["interestUsd"]
+        if res["assumedAfter"]:
+            out["assumedRates"] = True
+    out["interestUsd"] = js_round(total_interest * 100) / 100
+    out["interestStatus"] = "before_rates" if out["yearsBeforeRates"] else "computed"
+    return out
 
 
 def _sepp_lost(r, dob_raw, base_year) -> bool:
@@ -163,7 +215,7 @@ def early_72t_base_after_treaty_usd(us, india, dob_raw, base_year) -> float:
 def sepp_status(us, dob_raw, base_year) -> dict:
     ui = ((us or {}).get("income_us_source") or {}) if isinstance(us, dict) else {}
     lst = ui.get("retirement_distributions")
-    out = {"recaptureBaseUsd": 0.0, "rows": []}
+    out = {"recaptureBaseUsd": 0.0, "interestUsd": 0.0, "rows": []}
     for r in (lst if isinstance(lst, list) else []):
         if not isinstance(r, dict) or r.get("early_exception") != "sepp":
             continue
@@ -171,6 +223,7 @@ def sepp_status(us, dob_raw, base_year) -> dict:
         out["rows"].append(a)
         if a["brokenThisYear"]:
             out["recaptureBaseUsd"] += a["priorPaymentsUsd"]
+            out["interestUsd"] += a["interestUsd"]
     return out
 
 
@@ -179,4 +232,5 @@ def sepp_recapture_base_usd(us, dob_raw=None, base_year=None) -> float:
 
 
 def additional_tax_72t_usd(us, india, dob_raw, base_year) -> float:
-    return (early_72t_base_after_treaty_usd(us, india, dob_raw, base_year) + sepp_recapture_base_usd(us, dob_raw, base_year)) * 0.10
+    sepp = sepp_status(us, dob_raw, base_year)
+    return (early_72t_base_after_treaty_usd(us, india, dob_raw, base_year) + sepp["recaptureBaseUsd"]) * 0.10 + sepp["interestUsd"]
