@@ -473,7 +473,7 @@ export default function MonitorPage() {
               className={"font-semibold transition-colors inline-flex items-center gap-1.5 " + (exampleEdited ? "hover:text-head" : "text-muted hover:text-body")}
               style={exampleEdited ? { color: PAL.amberText } : undefined}>
               {exampleEdited && <span className="w-1.5 h-1.5 rounded-full" style={{ background: PAL.approaching }} />}
-              ↺ {exampleEdited ? "Edited — reset example" : "Reset example"}
+              ↺ {exampleEdited ? "Edited – Reset" : "Reset example"}
             </button>
           )}
           {(view === "business" || view === "filings") && result && result.model && result.model.assets && result.model.assets.entityGraph && (

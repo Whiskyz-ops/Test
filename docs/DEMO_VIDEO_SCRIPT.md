@@ -14,7 +14,7 @@ Every figure below was measured by running this exact flow in a fresh browser on
 ## Before you hit record (off camera)
 
 1. Open a **new incognito / private window**. Rohan and Priya are created fresh in every new browser, so this gives you clean data.
-2. Go to demo.wising.app and enter the password. You land on **Clients**. The button next to ↻ Refresh should read **↺ Reset example**. If it says "Edited — reset example", click it.
+2. Go to demo.wising.app and enter the password. You land on **Clients**. The button next to ↻ Refresh should read **↺ Reset example**. If it says "Edited – Reset", click it.
 3. Hover the **Layer 1: India** link (top right) with Priya selected and **open it in a second tab** (Cmd/Ctrl-click). Don't edit anything yet. Go back to tab 1.
 4. Browser zoom 90% if the Monitor feels cramped. Close every other tab and notification.
 
@@ -174,6 +174,6 @@ The form saves on its own. **Close tab 2.**
 
 ## Reset for another take
 
-Click **↺ Reset example** (next to ↻ Refresh). After an edit it reads "↺ Edited — reset example". It puts Rohan and Priya back to the checked starting data, so every "before" figure above is true again. Alternatively, close the incognito window and open a new one.
+Click **↺ Reset example** (next to ↻ Refresh). After an edit it reads "↺ Edited – Reset". It puts Rohan and Priya back to the checked starting data, so every "before" figure above is true again. Alternatively, close the incognito window and open a new one.
 
-Tip: don't show the reset button on camera. If it says "Edited — reset example" when you start recording, reset first.
+Tip: don't show the reset button on camera. If it says "Edited – Reset" when you start recording, reset first.
