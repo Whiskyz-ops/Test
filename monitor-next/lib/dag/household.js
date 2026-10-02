@@ -148,6 +148,36 @@
     }, [0, 0]);
   }
 
+  // The joint run merges both spouses' India data, so its own Indian tax is
+  // one recomputed figure — but India taxes each spouse separately. Its
+  // foreign tax credit alerts are rebuilt from the household's figures
+  // (each spouse's own Indian tax, joint credit limited basket by basket),
+  // the same figures as the Reconciliation tab.
+  function householdFtcFindings(findings, ju, jf) {
+    function usd(v) { return "$" + Math.round(v).toLocaleString("en-US"); }
+    var paid = n(ju.indiaTaxPaidUsd), allowed = n(ju.ftcAllowedUsd), limit = n(ju.ftcLimitUsd), residual = Math.max(0, paid - allowed);
+    var form = "Form 1116";
+    var out = findings.filter(function (f) { return f.id !== "ftc_gap" && f.id !== "ftc_available"; });
+    var old = findings.filter(function (f) { return f.id === "ftc_gap" || f.id === "ftc_available"; })[0];
+    if (!old) return findings;
+    var f;
+    if (residual > 1) {
+      f = { id: "ftc_gap", severity: "critical", category: "credit", title: "Foreign Tax Credit shortfall — residual double taxation",
+        detail: "Indian tax paid by both spouses (" + usd(paid) + ", each on their own Indian return) exceeds the joint return's US FTC limitation (" + usd(limit) +
+          ") for this year, basket by basket. " + usd(residual) + " of Indian tax cannot be credited currently and would otherwise be double-taxed.",
+        recommendation: usd(residual) + " is eligible to carry over under §904(c) (back 1 year / forward 10), but WISING is a single-year snapshot — it does NOT persist this carryover across tax years or track it for you. Record " +
+          usd(residual) + " on " + form + " Schedule B this year, and re-enter it as prior-year carryover when you run next year's numbers.",
+        amountUsd: residual, refs: [form, "§904(c)"] };
+    } else if (paid > 0 && allowed > 0) {
+      f = { id: "ftc_available", severity: "info", category: "credit", title: "Foreign Tax Credit available and within limit",
+        detail: "Indian tax of " + usd(paid) + " (both spouses, each on their own Indian return) is fully creditable against the joint US tax this year (" + usd(allowed) + " within a " + usd(limit) + " limitation).",
+        recommendation: "Claim on " + form + " (US) and file Form 44 (India) before the ITR due date to preserve symmetric relief.",
+        amountUsd: allowed, refs: [form, "Form 44"] };
+    }
+    if (f) out.splice(Math.max(0, findings.indexOf(old)), 0, Object.assign({}, old, f));
+    return out;
+  }
+
   function withStatus(c, status) {
     var us = clone(c.us || {});
     us.profile = us.profile || {};
@@ -245,7 +275,10 @@
     // The Monitor's Reconciliation tab shows the joint return itself; the
     // full engine results are kept only when asked for (not part of the
     // JS/Python comparison).
-    if (opts && opts.keepResults) { out._joint = joint; out._own = [ownA, ownB]; }
+    if (opts && opts.keepResults) {
+      joint = Object.assign({}, joint, { findings: householdFtcFindings(joint.findings || [], out.jointUs, jf) });
+      out._joint = joint; out._own = [ownA, ownB];
+    }
     return out;
   }
 
