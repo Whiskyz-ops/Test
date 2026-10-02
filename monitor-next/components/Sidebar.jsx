@@ -2,18 +2,30 @@
 import { Radar, Users, Compass, FileText, Scale, ShieldAlert, Wallet, Building2, Landmark, Plug, Network } from "lucide-react";
 import WisingLogo from "@/components/WisingLogo";
 
-const MAIN = [
-  { id: "clients", label: "Clients", icon: Users },
-  { id: "monitor", label: "Monitor", icon: Radar },
-  { id: "structure", label: "Structure", icon: Network },
-  { id: "residency", label: "Residency", icon: Compass },
-  { id: "reconciliation", label: "Reconciliation", icon: Scale },
-  { id: "withholding", label: "Withholding", icon: ShieldAlert },
-  { id: "holdings", label: "Holdings", icon: Wallet },
-  { id: "business", label: "Business", icon: Building2 },
-  { id: "accounts", label: "Accounts", icon: Landmark },
-  { id: "filings", label: "Filings", icon: FileText },
-  { id: "integrations", label: "Integrations", icon: Plug }
+// Grouped in the order a cross-border practice works a client: triage
+// (Overview), then the engagement itself in sequence — residency, the two
+// returns reconciled, what's been paid, the filings due (Prepare) — then the
+// data the numbers are built from, then one-time setup.
+const GROUPS = [
+  { label: "Overview", items: [
+    { id: "clients", label: "Clients", icon: Users },
+    { id: "monitor", label: "Monitor", icon: Radar }
+  ] },
+  { label: "Prepare", items: [
+    { id: "residency", label: "Residency", icon: Compass },
+    { id: "reconciliation", label: "Reconciliation", icon: Scale },
+    { id: "withholding", label: "Withholding", icon: ShieldAlert },
+    { id: "filings", label: "Filings", icon: FileText }
+  ] },
+  { label: "Source data", items: [
+    { id: "holdings", label: "Holdings", icon: Wallet },
+    { id: "business", label: "Business", icon: Building2 },
+    { id: "accounts", label: "Accounts", icon: Landmark },
+    { id: "structure", label: "Structure", icon: Network }
+  ] },
+  { label: "Setup", items: [
+    { id: "integrations", label: "Integrations", icon: Plug }
+  ] }
 ];
 const FOOTER = ["Personal details", "Account settings", "Knowledge base"];
 
@@ -28,8 +40,12 @@ export default function Sidebar({ active = "monitor", onNavigate, badges = {}, e
           style={{ backgroundImage: "linear-gradient(180deg,#ffffff 0%,#c4c8ce 45%,#8b909b 60%,#e8eaed 78%,#a5aab3 100%)" }}>WISING</div>
       </div>
 
-      <nav className="flex-1 px-3 py-2 space-y-0.5">
-        {MAIN.filter((l) => !hidden.includes(l.id)).map((l) => {
+      <nav className="flex-1 px-3 py-1 overflow-y-auto">
+        {GROUPS.map((g) => ({ label: g.label, items: g.items.filter((l) => !hidden.includes(l.id)) })).filter((g) => g.items.length).map((g, gi) => (
+        <div key={g.label} className={gi ? "mt-3" : ""}>
+        <div className="px-3 pb-1 text-[9px] font-black uppercase tracking-[0.18em] text-white/30">{g.label}</div>
+        <div className="space-y-0.5">
+        {g.items.map((l) => {
           const isActive = active === l.id;
           const badge = badges[l.id];
           return (
@@ -50,6 +66,9 @@ export default function Sidebar({ active = "monitor", onNavigate, badges = {}, e
             </button>
           );
         })}
+        </div>
+        </div>
+        ))}
       </nav>
 
       <div className="px-3 py-3 border-t border-inkline space-y-0.5">

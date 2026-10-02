@@ -26,6 +26,10 @@ Every figure below was measured by running this exact flow in a fresh browser on
 
 > "This is a couple: Rohan and Priya Mehta. Both have income in India and the US. They file one joint return in the US, but India taxes each of them as an individual. Two countries, two tax years, one household. Their CPA has to keep all of this consistent by hand today."
 
+**Optional, 5 seconds, point at the left menu:**
+
+> "The menu follows how a firm actually works a client: **Overview** to see who needs attention, **Prepare**, which is residency, then the reconciled returns, what's been paid and the filings due, and **Source data** behind every number."
+
 **Point at the numbers:**
 
 | | Rohan | Priya |
