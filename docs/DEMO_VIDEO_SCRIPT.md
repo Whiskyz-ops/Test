@@ -10,6 +10,26 @@ Every figure and on-screen text below was measured by running this exact flow on
 
 ---
 
+## How WISING fits together
+
+Every client has their own set of input forms. The engine reads them and recalculates whenever anything on them changes. The Monitor is where the results show up.
+
+**Input layers** (what the CPA enters):
+- **Layer 0 · Router** (`router.html`): a short questionnaire that decides which countries apply (India only, US only, or cross-border). It records citizenship, green card and US days, and opens the right Layer 1 forms.
+- **Layer 1 · India** (`layer1_india.html`): India intake under Indian rules, by quarter (Apr–Mar year). It covers residency (days in India, days worked there), income by head, treaty claims, bank accounts, and TDS already deducted.
+- **Layer 1 · US** (`layer1_us.html`): US intake under US rules (Jan–Dec year). It covers filing status and the link to a spouse, W-2 wages, foreign income, retirement contributions, foreign bank accounts, withholding and estimated payments, and state of residence.
+
+**Engine:** works out residency in both countries, both countries' tax, the US foreign tax credit and India's relief. For a married couple it builds the joint US return from both spouses' files. Then it checks everything against the rules and raises conflicts.
+
+**The Monitor** (what the CPA reviews):
+- **Overview:** *Clients* is the firm's whole book. *Monitor* is one client's dashboard: the household's joint return, a map of each country's status, tax paid and unpaid, and conflicts grouped by root cause.
+- **Prepare:** *Residency*, *Reconciliation* (income and tax in both countries side by side, and how the double tax is relieved), *Withholding*, *Filings*.
+- **Source data:** *Holdings*, *Business*, *Accounts*.
+
+The "Layer 1: Router · India · US" links at the top right of the Monitor open the selected client's input forms.
+
+---
+
 ## Set up (off camera, about 2 minutes)
 
 1. Open a **new incognito window**. Go to demo.wising.app and enter the password. You land on **Clients**.
