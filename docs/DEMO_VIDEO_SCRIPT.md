@@ -1,8 +1,8 @@
 # WISING demo video: Rohan & Priya Mehta (2:30)
 
-**Target:** 2:30 (YC limit 3:00). About 250 spoken words; the clicks and pauses fill the rest.
+**Target:** 2:30 (YC limit 3:00). About 270 spoken words; the clicks and pauses fill the rest.
 
-**Kept simple:** two browser tabs, four screens (Clients, Monitor, Filings, Priya's India form), one live change.
+**Kept simple:** two browser tabs, five screens (Clients, Monitor, Filings, Priya's India form, Reconciliation), one live change.
 
 **Story:** Rohan and Priya file one joint US return, and India taxes each of them separately. The Monitor's household card shows both of them side by side, so both get equal weight on the same screen. The filing calendar shows what's due in both countries. Then one change on Priya's India form, a salary, updates both spouses at once.
 
@@ -48,7 +48,7 @@ The "Layer 1: Router · India · US" links at the top right of the Monitor open 
 
 > "Rohan and Priya Mehta both earn in India and the US. The US taxes them together on one joint return. India taxes each of them separately. Today their CPA juggles two countries, two tax years and two people by hand."
 
-### 0:15–0:50 · The household · tab 1, Monitor
+### 0:15–0:45 · The household · tab 1, Monitor
 
 On **Rohan's row**, click **Open →**.
 
@@ -60,7 +60,7 @@ On **Rohan's row**, click **Open →**.
 
 > "Both countries are red. Rohan has missed two Indian advance-tax payments, and forty-four hundred dollars of his Indian tax can't be credited in the US this year."
 
-### 0:50–1:10 · The filing calendar · tab 1, Filings
+### 0:45–1:03 · The filing calendar · tab 1, Filings
 
 Click **Filings** in the left menu.
 
@@ -68,7 +68,7 @@ Click **Filings** in the left menu.
 
 > "Every deadline in both countries on one calendar: the Indian return and advance tax on India's April-to-March year, the joint 1040, the foreign tax credit and the FBAR on the US calendar year."
 
-### 1:10–1:35 · One change · tab 2, Priya's India form
+### 1:03–1:25 · One change · tab 2, Priya's India form
 
 **Switch to tab 2.**
 
@@ -82,19 +82,30 @@ Clicks:
 
 > "She worked zero days in India, so WISING already knows India can't tax this salary. The US can."
 
-### 1:35–2:15 · Both spouses update · tab 1, Priya's Monitor
+### 1:25–1:55 · Both spouses update · tab 1, Priya's Monitor
 
 **Switch to tab 1.** In the client switcher, pick **Priya Mehta**, click **Monitor** in the left menu, then click **↻ Refresh**.
 
 **Point at:**
 - Household card: joint US tax **$87,212 → $96,465**; Priya **11% → 16%**, Indian tax still **$0**; Rohan **89% → 84%** (**$77,479 → $80,629**).
-- Conflicts: **10 findings, 3 critical**. New, at the top: **"Indian TDS on salary India can't tax: about $3,928 to stop or recover."** Below it, the household **FTC shortfall $4,408 → $3,873**.
+- Conflicts: **10 findings, 3 critical**. New, at the top: **"Indian TDS on salary India can't tax: about $3,928 to stop or recover."**
 
 > "One edit, and both spouses moved. The joint tax went up, and Rohan's share too, though nobody touched his file. Priya's Indian tax stays zero. And a new critical conflict: her employer will likely withhold about four thousand dollars of Indian tax it shouldn't. WISING tells the CPA how to stop it, or claim it back in time."
 
+### 1:55–2:15 · The working · tab 1, Reconciliation
+
+Click **Reconciliation** in the left menu.
+
+**Point at:**
+- India card: the salary row is greyed **"not taxable in India (the US taxes it)"** and the total stays **₹1,20,000**. India tax computation: **₹0**.
+- US card: joint wages **$276,916**, including the salary as US-performed work.
+- FTC Reconciliation: credit allowed **$15,339**, unrelieved double tax **$4,408 → $3,873**. Open **By person** for a beat: the whole credit is Rohan's, because it's his Indian tax.
+
+> "Reconciliation shows the working. India's computation leaves the salary out and says why. The extra US income raised the joint credit limit, so the household's double tax fell, and every dollar of credit traces back to the spouse who paid the Indian tax."
+
 ### 2:15–2:30 · Close
 
-Hold on the Monitor.
+Hold on Reconciliation.
 
 > "Two countries, two people, one household, always in sync. That's WISING."
 
@@ -110,7 +121,10 @@ Hold on the Monitor.
 | Rohan: share · Indian tax | 89% · $77,479 · $19,212 | 84% · $80,629 · $19,212 |
 | Priya: share · Indian tax | 11% · $9,732 · $0 | 16% · $15,836 · $0 |
 | Rohan: India advance tax | Q1, Q2 not paid ($14,032 unpaid) | unchanged |
-| FTC shortfall (household) | $4,408 | $3,873 |
+| FTC shortfall / unrelieved double tax (Monitor and Reconciliation) | $4,408 | $3,873 |
+| Joint credit allowed (all Rohan's) | $14,805 | $15,339 |
+| Joint US wages | $248,000 | $276,916 |
+| Priya: India salary left out of India's income | — | ₹23,25,000 |
 | Priya: findings / critical | 9 / 2 | 10 / 3 |
 | New conflict (Priya) | — | Indian TDS on salary India can't tax, $3,928 |
 | Filings: return forms | ITR-3 (India) · 1040 (US) | unchanged |
@@ -128,4 +142,4 @@ Click **↺ Edited – Reset** in tab 1, close tab 2, and redo set-up steps 3–
 
 ## Cutting to time
 
-If you run long, cut the second sentence pair in "The household" (the red countries) first. The filing calendar and the update scene are the two you shouldn't cut.
+If you run long, cut the second sentence pair in "The household" (the red countries) first, then the "By person" beat on Reconciliation. Don't cut the filing calendar or the update scene.
