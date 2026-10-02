@@ -1,6 +1,10 @@
 # Cross-Border Moves — Returning NRIs (US → India) and Arrivals (India → US)
 
-**2 October 2026.** A plan, not a shipped feature. It answers one question:
+**2 October 2026.** A plan, not a shipped feature. Rebased onto branch
+`claude/upbeat-pascal-vziufp` the same day. That branch already ships US
+retirement distributions (one row per 1099-R, with a date paid), §72(t),
+and DTAA Art. 20, 21(1) and 22, so those rows below now say what to
+**reuse** instead of what to build. It answers one question:
 *can a cross-border tax firm run a returning NRI, or a family moving from India
 to the US, through this product and trust the numbers?* Today the answer is
 **not yet**. The engine knows each person's residency **status** but gets the
@@ -45,7 +49,7 @@ Form 40, s.159 / Form 41, Form 44, Rule 76). Phase 0 maps every one to ITA 2025.
    gates (§2).
 4. **Intake changes are small and optional.**
    - **Router (Layer 0):** no changes.
-   - **US form:** one collapsed block of 8 optional fields, shown only in a
+   - **US form:** one collapsed block of 7 optional fields, shown only in a
      move year, plus 4 retirement-balance fields.
    - **India form:** 2 optional fields per bank account, 1 new account type,
      an optional 10-row residency-history table, and one 3-field
@@ -89,7 +93,9 @@ the field today.
 | `green_card_grant_date`, `i407_surrendered_date`, `green_card_years_held`, `expatriation_*`, `form_8854_5yr_compliance_certified` | yes (§877A) | Green-card returnee (A2). |
 | `state_residency.moved_states_this_year`, `move_date`, `ca_planning_departure`, `ca_retains_property_or_voter_reg` | partly | State exit and entry disclosures. |
 | `equity_compensation.rsu_vestings[]` with `grant_date`, `vest_date`, `workdays_in_us`, `workdays_outside_us` | partly | Workday sourcing of vests that straddle the move. |
-| `retirement_accounts.*` contributions, `ira_distributions_usd`, `401k_distributions_usd`, `hsa_msa_distributions_usd`, `indian_epf/ppf/nps_balance_usd` | partly | Retirement treatment on both sides. |
+| `retirement_accounts.*` contributions, `hsa_msa_distributions_usd`, `indian_epf/ppf/nps_balance_usd` | partly | Retirement treatment on both sides. |
+| `income_us_source.retirement_distributions[]` with `plan_type`, `taxable_usd`, `payment_type` (periodic / lump sum), `early_exception`, SEPP fields, **`date_paid`**, `federal_withheld_usd` (`retirement-dist.js` / `retirement_dist.py`) | yes | **Dated** — each withdrawal falls on one side of the move date. The treaty and §72(t) rules for a 1040-NR filer already exist. |
+| `us_residency_detail.article_22_claim`, `article_22_arrival_date`, `article_22_exempt_wages_usd`; Art. 21(1) student fields (`treaty-art22.js`, `treaty-art21.js`) | yes | Arriving teachers, researchers and students (B3). |
 | `bank_accounts[].account_type` (`nre_savings`, `nro_savings`, `fcnr_deposit`), `opened_during_year`, `closed_during_year` | partly | NRE/NRO tagging, FBAR/8938 timing. |
 | `financial_holdings[]` (`country`, `peak_balance_usd`) | yes | US-situs assets for the estate-tax flag (A). |
 | `real_estate.properties[]` (dates, basis, §121) | yes | US home or rental kept or sold (A); Indian home (B). |
@@ -247,9 +253,9 @@ foreign-tax-credit planning, not scope. (Certain)
 | Art. 10 / 11 dividends, interest | Source country rate caps. Dividends: 15% (10%+ holding) / 25% other. Interest: 10% (bank or financial institution) / 15% other. | Likely (Verify rates) |
 | Art. 13 capital gains | Each country taxes under its **own domestic law**. No treaty exemption, so relief comes only through Art. 25 credit. | Certain |
 | Art. 16 employment | Pay is taxed where the work is done. The 183-day / foreign-employer / no-recharge exemption rarely helps in a move year. | Certain |
-| Art. 20 private pensions | Pensions and annuities are taxable only in the country of residence. Whether lump-sum 401(k)/IRA withdrawals count as "pensions" (Art. 20) or "other income" (Art. 23) is disputed. | Likely / Verify |
-| Art. 21 students and apprentices | Indian students on F-1/J-1 can claim the standard deduction on Form 1040-NR (Art. 21(2)). | Certain |
-| Art. 22 professors and researchers | Two-year exemption for teaching and research pay. | Likely (Verify conditions) |
+| Art. 20 private pensions | Pensions and annuities are taxable only in the country of residence. **Engine (already built):** for an India-resident 1040-NR filer, periodic payments, including SEPP payments while the schedule holds, are exempt under Art. 20(1); lump sums are taxed as FDAP at 30% plus §72(t); a broken SEPP is treated as a lump sum. | Built, with the CPA's reading |
+| Art. 21 students and apprentices | Art. 21(2): standard deduction on Form 1040-NR. Art. 21(1): payments from outside the US for maintenance and study are exempt; Art. 1(4)(b) keeps this for a resident alien but not for a citizen or green-card holder. **Art. 21(1) already built** (`treaty_article_21_student`). | Certain |
+| Art. 22 professors and researchers | Teaching and research pay is exempt for two years from arrival when the person was resident in India just before. Art. 1(4)(b) keeps it for a resident alien, not for a citizen or green-card holder. **Already built** (`treaty_article_22_teacher`); its window starts at `article_22_arrival_date`, which should match the move date. | Built |
 | Art. 23 other income | Catch-all. The source country may also tax. | Likely |
 | Art. 25 relief | India: credit for US tax on US-source income (s.90 / s.159, Form 44). US: Form 1116, with Art. 25(3) re-sourcing so India-taxed income counts as foreign-source for a US resident. | Likely (Verify Art. 25(3) scope for capital gains) |
 
@@ -263,6 +269,7 @@ evidence:
 
 1. A dated record already on file:
    - RSU `vest_date`
+   - retirement withdrawal `date_paid`
    - India transaction `sale_date`
    - US property `sale_date`
    - India quarter (Q1–Q4)
@@ -306,7 +313,7 @@ evidence:
 | A-US-7 | Departure clearance | Departing aliens must get a certificate (Form 1040-C, or Form 2063 if no taxable income) before leaving. Exceptions exist; rarely enforced. | Certain (requirement) / Likely (enforcement) | **Nothing** | Calendar item "before departure" plus document row. Severity info. |
 | A-US-8 | Green-card exit | Residency lasts until I-407. Long-term resident (8 of 15 years) → §877A tests and Form 8854. Claiming India residence under the treaty as a long-term resident is itself expatriation (§7701(b)(6)). | Certain | §877A computed; treaty-claim trap missing | Finding `move_us_ltr_treaty_claim_expatriates` when GC + long-term resident + `dtaa_treaty_residence = india`. |
 | A-US-9 | US citizen (A3) | Worldwide scope continues (saving clause). FEIE needs a tax home in India plus bona fide residence or 330 days in 12 months — often not met by the move-year due date (Form 2350 extension). Foreign tax credit usually beats FEIE at Indian rates. | Certain | FEIE and foreign tax credit exist | Finding `move_us_citizen_feie_window` with the date the 330-day test would be met. |
-| A-US-10 | 401(k) / IRA after departure | Distributions to a nonresident: 30% withholding or the treaty rate. Art. 20 vs Art. 23 split as in §3.3. The 10% §72(t) early-withdrawal penalty may still apply. | Likely / Verify | Distributions read; nonresident treatment not modelled | Finding `move_us_retirement_distribution_nra` (disclosure, Phase 1); computation in Phase 3. |
+| A-US-10 | 401(k) / IRA after departure | Built for a **full-year** 1040-NR filer resident in India: periodic exempt (Art. 20(1)); lump sum taxed as FDAP at 30% plus §72(t); broken SEPP treated as a lump sum. | Built (CPA-reviewed) | **Move year not covered:** the treaty rule (`treatyPeriodicExempt`) is gated on `files_form_1040nr`, and the dual-status nonresident period drops all retirement income | Phase 2: split rows by `date_paid` against the residency end date. Rows before → resident period (Form 1040, §72(t)). Rows after → the existing 1040-NR treaty rule, reused. No new field. |
 | A-US-11 | HSA / 529 | India gives neither any tax status. US penalties on non-qualified withdrawals continue. | Likely / Verify | Contributions only | Disclosure in the retirement finding. |
 | A-US-12 | **US estate tax** | A nonresident non-citizen holding US-situs assets (US shares, US real estate) above **$60,000** is exposed to US estate tax. There is no India–US estate treaty. | Certain | **Nothing** | Finding `move_us_nra_estate_tax_exposure` from `financial_holdings` / `real_estate` where country = US. Disclosure only. |
 | A-US-13 | FBAR / 8938 / PFIC after departure | Not required once a nonresident alien (citizens and green-card holders continue). The departure year covers the resident period. | Likely (Verify the FBAR rule for a part-year) | Full-year gates | Scope the gauges to the resident period. Note the "final year" in Documents. |
@@ -383,7 +390,6 @@ directions; labels flip with direction.
 | `us_dividends_resident_period_usd` | Override. |
 | `us_capital_gains_resident_period_usd` | Override (trade-date basis). |
 | `foreign_investment_income_resident_period_usd` | Override when India quarters aren't filled. |
-| `retirement_distributions_resident_period_usd` | Split of the existing 401(k)/IRA distribution fields. |
 | `other_income_resident_period_usd` | Catch-all. |
 
 **US form → `retirement_accounts`:** add `401k_balance_usd`,
@@ -433,7 +439,7 @@ the RNOR-window projection.
 | B-US-2 | **Election comparator** | Options: (a) full-year nonresident (1040-NR); (b) first-year choice (dual-status, file after next year's SPT, Form 4868); (c) first-year choice + §6013(h) → joint, full-year resident, standard deduction, **worldwide income incl. pre-arrival Indian salary** with a credit for Indian tax; (d) §6013(g) when the spouse is already a resident. | Certain (rules) | Not compared (US-31) | Node `arrivalElectionComparator`: runs the existing US core up to 4 times and shows tax for each. Finding `move_us_election_comparison` names the cheapest option and the cost of each. |
 | B-US-3 | **Income attribution defaults** | Indian salary earned and paid before the start date → nonresident period, foreign-source, **not US-taxed**. US wages → resident period. Indian bonus, gratuity or leave encashment **received after** the start date → resident period, US-taxable, with a credit only if India taxed it. | Certain (pre-arrival salary) / Likely / Verify (post-arrival receipt of pay for Indian work, Reg. 1.871-13) | **Pre-arrival Indian salary partly taxed by the US** via day-count | §6.2 attribution node. Override field `foreign_wages_received_in_resident_period_usd`. |
 | B-US-4 | Return form | Resident at year end → **1040 is the return, 1040-NR is the statement.** | Certain | Generic text | Direction-aware. |
-| B-US-5 | Students and scholars (B3) | F/J students exempt from SPT for 5 calendar years (Form 8843); 1040-NR; Art. 21(2) standard deduction; no FICA on F-1/J-1 pay. | Certain | `article212Eligible` exists | Reuse. Add Form 8843 to Documents. |
+| B-US-5 | Students, teachers and researchers (B3) | F/J students exempt from SPT for 5 calendar years (Form 8843); 1040-NR; Art. 21(2) standard deduction; Art. 21(1) payments from India; Art. 22 two-year teacher and researcher exemption; no FICA on F-1/J-1 pay. | Certain | `article212Eligible`, Art. 21(1) and Art. 22 findings exist | Reuse. Add Form 8843 to Documents. `move_us_start_date_mismatch` also compares `article_22_arrival_date` with the move date. |
 | B-US-6 | **PFIC from day 1** | Indian mutual funds, ETFs and some ULIPs are PFICs. The holding period starts on becoming a US person. Excess-distribution rules unless a mark-to-market election (Form 8621). | Certain (PFIC) / Likely (holding-period start) / Verify (ULIP) | PFIC detection exists | Finding `move_us_pfic_first_year`: first-year mark-to-market election window. Pre-arrival sale is in B-PLAN-1. |
 | B-US-7 | **No basis step-up** | The US taxes the full gain since purchase (in USD at historical FX), including gains built up before arrival. | Certain | None | Finding `move_us_no_step_up` with the gain figure from `financial_holdings.transactions` (purchase value vs current value). |
 | B-US-8 | Reporting from the start date | FBAR (US person for part of the year — Verify whether the max-value period is the whole year), 8938 (resident period), Form 3520 (gifts > $100k from Indian relatives), 5471 (≥10% officer or shareholder in an Indian company), 8865 (Indian LLP or partnership), 720 (foreign insurance premiums excise tax). | Likely / Verify | Most of these forms exist | Scope the gauges to the resident period. Add 720. |
@@ -657,7 +663,7 @@ page (see the commit that added this section).
      - The router and both forms already resolve their storage through
        `ClientRegistry.storageKeyFor`, so only that function becomes
        year-aware.
-     - **Exception:** `layer1_us.html` lines ~6801–6802 and ~6972 build
+     - **Exception:** `layer1_us.html` lines ~6850–6851 and ~7021 build
        spouse keys directly (`spouseLinkUsKey`, `spouseLinkRouterKey`).
        They must read the spouse's record for the **same year** — a
        three-line change to a helper, not a screen change.
@@ -703,7 +709,7 @@ page (see the commit that added this section).
 | Layer | Change | Count | Visibility |
 |---|---|---|---|
 | L0 Router | None | 0 | — |
-| L1 US | "Move-year split" block | 8 numeric fields | Only when status is `DUAL_STATUS` |
+| L1 US | "Move-year split" block | 7 numeric fields | Only when status is `DUAL_STATUS` |
 | L1 US | Retirement balances | 4 numeric fields | Always (retirement step) |
 | L1 India | Bank account `interest_inr`, `redesignation_date`, type `rfc` | 2 fields + 1 option per row | Always (bank step) |
 | L1 India | Residency history table | 10 rows × 3 fields | Collapsed, "optional — improves RNOR projection" |
@@ -759,8 +765,8 @@ and needs evidence first.
 | **0 — Law and fixtures** | Resolve every **Verify** in §11. Map ITA 1961 → ITA 2025 section numbers. Write the 8 persona worksheets. | None | Worksheets signed off. No code. |
 | **0.5 — Client tax years (§7)** | Per-year client records and migration; roll forward; Record-a-move action; spouse-link and conflict-log keys per year. Can run in parallel with Phase 0. | None (the year-aware key function is shared code; plus the 3-line US-form spouse-key helper) | §7.3 exit criteria. |
 | **1 — Detect and disclose** | `moveContext`; all disclosure and planning findings that need only existing fields (A-US-1/2/3/7/8/9/12/13/14/15, A-IN-1/3/7, B-US-1/4/5/6/7/8/12/13/14/15, B-IN-1/3/4/5/8, B-PLAN-*); documents and calendar rows. | None | All §2 gates green. No-change diff empty. Personas: correct finding ids. |
-| **2 — Correct the move-year US computation** | `moveYearAttribution` (direction defaults + dated records + India quarters); `arrivalElectionComparator`; direction-aware return form; January–March moves read the previous FY (§3.1); move-date control in the what-if bar. | `previous_fy_status` / `previous_fy_q4`, only when no previous-year record exists | A1/A3/B1/B2 US tax matches the worksheets within $1. Gates green. |
-| **3 — India return-side accounts** | `nriAccountInterest`; s.158 / Roth / 401(k) once ROR; `rnorWindow`; s.115H (if Verify clears); nonresident 401(k) distributions. | India bank fields, history table, s.158 block; US retirement balances | A1/A2/A4 India tax matches worksheets. Round-trip and field audits green. |
+| **2 — Correct the move-year US computation** | `moveYearAttribution` (direction defaults + dated records + India quarters); `arrivalElectionComparator`; direction-aware return form; January–March moves read the previous FY (§3.1); retirement withdrawals split by `date_paid`, reusing the built 1040-NR treaty rule (A-US-10); move-date control in the what-if bar. | `previous_fy_status` / `previous_fy_q4`, only when no previous-year record exists | A1/A3/B1/B2 US tax matches the worksheets within $1. Gates green. |
+| **3 — India return-side accounts** | `nriAccountInterest`; s.158 / Roth / 401(k) once ROR; `rnorWindow`; s.115H (if Verify clears). | India bank fields, history table, s.158 block; US retirement balances | A1/A2/A4 India tax matches worksheets. Round-trip and field audits green. |
 | **4 — Overrides and timeline** | US "Move-year split" block; Monitor "Move timeline" card; optional router question only if Phase 1–3 data shows derivation gaps. | US split block | Playwright check of the block and card. Gates green. |
 
 Phases 1 and 2 need almost no intake change — only the January–March
@@ -781,11 +787,13 @@ to an **existing** client without overwriting their previous year.
    last-year rules when the person returns in the following year.
 3. Whether FBAR in a dual-status year covers the whole calendar year or the
    resident period only.
-4. DTAA Art. 20 vs Art. 23 for lump-sum 401(k)/IRA withdrawals, and whether
-   §72(t) survives treaty relief for a nonresident.
+4. ~~DTAA Art. 20 vs Art. 23 for lump-sum withdrawals, §72(t) under the
+   treaty~~ **Settled** for full-year 1040-NR filers by the CPA reading
+   built in `retirement-dist.js`. Still open: India's side of a lump sum
+   (Art. 23(3) lets the source country tax, so India credits the US tax).
 5. Which article governs US Social Security paid to an Indian resident, and
    the US withholding on it.
-6. Art. 10/11 rate caps as amended; Art. 22 conditions; Art. 25(3)
+6. Art. 10/11 rate caps as amended; Art. 25(3)
    re-sourcing scope for capital gains on listed securities.
 7. Reg. 1.871-13: pay for Indian work received after the US start date.
 8. PFIC holding-period start for funds bought before becoming a US person;
