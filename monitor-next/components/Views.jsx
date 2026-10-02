@@ -51,6 +51,8 @@ function BreakdownRow({ title, lines, fmt, children }) {
   );
 }
 
+const SALARY_NC_LABEL = "Salary for work done outside India — not taxable in India (the US taxes it)";
+
 // India "Salary — taxable": gross → taxable.
 function SalaryBreakdownRow({ gross, deductions, children }) {
   const lines = [{ label: "Salary (gross, per Layer 1)", value: gross }]
@@ -1395,7 +1397,7 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump,
   const salaryIndiaMv = inc.india.salary && salaryNcInr > 0 ? moneyInr(Math.max(0, (inc.india.salary.inr || 0) - salaryNcInr)) : inc.india.salary;
   const indiaRows = buildRows([
     ["Salary", salaryIndiaMv],
-    ["Salary for work done outside India — not taxable in India (the US taxes it)", salaryNcInr > 0 ? moneyInr(salaryNcInr) : null, false], ["Business / Profession", inc.india.business], ["House property", inc.india.houseProperty],
+    [SALARY_NC_LABEL, salaryNcInr > 0 ? moneyInr(salaryNcInr) : null, false], ["Business / Profession", inc.india.business], ["House property", inc.india.houseProperty],
     ["Interest", inc.india.interest], ["Dividend", inc.india.dividend],
     ["Other sources (family pension, gifts, misc.)", inc.india.otherSourcesMisc],
     ["Short-term capital gains (unlisted, slab rate)", moneyInr(inc.india.stcgSlabInr)],
@@ -1429,6 +1431,21 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump,
     ["Work done outside India — not taxable in India", salaryNcInr]
   ].filter(([, v]) => v > 0) : [];
   const showSalaryBreakdown = salaryDeductions.length > 0 && sd.grossSalaryInr > 0;
+  // The excluded row's own gross → net: its share of gross salary less the
+  // same share of the standard deduction / exemptions (the engine splits
+  // them pro rata by the work split). Lets the India figure be traced to the
+  // gross figure the US taxes.
+  const indiaWl = inc.india.salaryWorkLocation || {};
+  const outsideShare = indiaWl.indiaWorkFraction != null ? 1 - indiaWl.indiaWorkFraction : null;
+  const salaryNcLines = salaryNcInr > 0 && sd && !sd.overridden && sd.grossSalaryInr > 0 && outsideShare != null ? (() => {
+    const pct = Math.round(outsideShare * 1000) / 10;
+    const grossOut = Math.round(sd.grossSalaryInr * outsideShare);
+    return [
+      { label: "Salary (gross, per Layer 1)" + (pct < 100 ? " × " + pct + "% for work outside India" : ""), value: grossOut },
+      { label: "− Standard deduction and exemptions" + (pct < 100 ? " (" + pct + "% share)" : ""), value: -(grossOut - salaryNcInr), sub: true },
+      { label: "The US taxes the gross figure; India's figures are after its deductions.", value: null, sub: true }
+    ];
+  })() : null;
 
   // One income list: heads Layer 1 US left empty are filled from Layer 1
   // India (model.income.us.foreignFromIndia says which) — labelled so the
@@ -1460,7 +1477,7 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump,
   if (usRows.length && inc.us.wages && usRows[0].mv === inc.us.wages) usRows[0].isWages = true;
   // Wages = US W-2 wages + pay from a foreign employer for work done while
   // in the US (US-source, IRC §861(a)(3)) — split out on hover.
-  const wl = inc.india.salaryWorkLocation || {};
+  const wl = (joint ? joint.salaryWorkLocationJoint : inc.india.salaryWorkLocation) || {};
   const usWorkPct = wl.indiaWorkFraction != null ? Math.round((1 - wl.indiaWorkFraction) * 1000) / 10 : null;
   const wagesLines = [
     { label: "US W-2 wages (Layer 1 US)", value: ((inc.us.wages && inc.us.wages.usd) || 0) - wagesUsSourceUsd },
@@ -1468,6 +1485,9 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump,
   ].concat(fromIndia.wages && usWorkPct != null ? [{
     label: wl.basis === "workdays" ? "US-work share " + usWorkPct + "% — from the workdays on Layer 1 India"
       : wl.basis === "estimated_days_present" ? "US-work share " + usWorkPct + "% — estimated from days present; enter workdays on Layer 1 India's salary section for an exact split"
+      : wl.basis === "india_work_days" ? "US-work share " + usWorkPct + "% — from 'days worked in India' on Layer 1 India's residency screen" + (usWorkPct === 100 ? " (0 days)" : "")
+      : wl.basis === "auto_outside_india" ? "US-work share " + usWorkPct + "% — no days in India this year, or in the US all year"
+      : wl.basis === "auto_in_india" ? "US-work share " + usWorkPct + "% — in India all year, or no US days"
       : "US-work share " + usWorkPct + "%",
     value: null, sub: true
   }] : []);
@@ -1490,6 +1510,8 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump,
             <Card title="🇮🇳 India income — by head" sub="From Layer 1 India (₹, with USD equivalent)">
               {indiaRows.length ? indiaRows.map((r, i) => (r.label === "Salary" && showSalaryBreakdown
                 ? <SalaryBreakdownRow key={i} gross={sd.grossSalaryInr} deductions={salaryDeductions}>{(chevron) => <IncomeRow label={<>Salary — taxable{chevron}</>} mv={r.mv} additive={r.additive} inr />}</SalaryBreakdownRow>
+                : r.label === SALARY_NC_LABEL && salaryNcLines
+                ? <BreakdownRow key={i} title="Show gross salary → the figure left out of India's income" lines={salaryNcLines} fmt={fmtInr}>{(chevron) => <IncomeRow label={<>{r.label}{chevron}</>} mv={r.mv} additive={r.additive} inr />}</BreakdownRow>
                 : <IncomeRow key={i} label={r.label} mv={r.mv} additive={r.additive} inr />)) : <Empty>No India income on file.</Empty>}
               {indiaRows.length > 0 && <div className="flex justify-between pt-2 mt-1 text-[12px] font-bold text-head"><span>Total</span><span className="font-mono">{fmtInr(indiaTotalInr)} <span className="text-muted">≈ {fmtUsd(indiaTotalUsd)}</span></span></div>}
             </Card>

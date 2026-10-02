@@ -243,6 +243,9 @@ export function buildHouseholdRecon(h, clientId) {
     me,
     household: h,
     incomeUs: joint.model.income.us,
+    // The joint return's India-salary work split (both spouses' India
+    // salaries combined) — explains the foreign-employer US-work wages above.
+    salaryWorkLocationJoint: (joint.model.income.india && joint.model.income.india.salaryWorkLocation) || null,
     worldwideUs: !!(joint.computed.residency && joint.computed.residency.us && joint.computed.residency.us.worldwide),
     taxComputationUs: usBlock,
     taxComputationUsState: usState,
