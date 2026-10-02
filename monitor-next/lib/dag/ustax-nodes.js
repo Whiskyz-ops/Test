@@ -871,7 +871,7 @@ var NODES = {
       // Distributions paid before 59½ with no §72(t)(2) exception recorded
       // (SEPP, separation at 55+, death, disability, ...) — retirement-dist.js.
       var rd = require("./retirement-dist.js");
-      return (rd.early72tBaseUsd(ctx.us, d.taxpayerDobRaw, d.baseYearUs || 2026) + rd.seppRecaptureBaseUsd(ctx.us)) * 0.10;
+      return (rd.early72tBaseUsd(ctx.us, d.taxpayerDobRaw, d.baseYearUs || 2026) + rd.seppRecaptureBaseUsd(ctx.us, d.taxpayerDobRaw, d.baseYearUs || 2026)) * 0.10;
     }
   },
   usTaxResult: {

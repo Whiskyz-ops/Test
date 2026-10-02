@@ -37,7 +37,7 @@ from ..india.aggregate_india_income import _annual_slice_agg
 from . import constants as C
 from . import us1_penalty_2210, us5_penalty_72t, us_full
 from .nra_fdap import nra_exempt_interest_usd, nra_fdap_breakdown
-from .retirement_dist import sepp_recapture_base_usd
+from .retirement_dist import sepp_status
 
 T = C.US
 
@@ -705,7 +705,18 @@ def _findings_us_result(d, ctx):
         ))
 
     # -- sepp_recapture_72t (report-batch5-nodes.js earlyWithdrawalPenalty72tFinding) --
-    recapture_base_usd = sepp_recapture_base_usd(ctx.get("us")) if d["hasUsScope"] else 0
+    sepp = sepp_status(ctx.get("us"), d["taxpayerDobRaw"], d["baseYearUs"] or 2026)
+    recapture_base_usd = sepp["recaptureBaseUsd"] if d["hasUsScope"] else 0
+    if d["hasUsScope"] and recapture_base_usd == 0 and sepp["afterPeriod"]:
+        findings.append(make_finding(
+            "sepp_recapture_72t", "info", "credit",
+            "SEPP changed after its required period — no §72(t) recapture",
+            "A SEPP schedule marked as changed or stopped on Layer 1 US was changed after the later of five years from the first payment and age 59½ ("
+            + "; ".join(((a["payerName"] + ": ") if a["payerName"] else "") + "period ended " + a["periodEnd"] for a in sepp["afterPeriod"])
+            + "). A change after that point is allowed: the earlier payments keep their exception.",
+            "No recapture to report. Keep the SEPP start date and payment history on file in case the IRS asks.",
+            0, ["§72(t)(4)"],
+        ))
     if recapture_base_usd > 0:
         findings.append(make_finding(
             "sepp_recapture_72t", "critical", "credit",
@@ -717,7 +728,8 @@ def _findings_us_result(d, ctx):
             "filing Form 1040-NR it is no longer treated as a periodic payment under the treaty (DTAA Art. 20), so the US taxes it like a lump sum.",
             "Confirm the schedule was really modified (a change in the amount, an extra withdrawal, a rollover or transfer out of the "
             "account, or stopping early all count). Report the recapture and the interest on Form 5329 and Schedule 2 for this year. If earlier "
-            "SEPP payments were left out of US tax as periodic payments under the treaty, review those years' returns for amendment.",
+            "SEPP payments were left out of US tax as periodic payments under the treaty, review those years' returns for amendment."
+            + (" Enter the SEPP start date on Layer 1 US: a change after the later of five years and age 59½ isn't a break, and WISING can only check that with the date." if sepp["missingStartDate"] else ""),
             recapture_base_usd * 0.10, ["§72(t)(4)", "Form 5329", "DTAA Art. 20"],
         ))
 
@@ -791,7 +803,7 @@ NODES["findingsUsResult"] = NodeDef(
           "equityCompResult", "usStateTaxResult", "limitsRawExtra",
           "us1ShouldFire", "us2210PenaltyUsd", "usPaidTotalUsd", "usCurrentHarborUsd", "usPriorHarborUsd", "usPriorHarborPct",
           "us5ShouldFire", "penalty72tUsd", "earlyDistUsd", "ageAtYearEndUs",
-          "hasUsScope", "ssnOrItinTypeRaw"),
+          "hasUsScope", "ssnOrItinTypeRaw", "taxpayerDobRaw", "baseYearUs"),
     compute=_findings_us_result,
 )
 NODES["usResidencyConsistencyFinding"] = NodeDef(

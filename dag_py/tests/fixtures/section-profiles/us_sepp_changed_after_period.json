@@ -1,14 +1,14 @@
 {
-  "id": "us_sepp_broken_recapture",
+  "id": "us_sepp_changed_after_period",
   "form": "layer1_us.html",
-  "section": "Retirement distributions \u2014 broken SEPP (\u00a772(t)(4))",
-  "story": "US citizen, single, Texas, born 1980-01-01 (46 in 2026). Wages $50,000. Has taken SEPP payments from a 401(k) since 1 March 2023 ($36,000 so far) and this year changed the schedule: $12,000 paid in 2026. The change on 15 June 2026 is inside the required period (it runs to age 59\u00bd, 1 July 2039).",
+  "section": "Retirement distributions \u2014 SEPP changed after its required period",
+  "story": "US citizen, single, Texas, born 1965-01-01 (59\u00bd on 1 July 2024). Wages $50,000. SEPP payments from a 401(k) since 1 June 2019 ($60,000 so far); stopped the schedule after taking $12,000 on 15 March 2026, after the required period ended (the later of five years, 1 June 2024, and 59\u00bd, 1 July 2024).",
   "router": {
     "jurisdiction": "single_us",
     "base_tax_year": 2026,
     "is_us_citizen": true,
     "us_days": 365,
-    "date_of_birth": "1980-01-01"
+    "date_of_birth": "1965-01-01"
   },
   "india": {},
   "us": {
@@ -17,7 +17,7 @@
       "filing_status": "single",
       "ssn_or_itin_type": "ssn",
       "dependents_count": 0,
-      "date_of_birth": "1980-01-01"
+      "date_of_birth": "1965-01-01"
     },
     "us_residency_detail": {
       "is_us_citizen": true,
@@ -49,11 +49,11 @@
           "payment_type": "periodic",
           "early_exception": "sepp",
           "rolled_over": false,
-          "date_paid": "2026-06-15",
+          "date_paid": "2026-03-15",
           "federal_withheld_usd": null,
           "sepp_broken": true,
-          "sepp_prior_payments_usd": 36000,
-          "sepp_start_date": "2023-03-01"
+          "sepp_prior_payments_usd": 60000,
+          "sepp_start_date": "2019-06-01"
         }
       ]
     }
@@ -65,24 +65,19 @@
       "why": "wages 50,000 + 12,000 of 401(k) payments"
     },
     {
-      "path": "findings[id=early_withdrawal_penalty_72t].amountUsd",
-      "value": 1200,
-      "why": "the broken schedule loses the SEPP exception for this year's 12,000: 10% = 1,200"
-    },
-    {
-      "path": "findings[id=sepp_recapture_72t].amountUsd",
-      "value": 3600,
-      "why": "s.72(t)(4): 10% of the 36,000 of earlier SEPP payments, due this year (interest not computed)"
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 5260,
+      "why": "taxable 62,000 \u2212 16,100 = 45,900: 1,240 + 12% \u00d7 33,500 = 5,260; no additional tax \u2014 paid after 59\u00bd and changed after the required period"
     },
     {
       "path": "findings[id=sepp_recapture_72t].severity",
-      "value": "critical",
-      "why": "tax due now on past years' payments"
+      "value": "info",
+      "why": "s.72(t)(4) applies only to a change before the later of five years and 59\u00bd: no recapture"
     },
     {
-      "path": "computed.usTax.totalTaxBeforeFtcUsd",
-      "value": 10060,
-      "why": "taxable 62,000 \u2212 16,100 = 45,900: 1,240 + 12% \u00d7 33,500 = 5,260; plus 1,200 + 3,600 additional tax"
+      "path": "findings[id=early_withdrawal_penalty_72t]",
+      "value": null,
+      "why": "the 2026 payment was made after 59\u00bd"
     }
   ]
 }

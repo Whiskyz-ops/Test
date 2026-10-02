@@ -741,7 +741,7 @@ def additional_medicare_owed_usd(us) -> float:
 
 def _additional_tax_72t_usd(d, ctx):
     # Paid before 59½ with no §72(t)(2) exception (SEPP, ...) — retirement_dist.py.
-    return (early_72t_base_usd(ctx.get("us"), d["taxpayerDobRaw"], d["baseYearUs"] or 2026) + sepp_recapture_base_usd(ctx.get("us"))) * 0.10
+    return (early_72t_base_usd(ctx.get("us"), d["taxpayerDobRaw"], d["baseYearUs"] or 2026) + sepp_recapture_base_usd(ctx.get("us"), d["taxpayerDobRaw"], d["baseYearUs"] or 2026)) * 0.10
 
 
 def _us_tax_result(d, ctx):

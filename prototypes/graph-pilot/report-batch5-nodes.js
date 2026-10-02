@@ -121,12 +121,22 @@ NODES.underpayment2210Finding = {
 
 /* early_withdrawal_penalty_72t — conflicts.js:549-557. */
 NODES.earlyWithdrawalPenalty72tFinding = {
-  deps: ["us5ShouldFire", "penalty72tUsd", "earlyDistUsd", "ageAtYearEndUs", "hasUsScope"],
+  deps: ["us5ShouldFire", "penalty72tUsd", "earlyDistUsd", "ageAtYearEndUs", "hasUsScope", "taxpayerDobRaw", "baseYearUs"],
   compute: function (d, ctx) {
     var out = [];
     // §72(t)(4): a broken SEPP (retirement-dist.js) — the 10% on every earlier
     // SEPP payment taken before 59½ falls due this year.
-    var recaptureBaseUsd = d.hasUsScope ? require("./retirement-dist.js").seppRecaptureBaseUsd(ctx.us) : 0;
+    var sepp = require("./retirement-dist.js").seppStatus(ctx.us, d.taxpayerDobRaw, d.baseYearUs || 2026);
+    var recaptureBaseUsd = d.hasUsScope ? sepp.recaptureBaseUsd : 0;
+    if (d.hasUsScope && recaptureBaseUsd === 0 && sepp.afterPeriod.length) out.push({
+      id: "sepp_recapture_72t", severity: "info", category: "credit",
+      title: "SEPP changed after its required period — no §72(t) recapture",
+      detail: "A SEPP schedule marked as changed or stopped on Layer 1 US was changed after the later of five years from the first payment and age 59½ (" +
+        sepp.afterPeriod.map(function (a) { return (a.payerName ? a.payerName + ": " : "") + "period ended " + a.periodEnd; }).join("; ") +
+        "). A change after that point is allowed: the earlier payments keep their exception.",
+      recommendation: "No recapture to report. Keep the SEPP start date and payment history on file in case the IRS asks.",
+      amountUsd: 0, refs: ["§72(t)(4)"]
+    });
     if (recaptureBaseUsd > 0) out.push({
       id: "sepp_recapture_72t", severity: "critical", category: "credit",
       title: "Broken SEPP: §72(t) 10% recaptured on earlier payments (" + usd(recaptureBaseUsd * 0.10) + " plus interest)",
@@ -137,7 +147,8 @@ NODES.earlyWithdrawalPenalty72tFinding = {
         "filing Form 1040-NR it is no longer treated as a periodic payment under the treaty (DTAA Art. 20), so the US taxes it like a lump sum.",
       recommendation: "Confirm the schedule was really modified (a change in the amount, an extra withdrawal, a rollover or transfer out of the " +
         "account, or stopping early all count). Report the recapture and the interest on Form 5329 and Schedule 2 for this year. If earlier " +
-        "SEPP payments were left out of US tax as periodic payments under the treaty, review those years' returns for amendment.",
+        "SEPP payments were left out of US tax as periodic payments under the treaty, review those years' returns for amendment." +
+        (sepp.missingStartDate ? " Enter the SEPP start date on Layer 1 US: a change after the later of five years and age 59½ isn't a break, and WISING can only check that with the date." : ""),
       amountUsd: recaptureBaseUsd * 0.10, refs: ["§72(t)(4)", "Form 5329", "DTAA Art. 20"]
     });
     if (!d.us5ShouldFire) return out;

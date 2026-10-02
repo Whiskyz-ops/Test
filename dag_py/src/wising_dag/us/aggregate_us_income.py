@@ -415,7 +415,9 @@ def _business_and_se_computation(d, ctx):
 
 def _retirement_computation(d, ctx):
     # One row per 1099-R (retirement_dist.py), plus the older single figures.
-    t = retirement_totals({"income_us_source": d["uiAgg"]})
+    # Date of birth and tax year: whether a changed SEPP counts as broken.
+    dob = safe(ctx.get("router"), "date_of_birth", safe(ctx.get("india"), "profile.date_of_birth", safe(ctx.get("us"), "profile.date_of_birth", None)))
+    t = retirement_totals({"income_us_source": d["uiAgg"]}, dob, base_year_of(ctx.get("router"), ctx.get("us")))
     social_security_gross_usd = num(safe(d["uiAgg"], "social_security_benefits_usd", 0))
     return {"usRetirementIncomeExclSsUsd": t["totalUsd"], "socialSecurityUsUsd": social_security_gross_usd,
             "retirementDistributionsSubjectTo72tUsd": t["totalUsd"] - t["pensionUsd"],
