@@ -86,9 +86,9 @@ export default function Sidebar({ active = "monitor", onNavigate, badges = {}, e
         ))}
         <div className="mt-2 flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.05] border border-inkline">
           <div className="w-8 h-8 rounded-full flex items-center justify-center text-[#04120f] font-black text-xs"
-            style={{ background: "linear-gradient(135deg,#34d399,#3b82f6)" }}>PM</div>
+            style={{ background: "linear-gradient(135deg,#34d399,#3b82f6)" }}>DB</div>
           <div className="min-w-0">
-            <div className="text-[12px] font-bold truncate text-white/90">Priya Menon</div>
+            <div className="text-[12px] font-bold truncate text-white/90">Daniel Brooks</div>
             <div className="text-[10px] text-white/40 truncate">Verité Tax Advisors</div>
           </div>
         </div>
