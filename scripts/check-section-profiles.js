@@ -11,8 +11,9 @@
  * only go in through the front door.
  *
  * Each profile is dag_py/tests/fixtures/section-profiles/<id>.json:
- *   { id, form, section, story, router, india, us,
+ *   { id, form, section, story, router, india, us, monitorAsOf?,
  *     expect: [{ path, value, why, tol? }] }
+ * monitorAsOf pins the engine's "today" (else the clock).
  * `path` is a dot path into analyze()'s result; a segment like
  * rows[label=Taxable income] picks the array element whose field matches.
  * `tol` defaults to 1 (rounding).
@@ -104,7 +105,9 @@ if (require.main === module) {
   global.WISING = {};
   process.chdir(path.join(ROOT, "prototypes", "graph-pilot"));
   const dag = require(path.join(ROOT, "prototypes", "graph-pilot", "analyze.js"));
-  const run = (p) => dag.analyze(JSON.parse(JSON.stringify({ router: p.router || {}, india: p.india || {}, us: p.us || {} })));
+  // monitorAsOf (optional): the engine's "today", for checks that depend on it (SEPP status mid-year).
+  const run = (p) => dag.analyze(JSON.parse(JSON.stringify(Object.assign({ router: p.router || {}, india: p.india || {}, us: p.us || {} },
+    p.monitorAsOf ? { monitorAsOf: p.monitorAsOf } : {}))));
   const profiles = loadProfiles();
   if (SHOW) {
     const p = profiles.find((x) => x.id === SHOW);

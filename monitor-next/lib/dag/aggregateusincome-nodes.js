@@ -726,7 +726,8 @@ var NODES = {
       // One row per 1099-R (retirement-dist.js), plus the older single figures.
       // Date of birth and tax year: whether a changed SEPP counts as broken.
       var dob = safe(ctx.router, "date_of_birth", safe(ctx.india, "profile.date_of_birth", safe(ctx.us, "profile.date_of_birth", null)));
-      var t = require("./retirement-dist.js").totals({ income_us_source: ui }, dob, require("./treaty-art22.js").baseYearOf(ctx.router, ctx.us));
+      var rdist = require("./retirement-dist.js");
+      var t = rdist.totals({ income_us_source: ui }, dob, require("./treaty-art22.js").baseYearOf(ctx.router, ctx.us), rdist.asOfFromCtx(ctx));
       var socialSecurityGrossUsd = num(safe(ui, "social_security_benefits_usd", 0));
       return { usRetirementIncomeExclSsUsd: t.totalUsd, socialSecurityUsUsd: socialSecurityGrossUsd, retirementDistributionsSubjectTo72tUsd: t.totalUsd - t.pensionUsd,
         // Paid as a lump sum vs periodically (DTAA Art. 20: only periodic

@@ -36,7 +36,10 @@ def _js_str(v):
 
 @pytest.mark.parametrize("profile", PROFILES, ids=[p["id"] for p in PROFILES])
 def test_section_profile(profile):
-    r = analyze({"router": profile.get("router") or {}, "india": profile.get("india") or {}, "us": profile.get("us") or {}})
+    opts = {"router": profile.get("router") or {}, "india": profile.get("india") or {}, "us": profile.get("us") or {}}
+    if profile.get("monitorAsOf"):
+        opts["monitorAsOf"] = profile["monitorAsOf"]
+    r = analyze(opts)
     problems = []
     for e in profile["expect"]:
         got = _pick(r, e["path"])

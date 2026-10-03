@@ -72,7 +72,7 @@ function required(r, dobRaw, baseYear) {
   var benYear = yearOf(r.sepp_beneficiary_dob), table = ["single", "uniform", "joint"].indexOf(r.sepp_life_table) >= 0 ? r.sepp_life_table : "single";
   var method = ["rmd", "amortization", "annuitization"].indexOf(r.sepp_method) >= 0 ? r.sepp_method : null;
   var useRmd = method === "rmd" || (method && r.sepp_switched_to_rmd === true);
-  var out = { method: method, usesRmd: !!useRmd, switchedToRmd: method !== "rmd" && useRmd, annualUsd: null, factor: null,
+  var out = { method: method, usesRmd: !!useRmd, switchedToRmd: method !== "rmd" && !!useRmd, annualUsd: null, factor: null,
     factorKind: null, age: null, beneficiaryAge: null, table: table, missing: [], rate: null };
   if (!method) { out.missing.push("sepp_method"); return out; }
   if (birthYear == null) out.missing.push("date_of_birth");

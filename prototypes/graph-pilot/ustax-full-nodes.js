@@ -994,7 +994,7 @@ NODES.nraEffectiveEciFdap = {
 // a broken SEPP's recapture is added (retirement-dist.js additionalTax72tUsd).
 NODES.nraAdditionalTax72tUsd = {
   deps: ["taxpayerDobRaw", "baseYearUs"],
-  compute: function (d, ctx) { return require("./retirement-dist.js").additionalTax72tUsd(ctx.us, ctx.india, d.taxpayerDobRaw, d.baseYearUs || 2026); }
+  compute: function (d, ctx) { var rd = require("./retirement-dist.js"); return rd.additionalTax72tUsd(ctx.us, ctx.india, d.taxpayerDobRaw, d.baseYearUs || 2026, rd.asOfFromCtx(ctx)); }
 };
 
 NODES.nraTaxResult = {

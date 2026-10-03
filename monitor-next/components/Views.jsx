@@ -12,6 +12,7 @@ import { groupFindings } from "@/lib/conflict-groups";
 import { residentSinceFor, isUsPersonResult, isUsPersonOnlyGauge } from "@/lib/wising";
 import { ACTIONS, CLOSING_ACTIONS, MIN_REASON_CHARS, loadLog, appendEvent, partition, loadPreparer, savePreparer } from "@/lib/conflict-log";
 import CapsuleChart from "@/components/CapsuleChart";
+import { SeppCards } from "@/components/SeppTracker";
 
 const SEV = { critical: PAL.exposed, warning: PAL.approaching, info: PAL.filing };
 const SEV_TEXT = { critical: PAL.redText, warning: PAL.amberText, info: PAL.blueText };
@@ -185,7 +186,7 @@ const HeadChip = ({ children }) => (
 // the panel knows the client), the expanded row can be marked Resolved /
 // Accepted risk / Not applicable with a reason, and shows why a previously
 // resolved finding is open again (`status.state === "stale"`).
-function FindingRow({ f, isOpen, onToggle, status, onLog }) {
+function FindingRow({ f, isOpen, onToggle, status, onLog, onOpenSepp }) {
   const [form, setForm] = useState(null); // null | { action, reason, by, error }
   const stale = status && status.state === "stale";
   const last = status && status.event;
@@ -223,6 +224,9 @@ function FindingRow({ f, isOpen, onToggle, status, onLog }) {
           )}
           <div className="text-[12px] text-body leading-relaxed">{f.detail}</div>
           <ActionText text={f.recommendation} />
+          {onOpenSepp && /^(sepp_|early_withdrawal_penalty_72t$)/.test(f.id) && (
+            <button onClick={onOpenSepp} className="mt-2 text-[11.5px] font-semibold" style={{ color: PAL.blueText }}>View the SEPP series →</button>
+          )}
           {f.refs && f.refs.length > 0 && <div className="flex flex-wrap gap-1.5 mt-2.5">{f.refs.map((r, j) => <Ref key={j}>{r}</Ref>)}</div>}
           {onLog && !form && (
             <button onClick={() => setForm({ action: "resolved", reason: "", by: loadPreparer(), error: null })}
@@ -412,7 +416,7 @@ function ResolutionLog({ log }) {
 // action (lib/conflict-groups.js). Default on; "All findings" is the flat list.
 // `clientKey` (Monitor): enables the resolution log — closed findings leave
 // the open list and the at-risk totals, and reappear if their amount moves.
-export function ConflictsPanel({ findings, groupable, clientKey }) {
+export function ConflictsPanel({ findings, groupable, clientKey, onOpenSepp }) {
   const [open, setOpen] = useState(null);
   const [filter, setFilter] = useState("all");
   const [view, setView] = useState(groupable ? "groups" : "flat");
@@ -433,7 +437,7 @@ export function ConflictsPanel({ findings, groupable, clientKey }) {
   // The costliest group starts open, so the headline problem is visible
   // without a click; any other group opens on tap.
   const activeGroup = openGroup === undefined ? (groups[0] && groups[0].key) : openGroup;
-  const row = (f) => <FindingRow key={f.id} f={f} isOpen={open === f.id} onToggle={() => setOpen(open === f.id ? null : f.id)} status={statusById[f.id]} onLog={onLog} />;
+  const row = (f) => <FindingRow key={f.id} f={f} isOpen={open === f.id} onToggle={() => setOpen(open === f.id ? null : f.id)} status={statusById[f.id]} onLog={onLog} onOpenSepp={onOpenSepp} />;
   return (
     <div>
       <div className="flex flex-wrap items-center gap-1.5 mb-3">
@@ -1849,6 +1853,7 @@ export function HoldingsView({ result, links, onPick }) {
             </div>
           )}
         </Card>
+        {a.seppTracker && <div className="lg:col-span-2"><SeppCards tracker={a.seppTracker} /></div>}
         <Card icon={<Palmtree size={16} strokeWidth={2} />} title="Retirement Accounts" sub="US 401k/IRA/Roth (this year's contributions) + Indian EPF/PPF/NPS — see the US-treatment note on the Monitor">
           {retire.length === 0 ? <Empty>No retirement balances on file.</Empty> : (
             <div className="space-y-1.5">

@@ -11,7 +11,7 @@ from ..core.fx_util import fx_rate
 from ..core.graph import NodeDef
 from ..core.util import js_round, num, safe
 from . import constants as C
-from .retirement_dist import totals as retirement_totals
+from .retirement_dist import as_of_from_ctx, totals as retirement_totals
 from .treaty_art21 import art21
 from .treaty_art22 import art22, base_year_of
 
@@ -417,7 +417,7 @@ def _retirement_computation(d, ctx):
     # One row per 1099-R (retirement_dist.py), plus the older single figures.
     # Date of birth and tax year: whether a changed SEPP counts as broken.
     dob = safe(ctx.get("router"), "date_of_birth", safe(ctx.get("india"), "profile.date_of_birth", safe(ctx.get("us"), "profile.date_of_birth", None)))
-    t = retirement_totals({"income_us_source": d["uiAgg"]}, dob, base_year_of(ctx.get("router"), ctx.get("us")))
+    t = retirement_totals({"income_us_source": d["uiAgg"]}, dob, base_year_of(ctx.get("router"), ctx.get("us")), as_of_from_ctx(ctx))
     social_security_gross_usd = num(safe(d["uiAgg"], "social_security_benefits_usd", 0))
     return {"usRetirementIncomeExclSsUsd": t["totalUsd"], "socialSecurityUsUsd": social_security_gross_usd,
             "retirementDistributionsSubjectTo72tUsd": t["totalUsd"] - t["pensionUsd"],

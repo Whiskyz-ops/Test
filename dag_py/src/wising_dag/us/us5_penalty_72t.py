@@ -15,7 +15,7 @@ from __future__ import annotations
 from ..core.dates import parse_date
 from ..core.graph import NodeDef
 from ..core.util import num, safe
-from .retirement_dist import early_72t_base_after_treaty_usd
+from .retirement_dist import as_of_from_ctx, early_72t_base_after_treaty_usd
 
 
 def _router_us_signal(ctx) -> bool:
@@ -63,7 +63,7 @@ NODES = {
     "baseYear": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.meta.baseYear", None)),
 
     # Paid before 59½ with no §72(t)(2) exception (retirement_dist.py).
-    "earlyDistUsd": NodeDef(deps=("dobRaw", "baseYear"), compute=lambda d, ctx: early_72t_base_after_treaty_usd(ctx.get("us"), ctx.get("india"), d["dobRaw"], d["baseYear"]),
+    "earlyDistUsd": NodeDef(deps=("dobRaw", "baseYear"), compute=lambda d, ctx: early_72t_base_after_treaty_usd(ctx.get("us"), ctx.get("india"), d["dobRaw"], d["baseYear"], as_of_from_ctx(ctx)),
                             layer1_fields=("us.income_us_source.retirement_distributions", "us.income_us_source.ira_distributions_usd", "us.income_us_source.401k_distributions_usd")),
     "ageAtYearEndUs": NodeDef(deps=("dobRaw", "baseYear"), compute=_age_at_year_end_us),
 

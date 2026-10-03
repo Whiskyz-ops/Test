@@ -889,7 +889,10 @@ NODES.assetsModelResult = {
     "presumptiveEligibilityAgg", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust",
     "partnerFirmsAgg", "indiaEntityTypeRaw", "cfcInclusionResult", "businessComputation"],
   compute: function (d, ctx) {
-    return {
+    // SEPP series (retirement-dist.js seppTracker) — the key exists only when
+    // the client has one, so every other client's result keeps its shape.
+    var seppTracker = require("./retirement-dist.js").seppTracker(ctx);
+    return Object.assign({
       indianMutualFunds: d.indianMutualFundsResult,
       indianSecurities: d.indiaFinancialHoldingsTxRaw,
       usPficHoldings: safe(ctx.us, "foreign_entities.pfic_holdings", []),
@@ -907,7 +910,7 @@ NODES.assetsModelResult = {
       usRetirement: safe(ctx.us, "retirement_accounts", {}) || {},
       businessEntities: businessEntitiesResult(d, ctx),
       entityGraph: buildEntityGraph(d, ctx)
-    };
+    }, seppTracker ? { seppTracker: seppTracker } : {});
   }
 };
 

@@ -165,7 +165,7 @@ NODES.earlyWithdrawalPenalty72tFinding = {
   compute: function (d, ctx) {
     var out = [];
     // SEPP (§72(t)(2)(A)(iv), §72(t)(4)) — retirement-dist.js seppStatus.
-    var sepp = require("./retirement-dist.js").seppStatus(ctx.us, d.taxpayerDobRaw, d.baseYearUs || 2026);
+    var rdist = require("./retirement-dist.js"), sepp = rdist.seppStatus(ctx.us, d.taxpayerDobRaw, d.baseYearUs || 2026, rdist.asOfFromCtx(ctx));
     var srows = d.hasUsScope ? sepp.rows : [];
     var recaptureBaseUsd = d.hasUsScope ? sepp.recaptureBaseUsd : 0;
     var thisYear = srows.filter(function (a) { return a.brokenThisYear; }), earlier = srows.filter(function (a) { return a.brokenEarlier; });
@@ -176,8 +176,8 @@ NODES.earlyWithdrawalPenalty72tFinding = {
       detail: "A substantially equal periodic payment series (SEPP) was changed this year, before the later of five years from the first payment and " +
         "age 59½: " + thisYear.map(seppWhy).join("; ") + ". Under §72(t)(4) the exception is lost for every payment already taken: 10% of the " +
         usd(recaptureBaseUsd) + " of earlier SEPP payments taken before 59½ (" + usd(recaptureBaseUsd * 0.10) + ") is added to this year's tax, plus " +
-        "interest for each year it was deferred. " + thisYear.map(seppInterestText).join("; ") + ". This year's payments from that account made on or after the change get " +
-        "no exception either, and for a non-resident filing Form 1040-NR they are no longer periodic payments under the treaty (DTAA Art. 20), so " +
+        "interest for each year it was deferred. " + thisYear.map(seppInterestText).join("; ") + ". This year's payments from that account lose the exception too (with no interest, as they weren't deferred), " +
+        "and for a non-resident filing Form 1040-NR they are no longer periodic payments under the treaty (DTAA Art. 20), so " +
         "the US taxes them like a lump sum.",
       recommendation: "Confirm the series was really changed (a different amount from the method's, an extra withdrawal, a rollover or transfer out " +
         "of the account, or stopping early all count; running out of money doesn't). Report the recapture and the interest on Form 5329 " +

@@ -11781,6 +11781,12 @@ div.innerHTML = `
                     <label class="md:col-span-5 flex items-center gap-2 text-[10px] text-white/70 pb-2"><input type="checkbox" id="rd-sepp-broken-${i}" ${r.sepp_broken === true ? 'checked' : ''} onchange="updateRetDist(${i}, 'sepp_broken', this.checked)" class="w-4 h-4 accent-brandCyan"> Series changed or stopped (extra withdrawal, different amount, transfer out, stopped)</label>
                     <div class="md:col-span-3"><label class="${L}">Date of the change</label><input type="date" id="rd-sepp-change-${i}" value="${retEsc(r.sepp_change_date)}" onchange="updateRetDist(${i}, 'sepp_change_date', this.value)" class="${F} [color-scheme:dark]"></div>
                     <div class="md:col-span-4"><label class="${L}">Earlier SEPP payments before 59½ — total (if no yearly split)</label><input type="text" inputmode="numeric" id="rd-sepp-prior-${i}" value="${money(r.sepp_prior_payments_usd)}" oninput="updateRetDist(${i}, 'sepp_prior_payments_usd', this.value)" class="${F} font-mono"></div>
+                    <div class="col-span-2 md:col-span-12"><label class="${L}">SEPP payments this year (one line per payment, as they're taken — the Monitor tracks them against the required amount)</label>
+                        <div class="flex flex-col gap-1">${(Array.isArray(r.sepp_payments) ? r.sepp_payments : []).map((pmt, k) => `<div class="grid grid-cols-12 gap-2 items-center">
+                            <input type="date" id="rd-sepp-pay-date-${i}-${k}" value="${retEsc(pmt.date)}" onchange="updateSeppPayment(${i}, ${k}, 'date', this.value)" class="col-span-5 ${F} [color-scheme:dark]">
+                            <input type="text" inputmode="numeric" id="rd-sepp-pay-amt-${i}-${k}" value="${money(pmt.amount_usd)}" oninput="updateSeppPayment(${i}, ${k}, 'amount_usd', this.value)" placeholder="Amount" class="col-span-5 ${F} font-mono">
+                            <button type="button" onclick="removeSeppPayment(${i}, ${k})" aria-label="Remove this payment" class="col-span-2 text-xs text-white/50 hover:text-red-400">✕</button></div>`).join('')}
+                        <button type="button" onclick="addSeppPayment(${i})" class="self-start px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/10 border-dashed rounded-lg text-[10px] font-bold text-white/60">+ Add payment</button></div></div>
                     ${retSeppYears(r).length ? `<div class="col-span-2 md:col-span-12"><label class="${L}">Earlier SEPP payments by year (for the recapture interest; leave blank to use the method's amount for a fixed method)</label>
                         <div class="grid grid-cols-3 md:grid-cols-6 gap-2">${retSeppYears(r).map(y => `<div><span class="text-[9px] text-white/40">${y}</span><input type="text" inputmode="numeric" id="rd-sepp-y${y}-${i}" value="${money((r.sepp_prior_payments_by_year || {})[y])}" oninput="updateRetDistYear(${i}, '${y}', this.value)" class="${F} font-mono"></div>`).join('')}</div></div>` : ''}
                 </div>` : ''}
@@ -11797,6 +11803,29 @@ div.innerHTML = `
         if (m) for (let y = Math.max(Number(m[1]), taxYear - 30); y < taxYear; y++) out.push(String(y));
         return out;
     }
+    // This year's SEPP payments, one by one (sepp_payments: [{ date, amount_usd }]).
+    function addSeppPayment(i) {
+        const r = retDistRows()[i];
+        if (!r) return;
+        r.sepp_payments = (Array.isArray(r.sepp_payments) ? r.sepp_payments : []).concat([{ date: null, amount_usd: null }]);
+        renderRetDists();
+        try { recalculateDerivedFields(); persistUsState(); } catch (e) {}
+    }
+    function updateSeppPayment(i, k, field, val) {
+        const r = retDistRows()[i];
+        if (!r || !Array.isArray(r.sepp_payments) || !r.sepp_payments[k]) return;
+        r.sepp_payments[k][field] = field === 'amount_usd' ? (String(val).trim() === '' ? null : (parseFormattedNumber(val) || 0)) : (val || null);
+        refreshRetDistTotal();
+        try { recalculateDerivedFields(); persistUsState(); } catch (e) {}
+    }
+    function removeSeppPayment(i, k) {
+        const r = retDistRows()[i];
+        if (!r || !Array.isArray(r.sepp_payments)) return;
+        r.sepp_payments.splice(k, 1);
+        if (!r.sepp_payments.length) delete r.sepp_payments;
+        renderRetDists();
+        try { recalculateDerivedFields(); persistUsState(); } catch (e) {}
+    }
     function updateRetDistYear(i, year, val) {
         const r = retDistRows()[i];
         if (!r) return;
@@ -11808,7 +11837,10 @@ div.innerHTML = `
     function refreshRetDistTotal() {
         const el = document.getElementById('ret-dist-total');
         if (!el) return;
-        const t = retDistRows().filter(r => r.rolled_over !== true).reduce((a, r) => a + (Number(r.taxable_usd) || 0), 0);
+        // A SEPP row with no 1099-R figure yet counts the payments entered (as the engine does).
+        const rowAmt = (r) => Number(r.taxable_usd) > 0 ? Number(r.taxable_usd)
+            : r.early_exception === 'sepp' && Array.isArray(r.sepp_payments) ? r.sepp_payments.reduce((a, p) => a + (Number(p.amount_usd) || 0), 0) : 0;
+        const t = retDistRows().filter(r => r.rolled_over !== true).reduce((a, r) => a + rowAmt(r), 0);
         el.textContent = t > 0 ? 'Taxable $' + t.toLocaleString('en-US') : '';
     }
     function addRetDist() {

@@ -40,7 +40,7 @@ from ..core.util import js_num_str, js_round, num, safe
 from . import constants as C
 from .ustax import bracket_breakdown, bracket_tax, compute_salt_cap, compute_us_tax_core
 from .nra_fdap import nra_exempt_interest_usd, nra_fdap_breakdown, nra_interest_split_recorded
-from .retirement_dist import additional_tax_72t_usd
+from .retirement_dist import additional_tax_72t_usd, as_of_from_ctx
 from .treaty_art21 import art21
 from .treaty_art22 import art22, base_year_of
 
@@ -795,7 +795,7 @@ def _nra_effective_eci_fdap(d, ctx):
 
 # §72(t) on a 1040-NR — see ustax-full-nodes.js's nraAdditionalTax72tUsd.
 def _nra_additional_tax_72t_usd(d, ctx):
-    return additional_tax_72t_usd(ctx.get("us"), ctx.get("india"), d["taxpayerDobRaw"], d["baseYearUs"] or 2026)
+    return additional_tax_72t_usd(ctx.get("us"), ctx.get("india"), d["taxpayerDobRaw"], d["baseYearUs"] or 2026, as_of_from_ctx(ctx))
 
 
 def _nra_tax_result(d, ctx):

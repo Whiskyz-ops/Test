@@ -19,6 +19,7 @@ import { entityLinksFor, ownedEntityIds, flattenOwnershipTree } from "@/lib/enti
 import { runShadow, runShadowPy, getShadowLog, clearShadowLog } from "@/lib/shadow";
 import ShadowBadge from "@/components/ShadowBadge";
 import WhatIfBar from "@/components/WhatIfBar";
+import { SeppStrip } from "@/components/SeppTracker";
 
 const WorldMap = dynamic(() => import("@/components/WorldMap"), { ssr: false, loading: () => <div className="h-[360px] flex items-center justify-center text-white/30 text-sm">Loading world map…</div> });
 const UsStatesMap = dynamic(() => import("@/components/UsStatesMap"), { ssr: false, loading: () => <div className="h-[360px] flex items-center justify-center text-white/30 text-sm">Loading US map…</div> });
@@ -201,6 +202,11 @@ export default function MonitorPage() {
   const pinnedClientRef = useRef(null);
 
   const goToRecon = useCallback((section) => { setView("reconciliation"); setReconHighlight(section); }, []);
+  // SEPP strip / alert → the full SEPP card in Holdings.
+  const openSepp = useCallback(() => {
+    setView("holdings");
+    setTimeout(() => { const el = document.getElementById("sepp-tracker"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 80);
+  }, []);
 
   const recompute = useCallback((preferred) => {
     setSyncing(true);
@@ -549,6 +555,7 @@ export default function MonitorPage() {
               <div className="mb-5"><OwnedEntitiesBanner links={activeLinks} onPick={pickFromClients} /></div>
             )}
             {household && <div className="mb-5"><HouseholdCard household={household} activeId={activeProfile} onPick={pickFromClients} /></div>}
+            {result && result.model.assets.seppTracker && <div className="mb-5"><SeppStrip tracker={result.model.assets.seppTracker} onOpen={openSepp} /></div>}
             {alerts.length > 0 && (
               <div className="mb-5 rounded-2xl border border-approaching/30 bg-approaching/10 p-3.5">
                 <div className="text-[11px] uppercase tracking-widest font-bold mb-1" style={{ color: PAL.amberText }}>{alerts.length} automated alert{alerts.length > 1 ? "s" : ""}</div>
@@ -572,7 +579,7 @@ export default function MonitorPage() {
             {!isUsDrill && result && (
               <section className="mt-8">
                 <h3 className="font-display font-bold text-lg text-head mb-4">Conflicts &amp; Mismatches</h3>
-                <ConflictsPanel findings={result.findings} groupable clientKey={activeProfile || clientName || "default"} />
+                <ConflictsPanel findings={result.findings} groupable clientKey={activeProfile || clientName || "default"} onOpenSepp={result.model.assets.seppTracker ? openSepp : null} />
                 <ChecksRegistryPanel checks={result.checksRegistry} />
               </section>
             )}

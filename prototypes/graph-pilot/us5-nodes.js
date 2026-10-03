@@ -44,7 +44,7 @@ var NODES = {
 
   // Distributions paid before 59½ with no §72(t)(2) exception (SEPP, ...)
   // — the same rows the US tax's §72(t) additional tax uses (retirement-dist.js).
-  earlyDistUsd: { deps: ["dobRaw", "baseYear"], compute: function (d, ctx) { return require("./retirement-dist.js").early72tBaseAfterTreatyUsd(ctx.us, ctx.india, d.dobRaw, d.baseYear); } },
+  earlyDistUsd: { deps: ["dobRaw", "baseYear"], compute: function (d, ctx) { var rd = require("./retirement-dist.js"); return rd.early72tBaseAfterTreatyUsd(ctx.us, ctx.india, d.dobRaw, d.baseYear, rd.asOfFromCtx(ctx)); } },
   ageAtYearEndUs: {
     deps: ["dobRaw", "baseYear"],
     compute: function (d) {

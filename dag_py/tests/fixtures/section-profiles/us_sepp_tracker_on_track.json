@@ -1,8 +1,8 @@
 {
-  "id": "us_sepp_paid_before_change",
+  "id": "us_sepp_tracker_on_track",
   "form": "layer1_us.html",
-  "section": "Retirement distributions \u2014 SEPP method check (Notice 2022-6)",
-  "story": "IRS SEPP FAQ example facts (born 1973-03-01; $400,000; 4%; Single Life; started 15 Jan 2023; fixed amortization, $21,102 a year). US citizen, single, Texas, wages $50,000. The 2026 payment ($21,102) was made on 1 Mar 2026; on 1 Sep 2026 the client took an extra withdrawal from the account, ending the series. \u00a772(t)(4) recaptures every payment that relied on the exception, including the March one. $63,305 taken in 2023-2025.",
+  "section": "Retirement distributions \u2014 SEPP tracker (payments during the year)",
+  "story": "IRS SEPP FAQ example facts (born 1973-03-01; $400,000; 4%; Single Life; started 15 Jan 2023; fixed amortization: $21,101.63 a year). US citizen, single, Texas, wages $50,000. As of 25 Jul 2026: one payment of $10,551 on 1 Mar 2026.",
   "router": {
     "jurisdiction": "single_us",
     "base_tax_year": 2026,
@@ -45,39 +45,53 @@
         {
           "payer_name": "Vanguard IRA",
           "plan_type": "ira",
-          "taxable_usd": 21102,
+          "taxable_usd": null,
           "payment_type": "periodic",
           "early_exception": "sepp",
           "rolled_over": false,
-          "date_paid": "2026-03-01",
+          "date_paid": null,
           "federal_withheld_usd": null,
           "sepp_method": "amortization",
           "sepp_life_table": "single",
           "sepp_start_date": "2023-01-15",
           "sepp_start_balance_usd": 400000,
           "sepp_interest_rate_pct": 4,
-          "sepp_broken": true,
-          "sepp_change_date": "2026-09-01",
-          "sepp_prior_payments_usd": 63305
+          "sepp_payments": [
+            {
+              "date": "2026-03-01",
+              "amount_usd": 10551
+            }
+          ]
         }
       ]
     }
   },
   "expect": [
     {
-      "path": "findings[id=sepp_recapture_72t].amountUsd",
-      "value": 7294.54,
-      "why": "6,330.50 recapture + interest on each year's 10% (2,110.16) from 15 Apr of the next year to 15 Apr 2027 at the IRS underpayment rates, compounded daily: 2023 504.79 + 2024 311.03 + 2025 148.22 = 964.04 (2027 at the last published rate, 7%)"
+      "path": "model.assets.seppTracker.series[payerName=Vanguard IRA].status",
+      "value": "on_track",
+      "why": "half the year's amount taken; the rest is due by 31 Dec \u2014 not a change yet"
     },
     {
-      "path": "findings[id=early_withdrawal_penalty_72t].amountUsd",
-      "value": 2110.2,
-      "why": "\u00a772(t)(4): the 1 Mar payment relied on the exception before the 1 Sep change, so it loses it too: 10% of 21,102 (no interest \u2014 same year)"
+      "path": "model.assets.seppTracker.series[payerName=Vanguard IRA].remainingUsd",
+      "value": 10550.63,
+      "why": "21,101.63 \u2212 10,551"
+    },
+    {
+      "path": "model.assets.seppTracker.series[payerName=Vanguard IRA].periodEnd",
+      "value": "2032-09-01",
+      "why": "later of 15 Jan 2028 (five years) and 1 Sep 2032 (59\u00bd)"
+    },
+    {
+      "path": "findings[id=sepp_recapture_72t]",
+      "value": null,
+      "why": "a shortfall mid-year isn't a change"
     },
     {
       "path": "computed.usTax.totalTaxBeforeFtcUsd",
-      "value": 16217,
-      "why": "6,812.44 + 6,330.50 recapture + 964.04 interest + 2,110.20 on this year's payment = 16,217.18"
+      "value": 5086,
+      "why": "AGI 60,551 (payments so far count as income) \u2212 16,100 = 44,451: 1,240 + 12% \u00d7 32,051 = 5,086.12"
     }
-  ]
+  ],
+  "monitorAsOf": "2026-07-25"
 }

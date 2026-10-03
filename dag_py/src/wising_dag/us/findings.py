@@ -37,7 +37,7 @@ from ..india.aggregate_india_income import _annual_slice_agg
 from . import constants as C
 from . import us1_penalty_2210, us5_penalty_72t, us_full
 from .nra_fdap import nra_exempt_interest_usd, nra_fdap_breakdown
-from .retirement_dist import sepp_status
+from .retirement_dist import as_of_from_ctx, sepp_status
 
 T = C.US
 
@@ -760,7 +760,7 @@ def _findings_us_result(d, ctx):
         ))
 
     # -- sepp_recapture_72t / sepp_calculation (report-batch5-nodes.js earlyWithdrawalPenalty72tFinding) --
-    sepp = sepp_status(ctx.get("us"), d["taxpayerDobRaw"], d["baseYearUs"] or 2026)
+    sepp = sepp_status(ctx.get("us"), d["taxpayerDobRaw"], d["baseYearUs"] or 2026, as_of_from_ctx(ctx))
     srows = sepp["rows"] if d["hasUsScope"] else []
     recapture_base_usd = sepp["recaptureBaseUsd"] if d["hasUsScope"] else 0
     this_year = [a for a in srows if a["brokenThisYear"]]
@@ -773,8 +773,8 @@ def _findings_us_result(d, ctx):
             "A substantially equal periodic payment series (SEPP) was changed this year, before the later of five years from the first payment and "
             "age 59½: " + "; ".join(_sepp_why(a) for a in this_year) + ". Under §72(t)(4) the exception is lost for every payment already taken: 10% of the "
             + _fmt(recapture_base_usd) + " of earlier SEPP payments taken before 59½ (" + _fmt(recapture_base_usd * 0.10) + ") is added to this year's tax, plus "
-            "interest for each year it was deferred. " + "; ".join(_sepp_interest_text(a) for a in this_year) + ". This year's payments from that account made on or after the change get "
-            "no exception either, and for a non-resident filing Form 1040-NR they are no longer periodic payments under the treaty (DTAA Art. 20), so "
+            "interest for each year it was deferred. " + "; ".join(_sepp_interest_text(a) for a in this_year) + ". This year's payments from that account lose the exception too (with no interest, as they weren't deferred), "
+            "and for a non-resident filing Form 1040-NR they are no longer periodic payments under the treaty (DTAA Art. 20), so "
             "the US taxes them like a lump sum.",
             "Confirm the series was really changed (a different amount from the method's, an extra withdrawal, a rollover or transfer out "
             "of the account, or stopping early all count; running out of money doesn't). Report the recapture and the interest on Form 5329 "

@@ -2,6 +2,7 @@
 prototypes/graph-pilot/retirement-dist.js (see its header)."""
 from __future__ import annotations
 
+import datetime as _dt
 import re
 
 from ..core.util import js_round, num
@@ -41,40 +42,129 @@ def _fmt_date(d):
     return f"{d[0]}-{d[1]:02d}-{d[2]:02d}" if d else None
 
 
-def sepp_analysis(r, dob_raw, base_year) -> dict:
+def to_ymd(v):
+    """[y, m, d] (UTC) from a date, datetime, ISO string or [y, m, d] — see retirement-dist.js toYmd."""
+    if v is None:
+        return None
+    if isinstance(v, (list, tuple)):
+        return tuple(v)
+    if isinstance(v, _dt.datetime):
+        v = v.astimezone(_dt.timezone.utc) if v.tzinfo else v
+        return (v.year, v.month, v.day)
+    if isinstance(v, _dt.date):
+        return (v.year, v.month, v.day)
+    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", str(v))
+    return (int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else None
+
+
+def as_of_from_ctx(ctx):
+    v = ctx.get("monitorAsOfBoundary") if isinstance(ctx, dict) else None
+    return to_ymd(v if v is not None else _dt.datetime.now(_dt.timezone.utc))
+
+
+def _sepp_payments(r, year) -> list:
+    lst = r.get("sepp_payments")
+    out = []
+    for p in (lst if isinstance(lst, list) else []):
+        d = _ymd(p.get("date")) if isinstance(p, dict) else None
+        a = num(p.get("amount_usd")) if isinstance(p, dict) else 0
+        if d and d[0] == year and a > 0:
+            out.append({"date": d, "amountUsd": a})
+    out.sort(key=lambda p: p["date"])
+    return out
+
+
+def _row_taxable_usd(r, year) -> float:
+    if num(r.get("taxable_usd")) > 0:
+        return num(r.get("taxable_usd"))
+    if r.get("early_exception") != "sepp":
+        return 0
+    total = 0.0
+    for p in _sepp_payments(r, year):
+        total += p["amountUsd"]
+    return total
+
+
+def sepp_analysis(r, dob_raw, base_year, as_of=None) -> dict:
     """Everything about one SEPP row for this tax year — see retirement-dist.js."""
     try:
         year = int(base_year) if base_year else 2026
     except (TypeError, ValueError):
         year = 2026
+    today = to_ymd(as_of)
     calc = sepp_required(r, dob_raw, year)
-    paid_usd = 0 if r.get("rolled_over") is True else num(r.get("taxable_usd"))
+    pays = _sepp_payments(r, year)
+    if r.get("rolled_over") is True:
+        paid_usd = 0
+    elif pays:
+        paid_usd = 0.0
+        for p in pays:
+            paid_usd += p["amountUsd"]
+    else:
+        paid_usd = num(r.get("taxable_usd"))
     st = _ymd(r.get("sepp_start_date"))
     first_year = bool(st) and st[0] == year
-    mismatch = calc["annualUsd"] is not None and sepp_differs(paid_usd, calc["annualUsd"])
+    req = calc["annualUsd"]
+    tol = max(2, req * 0.001) if req is not None else 0
+    over = req is not None and paid_usd > req + tol
+    under = req is not None and paid_usd < req - tol
+    year_over = today is None or (year, 12, 31) < today
+    mismatch = over or (under and year_over)
+    short_so_far = under and not year_over
     auto_break = mismatch and not first_year
     marked = r.get("sepp_broken") is True
-    change = _ymd(r.get("sepp_change_date")) or ((_ymd(r.get("date_paid")) or (year, 12, 31)) if marked or auto_break else None)
+    over_date = None
+    if over and pays:
+        cum = 0.0
+        for p in pays:
+            cum += p["amountUsd"]
+            if cum > req + tol:
+                over_date = p["date"]
+                break
+    change = _ymd(r.get("sepp_change_date")) or (
+        (over_date or ((year, 12, 31) if under else None) or _ymd(r.get("date_paid")) or (year, 12, 31)) if marked or auto_break else None)
     end = sepp_window_end(r, dob_raw)
     modified = (marked or auto_break) and change is not None
     broken = modified and (end is None or change < end)
     broken_this_year = broken and change[0] == year
     broken_earlier = broken and change[0] < year
-    paid = _ymd(r.get("date_paid"))
     rec = (_sepp_recapture(r, calc, dob_raw, change) if broken_this_year
            else {"baseUsd": 0.0, "scheduleSource": None, "schedule": [], "interestUsd": 0, "interestStatus": None, "assumedRates": False, "yearsBeforeRates": []})
-    return {"payerName": r.get("payer_name") or None, "calc": calc, "paidUsd": paid_usd, "firstYear": first_year, "mismatch": mismatch,
-            "autoBreak": auto_break, "marked": marked, "changeDate": _fmt_date(change), "changeYear": change[0] if change else None,
-            "periodEnd": _fmt_date(end), "missingStartDate": end is None, "afterPeriod": modified and not broken,
+    period_over = bool(end and today and not today < end)
+    hist_sched, hist_source = (rec["schedule"], rec["scheduleSource"]) if broken_this_year else _sepp_schedule(r, calc, dob_raw, year)
+    history = [{"year": x["year"], "amountUsd": x["amountUsd"], "recaptureUsd": js_round(x["amountUsd"] * 10) / 100 if broken_this_year else None,
+                "interestUsd": x.get("interestUsd") if broken_this_year else None} for x in hist_sched]
+    history.append({"year": year, "amountUsd": paid_usd, "recaptureUsd": None, "interestUsd": None, "current": True})
+    if broken_this_year or broken_earlier:
+        status = "broken"
+    elif period_over:
+        status = "period_ended"
+    elif req is None:
+        status = "unchecked"
+    elif (mismatch and first_year) or (calc["rate"] and calc["rate"]["over"]) or (short_so_far and today and not today < (year, 11, 16)):
+        status = "off_schedule"
+    else:
+        status = "on_track"
+    return {"payerName": r.get("payer_name") or None, "planType": r.get("plan_type") or None, "calc": calc, "paidUsd": paid_usd,
+            "startBalanceUsd": num(r.get("sepp_start_balance_usd")) or None, "balanceUsd": num(r.get("sepp_balance_usd")) or None,
+            "payments": [{"date": _fmt_date(p["date"]), "amountUsd": p["amountUsd"]} for p in pays],
+            "history": history, "historySource": hist_source,
+            "requiredUsd": req, "remainingUsd": max(0, js_round((req - paid_usd) * 100) / 100) if req is not None else None,
+            "shortSoFar": short_so_far, "over": over,
+            "firstYear": first_year, "mismatch": mismatch, "autoBreak": auto_break, "status": status, "asOf": _fmt_date(today), "startDate": _fmt_date(st),
+            "marked": marked, "changeDate": _fmt_date(change), "changeYear": change[0] if change else None,
+            "periodEnd": _fmt_date(end), "missingStartDate": end is None,
+            "age59HalfDate": _fmt_date(age_59_half_date(dob_raw)), "fiveYearDate": _fmt_date((st[0] + 5, st[1], st[2])) if st else None,
+            "afterPeriod": modified and not broken,
             "brokenThisYear": broken_this_year, "brokenEarlier": broken_earlier,
             "priorPaymentsUsd": rec["baseUsd"], "schedule": rec["schedule"], "scheduleSource": rec["scheduleSource"], "interestUsd": rec["interestUsd"],
             "interestStatus": rec["interestStatus"], "assumedRates": rec["assumedRates"], "yearsBeforeRates": rec["yearsBeforeRates"],
             "interestTo": _fmt_date((change[0] + 1, 4, 15)) if broken_this_year else None,
-            "losesException": broken_earlier or (broken_this_year and not (paid and paid < change))}
+            "losesException": broken_earlier or broken_this_year}
 
 
-def _sepp_recapture(r, calc, dob_raw, change) -> dict:
-    """The earlier payments, year by year, and the recapture interest — see retirement-dist.js seppRecapture."""
+def _sepp_schedule(r, calc, dob_raw, until_year):
+    """Earlier years' SEPP payments — see retirement-dist.js seppSchedule."""
     schedule, source, by, h, st = [], None, r.get("sepp_prior_payments_by_year"), age_59_half_date(dob_raw), _ymd(r.get("sepp_start_date"))
     if isinstance(by, dict):
         for y, a in by.items():
@@ -82,17 +172,23 @@ def _sepp_recapture(r, calc, dob_raw, change) -> dict:
                 n = int(y)
             except (TypeError, ValueError):
                 continue
-            if n < change[0] and num(a) > 0:
+            if n < until_year and num(a) > 0:
                 schedule.append({"year": n, "amountUsd": num(a)})
         if schedule:
             source = "entered"
     if not source and st and calc["annualUsd"] is not None and not calc["usesRmd"]:
-        for y in range(st[0], change[0]):
+        for y in range(st[0], until_year):
             if not h or (y, 12, 31) < h:
                 schedule.append({"year": y, "amountUsd": calc["annualUsd"]})
         if schedule:
             source = "method"
     schedule.sort(key=lambda x: x["year"])
+    return schedule, source
+
+
+def _sepp_recapture(r, calc, dob_raw, change) -> dict:
+    """The earlier payments, year by year, and the recapture interest — see retirement-dist.js seppRecapture."""
+    schedule, source = _sepp_schedule(r, calc, dob_raw, change[0])
     total_sum = 0.0
     for x in schedule:
         total_sum += x["amountUsd"]
@@ -120,28 +216,32 @@ def _sepp_recapture(r, calc, dob_raw, change) -> dict:
     return out
 
 
-def _sepp_lost(r, dob_raw, base_year) -> bool:
-    return r.get("early_exception") == "sepp" and sepp_analysis(r, dob_raw, base_year)["losesException"]
+def _sepp_lost(r, dob_raw, base_year, as_of=None) -> bool:
+    return r.get("early_exception") == "sepp" and sepp_analysis(r, dob_raw, base_year, as_of)["losesException"]
 
 
 def _treaty_periodic(r) -> bool:
     return r["paymentType"] != "lump_sum" and not r["seppBroken"]
 
 
-def rows(us, dob_raw=None, base_year=None) -> list:
+def rows(us, dob_raw=None, base_year=None, as_of=None) -> list:
+    try:
+        yr = int(base_year) if base_year else 2026
+    except (TypeError, ValueError):
+        yr = 2026
     ui = ((us or {}).get("income_us_source") or {}) if isinstance(us, dict) else {}
     out = []
     lst = ui.get("retirement_distributions")
     for r in (lst if isinstance(lst, list) else []):
-        if not isinstance(r, dict) or r.get("rolled_over") is True or not num(r.get("taxable_usd")) > 0:
+        if not isinstance(r, dict) or r.get("rolled_over") is True or not _row_taxable_usd(r, yr) > 0:
             continue
         pt = r.get("payment_type")
         out.append({
             "planType": r.get("plan_type") if r.get("plan_type") in PLAN_TYPES else "other_plan",
-            "payerName": r.get("payer_name") or None, "taxableUsd": num(r.get("taxable_usd")),
+            "payerName": r.get("payer_name") or None, "taxableUsd": _row_taxable_usd(r, yr),
             "paymentType": "lump_sum" if pt == "lump_sum" else ("periodic" if pt == "periodic" else None),
-            "exception": "none" if _sepp_lost(r, dob_raw, base_year) else (r.get("early_exception") if r.get("early_exception") in EXCEPTIONS else "none"),
-            "seppBroken": _sepp_lost(r, dob_raw, base_year),
+            "exception": "none" if _sepp_lost(r, dob_raw, base_year, as_of) else (r.get("early_exception") if r.get("early_exception") in EXCEPTIONS else "none"),
+            "seppBroken": _sepp_lost(r, dob_raw, base_year, as_of),
             "datePaid": r.get("date_paid") or None, "withheldUsd": num(r.get("federal_withheld_usd")), "legacy": False,
         })
     for plan, amt in (("ira", num(ui.get("ira_distributions_usd"))), ("401k", num(ui.get("401k_distributions_usd"))), ("pension", num(ui.get("pension_income_usd")))):
@@ -151,9 +251,9 @@ def rows(us, dob_raw=None, base_year=None) -> list:
     return out
 
 
-def totals(us, dob_raw=None, base_year=None) -> dict:
+def totals(us, dob_raw=None, base_year=None, as_of=None) -> dict:
     t = {"iraUsd": 0.0, "k401Usd": 0.0, "pensionUsd": 0.0, "otherUsd": 0.0, "totalUsd": 0.0, "lumpSumUsd": 0.0, "periodicUsd": 0.0}
-    for r in rows(us, dob_raw, base_year):
+    for r in rows(us, dob_raw, base_year, as_of):
         k = "iraUsd" if r["planType"] in ("ira", "roth_ira") else "k401Usd" if r["planType"] == "401k" else "pensionUsd" if r["planType"] == "pension" else "otherUsd"
         t[k] += r["taxableUsd"]
         t["totalUsd"] += r["taxableUsd"]
@@ -176,20 +276,20 @@ def is_early(r, dob_raw, base_year) -> bool:
     return (paid < h) if paid else ((yr, 12, 31) < h)
 
 
-def early_72t_rows(us, dob_raw, base_year) -> list:
-    return [r for r in rows(us, dob_raw, base_year) if r["exception"] == "none" and is_early(r, dob_raw, base_year)]
+def early_72t_rows(us, dob_raw, base_year, as_of=None) -> list:
+    return [r for r in rows(us, dob_raw, base_year, as_of) if r["exception"] == "none" and is_early(r, dob_raw, base_year)]
 
 
-def early_72t_base_usd(us, dob_raw, base_year, payment_type=None) -> float:
+def early_72t_base_usd(us, dob_raw, base_year, payment_type=None, as_of=None) -> float:
     total = 0.0
-    for r in early_72t_rows(us, dob_raw, base_year):
+    for r in early_72t_rows(us, dob_raw, base_year, as_of):
         if payment_type is None or (not _treaty_periodic(r)) == (payment_type == "lump_sum"):
             total += r["taxableUsd"]
     return total
 
 
-def excepted_early_usd(us, dob_raw, base_year) -> float:
-    return sum(r["taxableUsd"] for r in rows(us, dob_raw, base_year) if r["exception"] not in ("none", "pension_legacy") and is_early(r, dob_raw, base_year))
+def excepted_early_usd(us, dob_raw, base_year, as_of=None) -> float:
+    return sum(r["taxableUsd"] for r in rows(us, dob_raw, base_year, as_of) if r["exception"] not in ("none", "pension_legacy") and is_early(r, dob_raw, base_year))
 
 
 # DTAA Art. 20(1) / §72(t) on a 1040-NR — see retirement-dist.js.
@@ -206,20 +306,20 @@ def treaty_periodic_exempt(us, india) -> bool:
     return TREATY_EXEMPTS_72T and nra_filer and india_resident
 
 
-def early_72t_base_after_treaty_usd(us, india, dob_raw, base_year) -> float:
+def early_72t_base_after_treaty_usd(us, india, dob_raw, base_year, as_of=None) -> float:
     if treaty_periodic_exempt(us, india):
-        return early_72t_base_usd(us, dob_raw, base_year, "lump_sum")
-    return early_72t_base_usd(us, dob_raw, base_year)
+        return early_72t_base_usd(us, dob_raw, base_year, "lump_sum", as_of)
+    return early_72t_base_usd(us, dob_raw, base_year, None, as_of)
 
 
-def sepp_status(us, dob_raw, base_year) -> dict:
+def sepp_status(us, dob_raw, base_year, as_of=None) -> dict:
     ui = ((us or {}).get("income_us_source") or {}) if isinstance(us, dict) else {}
     lst = ui.get("retirement_distributions")
     out = {"recaptureBaseUsd": 0.0, "interestUsd": 0.0, "rows": []}
     for r in (lst if isinstance(lst, list) else []):
         if not isinstance(r, dict) or r.get("early_exception") != "sepp":
             continue
-        a = sepp_analysis(r, dob_raw, base_year)
+        a = sepp_analysis(r, dob_raw, base_year, as_of)
         out["rows"].append(a)
         if a["brokenThisYear"]:
             out["recaptureBaseUsd"] += a["priorPaymentsUsd"]
@@ -227,10 +327,24 @@ def sepp_status(us, dob_raw, base_year) -> dict:
     return out
 
 
-def sepp_recapture_base_usd(us, dob_raw=None, base_year=None) -> float:
-    return sepp_status(us, dob_raw, base_year)["recaptureBaseUsd"]
+def sepp_recapture_base_usd(us, dob_raw=None, base_year=None, as_of=None) -> float:
+    return sepp_status(us, dob_raw, base_year, as_of)["recaptureBaseUsd"]
 
 
-def additional_tax_72t_usd(us, india, dob_raw, base_year) -> float:
-    sepp = sepp_status(us, dob_raw, base_year)
-    return (early_72t_base_after_treaty_usd(us, india, dob_raw, base_year) + sepp["recaptureBaseUsd"]) * 0.10 + sepp["interestUsd"]
+def additional_tax_72t_usd(us, india, dob_raw, base_year, as_of=None) -> float:
+    sepp = sepp_status(us, dob_raw, base_year, as_of)
+    return (early_72t_base_after_treaty_usd(us, india, dob_raw, base_year, as_of) + sepp["recaptureBaseUsd"]) * 0.10 + sepp["interestUsd"]
+
+
+def sepp_tracker(ctx) -> dict | None:
+    """The Monitor's SEPP tracker — see retirement-dist.js seppTracker."""
+    router, india, us = ctx.get("router") or {}, ctx.get("india") or {}, ctx.get("us") or {}
+    dob = router.get("date_of_birth")
+    if dob is None:
+        dob = (india.get("profile") or {}).get("date_of_birth")
+    if dob is None:
+        dob = (us.get("profile") or {}).get("date_of_birth")
+    from .treaty_art22 import base_year_of
+    by = base_year_of(ctx.get("router"), ctx.get("us"))
+    st = sepp_status(ctx.get("us"), dob, by, as_of_from_ctx(ctx))
+    return {"taxYear": by, "series": st["rows"]} if st["rows"] else None

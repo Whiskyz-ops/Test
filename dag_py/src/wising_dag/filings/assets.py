@@ -33,6 +33,7 @@ before overriding) and appends the two new findings on top.
 """
 from __future__ import annotations
 
+from ..us.retirement_dist import sepp_tracker
 from datetime import datetime, timedelta, timezone
 
 from ..core.dates import parse_date
@@ -758,7 +759,7 @@ def _build_entity_graph(d, ctx):
 
 
 def _assets_model_result(d, ctx):
-    return {
+    out = {
         "indianMutualFunds": d["indianMutualFundsResult"],
         "indianSecurities": d["indiaFinancialHoldingsTxRaw"],
         "usPficHoldings": safe(ctx.get("us"), "foreign_entities.pfic_holdings", []),
@@ -774,6 +775,11 @@ def _assets_model_result(d, ctx):
         "businessEntities": _business_entities_result(d, ctx),
         "entityGraph": _build_entity_graph(d, ctx),
     }
+    # SEPP series — only when the client has one (see assets-nodes.js).
+    tracker = sepp_tracker(ctx)
+    if tracker:
+        out["seppTracker"] = tracker
+    return out
 
 
 # ---- s.43B(h) MSME disallowance total, taxpayer-wide -----------------------
