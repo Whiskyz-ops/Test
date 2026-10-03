@@ -421,7 +421,8 @@ def _retirement_computation(d, ctx):
     social_security_gross_usd = num(safe(d["uiAgg"], "social_security_benefits_usd", 0))
     return {"usRetirementIncomeExclSsUsd": t["totalUsd"], "socialSecurityUsUsd": social_security_gross_usd,
             "retirementDistributionsSubjectTo72tUsd": t["totalUsd"] - t["pensionUsd"],
-            "usRetirementLumpSumUsd": t["lumpSumUsd"], "usRetirementPeriodicUsd": t["periodicUsd"]}
+            "usRetirementLumpSumUsd": t["lumpSumUsd"], "usRetirementPeriodicUsd": t["periodicUsd"],
+            "usRetirementByType": {"iraUsd": t["iraUsd"], "k401Usd": t["k401Usd"], "pensionUsd": t["pensionUsd"], "otherUsd": t["otherUsd"]}}
 
 
 # ---- Capital-gains special character: §1(h)(4) collectibles (28%-capped
@@ -806,7 +807,7 @@ def _aggregate_us_income_result(d, ctx):
         "usRetirementIncome": _m(ret["usRetirementIncomeExclSsUsd"] + ret["socialSecurityUsUsd"], ctx),
         "usRetirementIncomeExclSs": _m(ret["usRetirementIncomeExclSsUsd"], ctx),
         "retirementDistributionsSubjectTo72tUsd": ret["retirementDistributionsSubjectTo72tUsd"],
-        "usRetirementLumpSumUsd": ret["usRetirementLumpSumUsd"], "usRetirementPeriodicUsd": ret["usRetirementPeriodicUsd"],
+        "usRetirementLumpSumUsd": ret["usRetirementLumpSumUsd"], "usRetirementPeriodicUsd": ret["usRetirementPeriodicUsd"], "usRetirementByType": ret["usRetirementByType"],
         "art22ExemptWagesUsd": art22_exempt_usd,
         "socialSecurityUs": _m(ret["socialSecurityUsUsd"], ctx),
         "taxExemptInterestUs": _m(di["taxExemptInterestUsUsd"], ctx),

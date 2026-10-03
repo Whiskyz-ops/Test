@@ -1,0 +1,80 @@
+{
+  "id": "us_nra_art22_teacher_8233",
+  "form": "layer1_us.html",
+  "section": "NRA (Form 1040-NR) \u2014 DTAA Art. 22 teacher",
+  "story": "Indian professor on a J-1 visa, arrived 1 Sep 2025 to teach at a US university; in the US about 300 days in 2026 but an exempt individual (J-1 teacher), so those days don't count for substantial presence: a non-resident alien for 2026, filing Form 1040-NR. University pay $60,000, all for teaching.",
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 300,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 300,
+      "spt_test_met": false,
+      "final_us_residency_status": "NRA",
+      "article_22_claim": true,
+      "article_22_arrival_date": "2025-09-01",
+      "article_22_exempt_wages_usd": 60000,
+      "exempt_individual_status": "j_scholar",
+      "exempt_prior_years_count": 1
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "State University",
+          "wages_box1_usd": 60000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 60000
+          }
+        }
+      ]
+    },
+    "nra_specific": {
+      "files_form_1040nr": true,
+      "submitted_w8ben": true
+    }
+  },
+  "expect": [
+    {
+      "path": "documents[id=form_8233].required",
+      "value": true,
+      "why": "a non-resident alien gives the university Form 8233 to stop withholding on Art. 22-exempt pay"
+    },
+    {
+      "path": "documents[id=form_8833].required",
+      "value": false,
+      "why": "waived for teachers (Treas. Reg. \u00a7301.6114-1(c)(1)(iv))"
+    },
+    {
+      "path": "findings[id=treaty_article_22_teacher].severity",
+      "value": "info",
+      "why": "inside the two years from arrival (to 1 Sep 2027)"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 0,
+      "why": "the whole $60,000 is Art. 22-exempt; no other US income"
+    }
+  ]
+}

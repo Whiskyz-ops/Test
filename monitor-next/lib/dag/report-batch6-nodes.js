@@ -221,7 +221,7 @@ NODES.projectionsMonitorResult = {
 
 /* ================= 3. COMPLIANCE CALENDAR ================= */
 var US_RETURN_DOCS = ["fincen_114", "form_8938", "form_1116", "form_2555", "form_8833",
-  "form_8621", "form_5471", "form_8865", "form_3520", "form_3520a", "form_1040nr", "form_8960", "form_8959", "form_6251",
+  "form_8621", "form_5471", "form_8865", "form_3520", "form_3520a", "form_1040nr", "form_8960", "form_8959", "form_6251", "form_5329",
   "form_540", "form_it201", "form_nj1040", "form_8858"];
 var IN_RETURN_DOCS = ["form_67", "trc", "form_10f", "schedule_fa", "schedule_fsi_tr", "schedule_al", "form_3cb_3cd", "form_3ceb", "form_29b", "form_10iea", "form_10ic", "form_10id"];
 function mdate(y, m, day) { return new Date(y, m - 1, day); }
@@ -233,6 +233,24 @@ var US_FILING_DATES = {
   "1040-NR": { orig: function (by) { return mdate(by + 1, 4, 15); }, ext: function (by) { return mdate(by + 1, 10, 15); }, label: "US Form 1040-NR + FBAR" },
   "1040":    { orig: function (by) { return mdate(by + 1, 4, 15); }, ext: function (by) { return mdate(by + 1, 10, 15); }, label: "US Form 1040 + Form 1116 + FBAR" }
 };
+
+// SEPP series still running (retirement-dist.js seppTracker): the year's
+// payment must be complete by 31 Dec, and the date the series may be
+// changed without recapture.
+function seppDeadlines(ctx, baseYear) {
+  // The monitoring stage runs on the finished model (ctx.model), not the raw forms.
+  var t = ctx.model && ctx.model.assets ? ctx.model.assets.seppTracker : (ctx.us ? require("./retirement-dist.js").seppTracker(ctx) : null), out = [];
+  ((t && t.series) || []).forEach(function (s) {
+    if (["on_track", "off_schedule", "unchecked"].indexOf(s.status) < 0) return;
+    var who = s.payerName || "SEPP series";
+    out.push({ name: "SEPP payment for " + baseYear + " — " + who + (s.remainingUsd > 0 ? ": $" + Math.round(s.remainingUsd).toLocaleString("en-US") + " still to take" : ""),
+      jur: "US", date: mdate(baseYear, 12, 31), cat: "SEPP", docIds: [] });
+    var e = /^(\d{4})-(\d{2})-(\d{2})/.exec(s.periodEnd || "");
+    if (e) out.push({ name: "SEPP required period ends — " + who + " (can be changed without recapture from this date)", jur: "US",
+      date: mdate(Number(e[1]), Number(e[2]), Number(e[3])), cat: "SEPP", docIds: [] });
+  });
+  return out;
+}
 
 NODES.calendarMonitorResult = {
   deps: ["monitorProgressResult", "entityFormsResult", "indiaIsCompany", "inIsAuditCase", "inPurelyPresumptive", "viaForeignCorpXbr4"],
@@ -275,7 +293,7 @@ NODES.calendarMonitorResult = {
       { name: indiaFiling.label, jur: "IN", date: indiaFiling.date, cat: "Filing", docIds: IN_RETURN_DOCS },
       { name: "US extended " + usFiling.label.replace(/^US /, "") + " deadline", jur: "US", date: usFiling.ext, cat: "Extension", docIds: US_RETURN_DOCS },
       { name: "India belated / revised ITR", jur: "IN", date: mdate(baseYear + 1, 12, 31), cat: "Extension", docIds: IN_RETURN_DOCS }
-    ]).filter(function (x) {
+    ]).concat(seppDeadlines(ctx, baseYear)).filter(function (x) {
       if (x.jur === "IN") return model.meta.hasIndiaScope !== false;
       if (x.jur === "US") return model.meta.hasUsScope !== false;
       return true;

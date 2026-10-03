@@ -91,6 +91,16 @@
       "path": "computed.usTax.totalTaxBeforeFtcUsd",
       "value": 13436,
       "why": "5,086.12 + 1,055.10 + 6,330.49 + 964.04 = 13,435.75"
+    },
+    {
+      "path": "documents[id=form_5329].required",
+      "value": true,
+      "why": "\u00a772(t) additional tax this year, including the recapture (line 4)"
+    },
+    {
+      "path": "documents[id=form_5329].severity",
+      "value": "warning",
+      "why": "tax is due on it"
     }
   ],
   "monitorAsOf": "2027-02-01"

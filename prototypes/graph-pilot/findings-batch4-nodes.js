@@ -426,7 +426,10 @@ NODES.nraDerivedEciFdapResult = {
   compute: function (d) {
     var agg = d.aggregateUsIncomeResult;
     // W-2 wages for work outside the US aren't ECI for an NRA (w2WorkLocation).
-    var derivedEciUsd = agg.wages.usd - ((agg.w2WorkLocation && agg.w2WorkLocation.outsideUsWagesUsd) || 0) + agg.businessUs.usd;
+    // Floored at 0: agg.wages is after any DTAA Art. 22 exemption, the
+    // outside-US share is of the wages before it (the exempt teaching pay is
+    // US work, so the outside-US share comes off what's left first).
+    var derivedEciUsd = Math.max(0, agg.wages.usd - ((agg.w2WorkLocation && agg.w2WorkLocation.outsideUsWagesUsd) || 0)) + agg.businessUs.usd;
     var derivedFdapUsd = agg.interestUs.usd + agg.ordinaryDividendsUs.usd + agg.rentalUs.usd + d.royaltiesDirectUsSourceUsdRaw;
     return { derivedEciUsd: derivedEciUsd, derivedFdapUsd: derivedFdapUsd, derivedTotalUsd: derivedEciUsd + derivedFdapUsd };
   }

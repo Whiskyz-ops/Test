@@ -155,6 +155,14 @@ function seppInterestText(a) {
     ? "the yearly amounts don't add up to the total of earlier payments entered"
     : "enter the earlier SEPP payments year by year on Layer 1 US");
 }
+// The SEPP rules beyond the amount: separation from service, exhaustion,
+// death or disability (retirement-dist.js seppAnalysis).
+function seppRuleNotes(a) {
+  return (a.notQualified ? " Not SEPP: payments from an employer plan that began before the client left that employer don't qualify (§72(t)(3)(B)) — every payment is an early distribution, and earlier years' returns should have included the 10% too." : "") +
+    (a.separationUnknown ? " From an employer plan: confirm the client had left that employer before the first payment (§72(t)(3)(B)); if not, the series never qualified." : "") +
+    (a.exhausted ? " The account ran out: a short or stopped payment isn't a change (Notice 2022-6 §3.03(a))." : "") +
+    (a.changeReason ? " Changed by reason of " + a.changeReason + ": not a change for the recapture (§72(t)(4)(A)); later payments keep the " + a.changeReason + " exception." : "");
+}
 function seppWhy(a) {
   return seppWho(a) + (a.autoBreak ? ": paid " + usd(a.paidUsd) + ", not the " + usd(a.calc.annualUsd) + " its method requires" : ": marked as changed or stopped") +
     " (" + a.changeDate + (a.periodEnd ? "; the required period runs to " + a.periodEnd : "") + ")";
@@ -205,23 +213,31 @@ NODES.earlyWithdrawalPenalty72tFinding = {
       amountUsd: 0, refs: ["§72(t)(4)"]
     });
     // The required annual amount under the series' method (Notice 2022-6).
-    var withMethod = srows.filter(function (a) { return a.calc.method; });
+    var withMethod = srows.filter(function (a) { return a.calc.method || a.notQualified || a.separationUnknown || a.exhausted || a.changeReason; });
     if (withMethod.length) {
       var anyAuto = withMethod.some(function (a) { return a.autoBreak; }), anyFirst = withMethod.some(function (a) { return a.mismatch && a.firstYear; });
-      var anyOver = withMethod.some(function (a) { return a.calc.rate && a.calc.rate.over; }), anyMissing = withMethod.some(function (a) { return a.calc.annualUsd == null; });
+      var anyOver = withMethod.some(function (a) { return a.calc.rate && a.calc.rate.over; }), anyMissing = withMethod.some(function (a) { return a.calc.method && a.calc.annualUsd == null; });
+      var anyNotQ = withMethod.some(function (a) { return a.notQualified; }), anySepUnknown = withMethod.some(function (a) { return a.separationUnknown; });
+      var anyEndedOk = withMethod.some(function (a) { return a.exhausted || a.changeReason; });
       out.push({
-        id: "sepp_calculation", severity: anyAuto || anyFirst || anyOver || anyMissing ? "warning" : "info", category: "credit",
-        title: anyAuto ? "SEPP check: a payment differs from the amount its method requires"
+        id: "sepp_calculation", severity: anyNotQ || anyAuto || anyFirst || anyOver || anyMissing || anySepUnknown ? "warning" : "info", category: "credit",
+        title: anyNotQ ? "SEPP check: an employer-plan series that began before leaving the employer doesn't qualify"
+          : anyAuto ? "SEPP check: a payment differs from the amount its method requires"
           : anyOver ? "SEPP check: interest rate above the permitted limit"
           : anyFirst ? "SEPP check: first-year payment differs from the method's amount"
+          : anySepUnknown ? "SEPP check: confirm the client had left the employer before an employer-plan series began"
           : anyMissing ? "SEPP check: inputs missing to work out the required amount"
+          : anyEndedOk ? "SEPP check: series ended without a change (account exhausted, death or disability)"
           : "SEPP check: payments match the amount each method requires",
         detail: "Required annual amount under Notice 2022-6, from the IRS life-expectancy and mortality tables (Treas. Reg. §1.401(a)(9)-9): " +
-          withMethod.map(seppCalcLine).join(" "),
-        recommendation: anyAuto || anyFirst ? "Compare with the custodian's own calculation and the 1099-R. A payment that differs from the method's amount " +
+          withMethod.map(function (a) { return (a.calc.method ? seppCalcLine(a) : seppWho(a) + ":") + seppRuleNotes(a); }).join(" "),
+        recommendation: anyNotQ ? "This year's payments are taxed as early distributions. Review the earlier years' returns for the 10% and amend them if it wasn't paid."
+          : anyAuto || anyFirst ? "Compare with the custodian's own calculation and the 1099-R. A payment that differs from the method's amount " +
           "after the first year changes the series (§72(t)(4)); if the inputs on Layer 1 US are wrong, correct them."
           : anyOver ? "A rate above the limit means the payments were never SEPP: check the rate and the federal mid-term rate for the two months before the first payment."
+          : anySepUnknown ? "Record on Layer 1 US whether the client had left that employer before the first SEPP payment."
           : anyMissing ? "Complete the SEPP inputs on Layer 1 US → Retirement distributions so WISING can check the amount."
+          : anyEndedOk ? "No recapture. Keep the evidence (account statements, or the death certificate / disability documentation) on file."
           : "Nothing to do. Keep the calculation on file.",
         amountUsd: 0, refs: ["§72(t)(2)(A)(iv)", "Notice 2022-6", "Treas. Reg. §1.401(a)(9)-9"]
       });

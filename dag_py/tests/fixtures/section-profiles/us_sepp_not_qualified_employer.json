@@ -1,8 +1,8 @@
 {
-  "id": "us_sepp_calc_amortization_matches",
+  "id": "us_sepp_not_qualified_employer",
   "form": "layer1_us.html",
-  "section": "Retirement distributions \u2014 SEPP method check (Notice 2022-6)",
-  "story": "Same facts as the IRS SEPP FAQ example (Q&A 7): IRA owner born 1973-03-01 (50 in 2023), balance $400,000 on 31 Dec 2022, series started 15 Jan 2023 at 4% over the Single Life Table. US citizen, single, Texas, wages $50,000. Fixed amortization; $21,102 paid in 2026.",
+  "section": "Retirement distributions \u2014 SEPP from an employer plan (\u00a772(t)(3)(B))",
+  "story": "IRS SEPP FAQ example facts (born 1973-03-01; $400,000; 4%; Single Life; started 15 Jan 2023; fixed amortization: $21,101.63 a year). US citizen, single, Texas, wages $50,000. The series is from a 401(k) with the employer the client still works for (not separated from service). $21,102 paid in 2026.",
   "router": {
     "jurisdiction": "single_us",
     "base_tax_year": 2026,
@@ -44,7 +44,7 @@
       "retirement_distributions": [
         {
           "payer_name": "Vanguard IRA",
-          "plan_type": "ira",
+          "plan_type": "401k",
           "taxable_usd": 21102,
           "payment_type": "periodic",
           "early_exception": "sepp",
@@ -55,36 +55,37 @@
           "sepp_life_table": "single",
           "sepp_start_date": "2023-01-15",
           "sepp_start_balance_usd": 400000,
-          "sepp_interest_rate_pct": 4
+          "sepp_interest_rate_pct": 4,
+          "sepp_separated_from_service": false
         }
       ]
     }
   },
   "expect": [
     {
-      "path": "findings[id=sepp_calculation].severity",
-      "value": "info",
-      "why": "IRS example: 36.2 years at 4% \u2192 factor 18.9559 \u2192 $400,000 / 18.9559 = $21,102; paid $21,102 matches"
+      "path": "model.assets.seppTracker.series[payerName=Vanguard IRA].status",
+      "value": "not_qualified",
+      "why": "\u00a772(t)(3)(B): SEPP from an employer plan needs the payments to begin after separation from service"
     },
     {
-      "path": "findings[id=early_withdrawal_penalty_72t]",
-      "value": null,
-      "why": "payment follows the series: SEPP exception applies"
+      "path": "findings[id=sepp_calculation].severity",
+      "value": "warning",
+      "why": "the series never qualified"
+    },
+    {
+      "path": "findings[id=early_withdrawal_penalty_72t].amountUsd",
+      "value": 2110.2,
+      "why": "every payment is an early distribution: 10% of 21,102"
     },
     {
       "path": "findings[id=sepp_recapture_72t]",
       "value": null,
-      "why": "no change to the series"
+      "why": "not a recapture \u2014 the series never existed; earlier years are a matter of amending those returns"
     },
     {
       "path": "computed.usTax.totalTaxBeforeFtcUsd",
-      "value": 6812,
-      "why": "AGI 71,102 \u2212 16,100 = 55,002: 1,240 + 12% \u00d7 38,000 + 22% \u00d7 4,602 = 6,812"
-    },
-    {
-      "path": "documents[id=form_5329].severity",
-      "value": "info",
-      "why": "no tax; Part I needed only if the 1099-R's box 7 doesn't already show the SEPP exception (code 2)"
+      "value": 8923,
+      "why": "6,812.44 + 2,110.20 = 8,922.64"
     }
   ]
 }

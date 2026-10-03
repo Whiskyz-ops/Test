@@ -11779,6 +11779,9 @@ div.innerHTML = `
                     <div class="md:col-span-3 ${r.sepp_method === 'rmd' || r.sepp_switched_to_rmd === true ? '' : 'hidden'}"><label class="${L}">Balance on 31 Dec last year</label><input type="text" inputmode="numeric" id="rd-sepp-bal-${i}" value="${money(r.sepp_balance_usd)}" oninput="updateRetDist(${i}, 'sepp_balance_usd', this.value)" class="${F} font-mono"></div>
                     <label class="md:col-span-4 flex items-center gap-2 text-[10px] text-white/70 pb-2 ${r.sepp_method && r.sepp_method !== 'rmd' ? '' : 'hidden'}"><input type="checkbox" id="rd-sepp-switch-${i}" ${r.sepp_switched_to_rmd === true ? 'checked' : ''} onchange="updateRetDist(${i}, 'sepp_switched_to_rmd', this.checked)" class="w-4 h-4 accent-brandCyan"> Switched once to the RMD method (allowed)</label>
                     <label class="md:col-span-5 flex items-center gap-2 text-[10px] text-white/70 pb-2"><input type="checkbox" id="rd-sepp-broken-${i}" ${r.sepp_broken === true ? 'checked' : ''} onchange="updateRetDist(${i}, 'sepp_broken', this.checked)" class="w-4 h-4 accent-brandCyan"> Series changed or stopped (extra withdrawal, different amount, transfer out, stopped)</label>
+                    <div class="md:col-span-3 ${r.sepp_broken === true ? '' : 'hidden'}"><label class="${L}">Reason for the change</label><select id="rd-sepp-reason-${i}" onchange="updateRetDist(${i}, 'sepp_change_reason', this.value)" class="${F}">${opts([['', 'Other / not stated'], ['disability', 'Disability (no recapture)'], ['death', 'Death (no recapture)']], r.sepp_change_reason || '')}</select></div>
+                    <label class="md:col-span-5 flex items-center gap-2 text-[10px] text-white/70 pb-2"><input type="checkbox" id="rd-sepp-exhausted-${i}" ${r.sepp_account_exhausted === true ? 'checked' : ''} onchange="updateRetDist(${i}, 'sepp_account_exhausted', this.checked)" class="w-4 h-4 accent-brandCyan"> The account ran out (a short or stopped payment isn't a change)</label>
+                    <div class="md:col-span-4 ${['401k', 'pension', 'other_plan'].indexOf(r.plan_type) >= 0 ? '' : 'hidden'}"><label class="${L}">Had the client left this employer before the first SEPP payment?</label><select id="rd-sepp-separated-${i}" onchange="updateRetDist(${i}, 'sepp_separated_from_service', this.value)" class="${F}">${opts([['', 'Not answered'], ['yes', 'Yes'], ['no', 'No — still with the employer']], r.sepp_separated_from_service === true ? 'yes' : r.sepp_separated_from_service === false ? 'no' : '')}</select></div>
                     <div class="md:col-span-3"><label class="${L}">Date of the change</label><input type="date" id="rd-sepp-change-${i}" value="${retEsc(r.sepp_change_date)}" onchange="updateRetDist(${i}, 'sepp_change_date', this.value)" class="${F} [color-scheme:dark]"></div>
                     <div class="md:col-span-4"><label class="${L}">Earlier SEPP payments before 59½ — total (if no yearly split)</label><input type="text" inputmode="numeric" id="rd-sepp-prior-${i}" value="${money(r.sepp_prior_payments_usd)}" oninput="updateRetDist(${i}, 'sepp_prior_payments_usd', this.value)" class="${F} font-mono"></div>
                     <div class="col-span-2 md:col-span-12"><label class="${L}">SEPP payments this year (one line per payment, as they're taken — the Monitor tracks them against the required amount)</label>
@@ -11857,14 +11860,15 @@ div.innerHTML = `
         const r = retDistRows()[i];
         if (!r) return;
         if (['taxable_usd', 'federal_withheld_usd', 'sepp_prior_payments_usd', 'sepp_start_balance_usd', 'sepp_balance_usd'].indexOf(field) >= 0) r[field] = String(val).trim() === '' ? null : (parseFormattedNumber(val) || 0);
-        else if (field === 'rolled_over' || field === 'sepp_broken' || field === 'sepp_switched_to_rmd') r[field] = val === true;
+        else if (field === 'rolled_over' || field === 'sepp_broken' || field === 'sepp_switched_to_rmd' || field === 'sepp_account_exhausted') r[field] = val === true;
+        else if (field === 'sepp_separated_from_service') r[field] = val === 'yes' ? true : val === 'no' ? false : null;
         else if (field === 'sepp_interest_rate_pct' || field === 'sepp_federal_midterm_pct') { const n = parseFloat(String(val).replace(/[^0-9.]/g, '')); r[field] = isNaN(n) ? null : n; }
         else r[field] = val === '' ? null : val;
         // SEPP payments are periodic by definition.
         if (field === 'early_exception' && val === 'sepp') r.payment_type = 'periodic';
         // SEPP fields depend on the exception, method, table and switch:
         // redraw when one of those changes.
-        if (['early_exception', 'sepp_method', 'sepp_life_table', 'sepp_switched_to_rmd', 'sepp_start_date'].indexOf(field) >= 0) renderRetDists();
+        if (['early_exception', 'sepp_method', 'sepp_life_table', 'sepp_switched_to_rmd', 'sepp_start_date', 'sepp_broken', 'plan_type'].indexOf(field) >= 0) renderRetDists();
         refreshRetDistTotal();
         try { recalculateDerivedFields(); persistUsState(); } catch (e) {}
     }

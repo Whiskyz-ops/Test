@@ -433,10 +433,12 @@ def _treaty_findings(d, ctx, is_nra):
                 + ("As a non-resident alien the client claims it directly. " if is_nra
                    else "As a US resident alien who is neither a citizen nor a green-card holder, the client keeps it under the saving clause's exception (DTAA Art. 1(4)(b)). ")
                 + "WISING leaves " + _usd(a22["exemptUsd"]) + " out of US " + ("income." if is_nra else "wages."),
-                "Attach Form 8833 (treaty-based return position) and give the payer Form 8233 to stop withholding. The exemption needs the client to "
+                ("Give the university / employer Form 8233 so it stops withholding on this pay. " if is_nra
+                 else "Ask the employer to stop withholding on this pay (Form W-4), and show it on the return as exempt income citing DTAA Art. 22. ")
+                + "No Form 8833 is needed: Treas. Reg. §301.6114-1(c)(1)(iv) waives it for treaty claims on pensions, social security, students, trainees and teachers. The exemption needs the client to "
                 "have been resident in India immediately before arriving, and the pay to be for teaching or research at a university or other recognised educational "
                 "institution; it ends two years after arrival." + ("" if a22["arrivalDate"] else " Enter the arrival date on Layer 1 US so WISING can apply the two-year limit."),
-                0, ["DTAA Art. 22", "DTAA Art. 1(4)(b)", "Form 8833", "Form 8233"],
+                0, ["DTAA Art. 22", "Form 8233", "Treas. Reg. §301.6114-1(c)(1)(iv)"] if is_nra else ["DTAA Art. 22", "DTAA Art. 1(4)(b)", "Treas. Reg. §301.6114-1(c)(1)(iv)"],
             ))
         else:
             out.append(make_finding(
@@ -478,9 +480,9 @@ def _treaty_findings(d, ctx, is_nra):
                 "The client claims the India–US treaty's student and business-apprentice exemption on " + _usd(a21["paymentsUsd"]) + " of payments from "
                 "outside the US for maintenance, education or training. As a US resident alien who is neither a citizen nor a green-card holder, the client keeps "
                 "it under the saving clause's exception (DTAA Art. 1(4)(b)). WISING leaves these payments out of US income.",
-                "Attach Form 8833 (treaty-based return position). The exemption needs the client to have been resident in India immediately "
+                "Show the payments on the return and subtract them as exempt income, citing India and DTAA Art. 21(1). No Form 8833 is needed: Treas. Reg. §301.6114-1(c)(1)(iv) waives it for treaty claims on pensions, social security, students, trainees and teachers. The exemption needs the client to have been resident in India immediately "
                 "before arriving and to be in the US solely for education or training; it doesn't cover pay for work done in the US.",
-                0, ["DTAA Art. 21(1)", "DTAA Art. 1(4)(b)", "Form 8833"],
+                0, ["DTAA Art. 21(1)", "DTAA Art. 1(4)(b)", "Treas. Reg. §301.6114-1(c)(1)(iv)"],
             ))
 
     if is_nra:
@@ -680,6 +682,10 @@ def _findings_all_result_override(d, ctx, base_compute):
         # change the tax already computed.
         derived = d["nraDerivedEciFdapResult"]
         declared_eci_usd, declared_fdap_usd = d["nraEciIncomeUsdRaw"] or 0, d["nraFdapIncomeUsdRaw"] or 0
+        # Layer 1's ECI is before the DTAA Art. 22 exemption — see ustax-full-nodes.js.
+        a22_check = art22(ctx.get("us"), base_year_of(ctx.get("router"), ctx.get("us")))
+        if a22_check and not a22_check["blockedBy"]:
+            declared_eci_usd -= min(max(0, declared_eci_usd), a22_check["exemptUsd"])
         declared_total_usd = declared_eci_usd + declared_fdap_usd
         delta_usd = derived["derivedTotalUsd"] - declared_total_usd
         materiality_usd = max(100.0, 0.01 * derived["derivedTotalUsd"])

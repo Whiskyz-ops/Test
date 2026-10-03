@@ -23,6 +23,8 @@ wising_dag/ — 'now' only enters via ctx").
 from __future__ import annotations
 
 import re
+from ..us.retirement_dist import form_5329
+from ..us.treaty_art22 import art22, base_year_of
 from datetime import datetime, timezone
 
 from ..india.joint_interest import joint_account_tds_credit_inr
@@ -165,6 +167,8 @@ DOCUMENTS_CATALOG = [
     # DELIBERATE DAG/engine divergence, same pattern as form_8960/form_8959
     # above (task #44 follow-up) — the engine has no §25B Saver's Credit
     # computation at all, so it never had a Form 8880 trigger to model.
+    {"id": "form_5329", "jurisdiction": "US", "name": "IRS Form 5329 (Additional Taxes on Qualified Plans and IRAs)", "desc": "Part I: the 10% additional tax on early retirement distributions (§72(t)) and the exceptions claimed; a broken SEPP's recapture goes on line 4 with an explanation.", "why": "A §72(t) additional tax or exception applies to this year's retirement distributions.", "severity": "warning"},
+    {"id": "form_8233", "jurisdiction": "US", "name": "IRS Form 8233 (Exemption From Withholding on Compensation)", "desc": "Given to the university or employer, not filed with the return, so it doesn't withhold US tax on a non-resident alien's treaty-exempt pay.", "why": "Teaching or research pay is exempt under DTAA Art. 22 for a non-resident alien.", "severity": "info"},
     {"id": "form_8880", "jurisdiction": "US", "name": "IRS Form 8880 (Saver's Credit)", "desc": "Retirement Savings Contributions Credit — a nonrefundable credit for elective deferrals and IRA contributions by lower/moderate-income filers.", "why": "AGI and eligible retirement contributions on file qualify for a nonzero Saver's Credit under §25B.", "severity": "info"},
     {"id": "form_540", "jurisdiction": "US", "name": "California Form 540 (Resident Income Tax Return)", "desc": "California state income tax return — computed on worldwide income for a full-year CA resident, including Indian-source income. CA grants no credit for tax paid to a foreign country.", "why": "State-of-residence facts on file point to California, and CA taxes worldwide income independently of the federal treaty position.", "severity": "warning"},
     {"id": "form_it201", "jurisdiction": "US", "name": "New York Form IT-201 (Resident Income Tax Return)", "desc": "New York state income tax return — computed on worldwide income for a full-year NY resident, including Indian-source income. NY grants no credit for tax paid to a foreign country.", "why": "State-of-residence facts on file point to New York, and NY taxes worldwide income independently of the federal treaty position.", "severity": "warning"},
@@ -243,6 +247,8 @@ def _build_documents_result(d, ctx):
     is_us_person = res["us"]["isResident"] or is_us_domestic_entity
     t = _india_business_turnover_inr(d["bizEntriesAgg"])
     at_least_95_pct_digital = t["totalInr"] > 0 and (t["cashInr"] / t["totalInr"]) <= 0.05
+    f5329 = form_5329(ctx)
+    a22 = art22(ctx.get("us"), base_year_of(ctx.get("router"), ctx.get("us")))
     form8938 = d["form8938GaugeResult"]
 
     from ..core.constants import LIMITS
@@ -274,6 +280,8 @@ def _build_documents_result(d, ctx):
                      (d["aggregateUsIncomeResult"]["interestUs"]["usd"] + d["aggregateUsIncomeResult"]["ordinaryDividendsUs"]["usd"] + d["aggregateUsIncomeResult"]["capitalGainsUs"]["usd"]) > 0,
         "form_8959": d["usTaxResult"]["additionalMedicareUsd"] > 0,
         "form_8880": (d["usTaxResult"].get("saversCreditUsd") or 0) > 0,
+        "form_5329": d["hasUsScope"] and f5329["required"],
+        "form_8233": d["hasUsScope"] and not res["us"]["isResident"] and bool(a22) and not a22["blockedBy"] and a22["exemptUsd"] > 0,
         # Same gate as the form67_required finding (rule 76(1)).
         "form_67": res["india"]["worldwide"] and d["aggregateUsIncomeResult"]["usSourceTotal"]["usd"] > 0,
         # A US TRC (Form 6166) + Form 41 back a treaty position taken in India
@@ -327,7 +335,17 @@ def _build_documents_result(d, ctx):
             name = "IRS Form 1118 (Foreign Tax Credit — Corporations)"
             desc = "Claims credit for income tax paid to India against US corporate tax liability."
             why = "This C-corp paid Indian income tax on income that is also taxable in the US. C-corps file Form 1118, not the individual/estate/trust Form 1116."
-        out.append({"id": doc["id"], "jurisdiction": doc["jurisdiction"], "name": name, "desc": desc, "why": why, "severity": doc["severity"], "required": triggered, "status": "required" if triggered else "not_triggered"})
+        severity, extra = doc["severity"], {}
+        if doc["id"] == "form_5329" and triggered:
+            if f5329["taxUsd"] > 0:
+                why = ("§72(t) additional tax of " + f"${js_round(f5329['taxUsd']):,}" + " this year"
+                       + (", including a SEPP recapture and its interest (line 4 — explanation below)" if f5329["attachment"] else "") + ".")
+            else:
+                why = "Early distributions rely on a §72(t) exception: file Part I unless box 7 of each Form 1099-R already shows the exception code."
+                severity = "info"
+            if f5329["attachment"]:
+                extra["attachment"] = f5329["attachment"]
+        out.append({"id": doc["id"], "jurisdiction": doc["jurisdiction"], "name": name, "desc": desc, "why": why, "severity": severity, "required": triggered, "status": "required" if triggered else "not_triggered", **extra})
     return out
 
 

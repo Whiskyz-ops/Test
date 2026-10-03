@@ -63,6 +63,16 @@
       "path": "findings[id=treaty_article_22_teacher].severity",
       "value": "info",
       "why": "Art. 1(4)(b) keeps Art. 22 for a resident alien who isn't a citizen or green-card holder"
+    },
+    {
+      "path": "documents[id=form_8233].required",
+      "value": false,
+      "why": "Form 8233 is for non-resident aliens; a resident alien adjusts withholding with Form W-4"
+    },
+    {
+      "path": "documents[id=form_8833].required",
+      "value": false,
+      "why": "Treas. Reg. \u00a7301.6114-1(c)(1)(iv) waives Form 8833 for teachers' treaty claims"
     }
   ]
 }

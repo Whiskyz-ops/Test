@@ -276,6 +276,7 @@ NODES.headlineTotalIncomeUsdResult = {
 // ============================================================================
 // buildDocuments, ported in full (conflicts.js:1577-1673)
 // ============================================================================
+function f5329Usd(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
 var DOCUMENTS_CATALOG = [
   { id: "fincen_114", jurisdiction: "US", name: "FinCEN Form 114 (FBAR)", desc: "Report of Foreign Bank and Financial Accounts.", why: "Aggregate peak balance across all foreign (Indian) accounts exceeded USD 10,000.", severity: "critical" },
   { id: "form_8938", jurisdiction: "US", name: "IRS Form 8938 (FATCA)", desc: "Statement of Specified Foreign Financial Assets, filed with Form 1040.", why: "Specified foreign financial assets exceeded the Form 8938 reporting threshold for the client's filing status/residence.", severity: "critical" },
@@ -293,6 +294,9 @@ var DOCUMENTS_CATALOG = [
   // above (task #44 follow-up, docs/GAP_TRACKER.md) — the engine has no
   // §25B Saver's Credit computation at all, so it never had a Form 8880
   // trigger to model.
+  // SEPP / §72(t) and DTAA Art. 22 (retirement-dist.js form5329, treaty-art22.js).
+  { id: "form_5329", jurisdiction: "US", name: "IRS Form 5329 (Additional Taxes on Qualified Plans and IRAs)", desc: "Part I: the 10% additional tax on early retirement distributions (§72(t)) and the exceptions claimed; a broken SEPP's recapture goes on line 4 with an explanation.", why: "A §72(t) additional tax or exception applies to this year's retirement distributions.", severity: "warning" },
+  { id: "form_8233", jurisdiction: "US", name: "IRS Form 8233 (Exemption From Withholding on Compensation)", desc: "Given to the university or employer, not filed with the return, so it doesn't withhold US tax on a non-resident alien's treaty-exempt pay.", why: "Teaching or research pay is exempt under DTAA Art. 22 for a non-resident alien.", severity: "info" },
   { id: "form_8880", jurisdiction: "US", name: "IRS Form 8880 (Saver's Credit)", desc: "Retirement Savings Contributions Credit — a nonrefundable credit for elective deferrals and IRA contributions by lower/moderate-income filers.", why: "AGI and eligible retirement contributions on file qualify for a nonzero Saver's Credit under §25B.", severity: "info" },
   { id: "form_540", jurisdiction: "US", name: "California Form 540 (Resident Income Tax Return)", desc: "California state income tax return — computed on worldwide income for a full-year CA resident, including Indian-source income. CA grants no credit for tax paid to a foreign country.", why: "State-of-residence facts on file point to California, and CA taxes worldwide income independently of the federal treaty position.", severity: "warning" },
   { id: "form_it201", jurisdiction: "US", name: "New York Form IT-201 (Resident Income Tax Return)", desc: "New York state income tax return — computed on worldwide income for a full-year NY resident, including Indian-source income. NY grants no credit for tax paid to a foreign country.", why: "State-of-residence facts on file point to New York, and NY taxes worldwide income independently of the federal treaty position.", severity: "warning" },
@@ -445,7 +449,7 @@ NODES.buildDocumentsResult = {
     "limitsRawExtra", "totalIncomeInrV3", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "viaForeignCorpXbr4", "usStateTaxResult", "nraRaw",
     "entityTaxResult", "taxRegime", "businessComputation", "indiaOpt115baaRaw", "indiaOpt115babRaw", "presumptiveLockinAgg", "usCorpScheduleLRaw",
     "hasUsScope", "ssnOrItinTypeRaw", "usEntityKind", "lrsOutboundRaw", "indiaTreatyPositionResult"],
-  compute: function (d) {
+  compute: function (d, ctx) {
     var res = d.residencyResult;
     var isForm1118 = d.entityFormsResult.usReturnForm === "1120";
     // "US person" for information-return purposes (FBAR/FATCA/CFC/PFIC):
@@ -458,6 +462,8 @@ NODES.buildDocumentsResult = {
     var t = indiaBusinessTurnoverInr(d.bizEntriesAgg);
     var atLeast95PctDigital = t.totalInr > 0 && (t.cashInr / t.totalInr) <= 0.05;
     var form8938 = d.form8938GaugeResult;
+    var f5329 = require("./retirement-dist.js").form5329(ctx);
+    var a22 = require("./treaty-art22.js").art22(ctx.us, require("./treaty-art22.js").baseYearOf(ctx.router, ctx.us));
 
     var triggers = {
       fincen_114: d.accountsListResult.aggregatePeak.usd > 10000 && isUsPerson,
@@ -521,6 +527,8 @@ NODES.buildDocumentsResult = {
         (d.aggregateUsIncomeResult.interestUs.usd + d.aggregateUsIncomeResult.ordinaryDividendsUs.usd + d.aggregateUsIncomeResult.capitalGainsUs.usd) > 0,
       form_8959: d.usTaxResult.additionalMedicareUsd > 0,
       form_8880: (d.usTaxResult.saversCreditUsd || 0) > 0,
+      form_5329: d.hasUsScope && f5329.required,
+      form_8233: d.hasUsScope && !res.us.isResident && !!a22 && !a22.blockedBy && a22.exemptUsd > 0,
       // See engine/conflicts.js's form_67 comment: was the wrong field
       // (foreignSourceTotal, an unrelated US-model concept) OR'd with a bare
       // isResident catch-all — false-positive on 6/12 demo profiles. Fixed
@@ -612,7 +620,13 @@ NODES.buildDocumentsResult = {
         desc = "Claims credit for income tax paid to India against US corporate tax liability.";
         why = "This C-corp paid Indian income tax on income that is also taxable in the US. C-corps file Form 1118, not the individual/estate/trust Form 1116.";
       }
-      return { id: doc.id, jurisdiction: doc.jurisdiction, name: name, desc: desc, why: why, severity: doc.severity, required: triggered, status: triggered ? "required" : "not_triggered" };
+      var severity = doc.severity, extra = {};
+      if (doc.id === "form_5329" && triggered) {
+        if (f5329.taxUsd > 0) why = "§72(t) additional tax of " + f5329Usd(f5329.taxUsd) + " this year" + (f5329.attachment ? ", including a SEPP recapture and its interest (line 4 — explanation below)" : "") + ".";
+        else { why = "Early distributions rely on a §72(t) exception: file Part I unless box 7 of each Form 1099-R already shows the exception code."; severity = "info"; }
+        if (f5329.attachment) extra.attachment = f5329.attachment;
+      }
+      return Object.assign({ id: doc.id, jurisdiction: doc.jurisdiction, name: name, desc: desc, why: why, severity: severity, required: triggered, status: triggered ? "required" : "not_triggered" }, extra);
     });
   }
 };

@@ -59,6 +59,11 @@
       "path": "computed.usTax.totalTaxBeforeFtcUsd",
       "value": 8570,
       "why": "income tax on 53,900 = 6,570, plus the 2,000 s.72(t) additional tax (Schedule 2, line 8)"
+    },
+    {
+      "path": "documents[id=form_5329].required",
+      "value": true,
+      "why": "10% additional tax on an early IRA distribution is reported on Form 5329 Part I"
     }
   ]
 }

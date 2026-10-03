@@ -100,9 +100,44 @@ Object.keys(reportBatch1Nodes).forEach(function (k) { NODES[k] = reportBatch1Nod
 //     "match production's own quirk, don't fix it" discipline as the india
 //     entity path's literal "₹NaN" (CFL-7 batch 3).
 // ============================================================================
+// §72(t) rows: one row when it's only the 10% on this year's early
+// distributions; with a SEPP recapture, one row per part (this year's 10%,
+// the recapture, its interest), from retirement-dist.js additionalTax72tParts.
+var T72_TEXT_RESIDENT = "10% of retirement distributions paid before age 59½ with no §72(t) exception recorded on Layer 1 US (Form 5329 Part I, Schedule 2 line 8).";
+var T72_TEXT_NRA = "10% of retirement distributions paid before age 59½ that the US taxes, unless an exception is recorded on Layer 1 US (SEPP, separation at 55+, disability, ...). A periodic pension the treaty leaves to India carries no US tax, so no 10% either";
+function rows72t(totalUsd, ctx, treaty) {
+  if (!(totalUsd > 0)) return { rows: [], totalParts: [] };
+  var p = require("./retirement-dist.js").additionalTax72tParts(ctx, treaty);
+  if (!(p.recaptureUsd > 0 || p.interestUsd > 0)) {
+    return { rows: [{ label: "Early-withdrawal additional tax (§72(t))", usd: totalUsd, trace: calc(treaty ? T72_TEXT_NRA : T72_TEXT_RESIDENT, [{ label: "Additional tax", amount: totalUsd }]) }],
+      totalParts: [{ label: "§72(t) additional tax", amount: totalUsd }] };
+  }
+  var rows = [], parts = [], who = function (a, y) { return (p.series.length > 1 && a.payerName ? a.payerName + " " : "") + y; };
+  if (p.earlyUsd > 0) {
+    rows.push({ label: "§72(t) 10% on this year's early distributions", usd: p.earlyUsd,
+      trace: calc("10% of this year's distributions paid before age 59½ without an exception — including SEPP payments once the series is broken (Form 5329 Part I)", [
+        { label: "Early distributions", amount: p.earlyBaseUsd }, { label: "Rate", display: "10%" }]) });
+    parts.push({ label: "§72(t) 10% on this year's early distributions", amount: p.earlyUsd });
+  }
+  var schedItems = [];
+  p.series.forEach(function (a) { a.schedule.forEach(function (x) { schedItems.push({ label: who(a, x.year) + " SEPP payments", amount: x.amountUsd }); }); });
+  rows.push({ label: "SEPP recapture — 10% on earlier years' payments (§72(t)(4))", usd: p.recaptureUsd,
+    trace: calc("The SEPP series was changed before its required period ended, so the 10% waived on every earlier payment is due this year (Form 5329 line 4, with an explanation — see Filings)",
+      schedItems.concat([{ label: "Earlier SEPP payments", amount: p.recaptureBaseUsd }, { label: "Rate", display: "10%" }])) });
+  parts.push({ label: "SEPP recapture", amount: p.recaptureUsd });
+  if (p.interestUsd > 0) {
+    var intItems = [];
+    p.series.forEach(function (a) { a.schedule.forEach(function (x) { if (x.interestUsd != null) intItems.push({ label: who(a, x.year) + " (to " + a.interestTo + ")", amount: x.interestUsd }); }); });
+    rows.push({ label: "Interest on the SEPP recapture", usd: p.interestUsd,
+      trace: calc("Interest for the deferral periods: IRS underpayment rate (§6621), compounded daily (§6622), on each year's 10% from 15 April of the following year to the due date of this return", intItems) });
+    parts.push({ label: "SEPP recapture interest", amount: p.interestUsd });
+  }
+  return { rows: rows, totalParts: parts };
+}
+
 NODES.buildTaxComputationUsResult = {
   deps: ["usTaxResult", "aggregateUsIncomeResult"],
-  compute: function (d) {
+  compute: function (d, ctx) {
     var u = d.usTaxResult;
 
     // ---- NRA branch (conflicts.js:1980-2013) --------------------------------
@@ -130,7 +165,7 @@ NODES.buildTaxComputationUsResult = {
           { label: "Rate applied", display: "30%" }
         ]) });
       if (pensionExemptUsd > 0) extraRows.push({ label: "US pensions / IRA distributions (" + usd(pensionExemptUsd) + ") — not taxed in the US", usd: 0,
-        trace: source("DTAA Art. 20(1): periodic pension and annuity payments to an Indian resident are taxable only in India — claim the exemption on Form 1040-NR Schedule OI (Form 8833 where required). Lump sums are not covered by Art. 20(1).") });
+        trace: source("DTAA Art. 20(1): periodic pension and annuity payments to an Indian resident are taxable only in India — claim the exemption on Form 1040-NR Schedule OI (no Form 8833 needed — Treas. Reg. §301.6114-1(c)(1)(iv)). Lump sums are not covered by Art. 20(1).") });
       // Lump-sum retirement withdrawals: outside DTAA Art. 20, taxed at 30%;
       // and the §72(t) 10% on early distributions the US taxes.
       var lumpRow = (u.nra.fdapBreakdown || []).filter(function (r) { return r.type === "retirement_lump_sum"; })[0];
@@ -139,17 +174,15 @@ NODES.buildTaxComputationUsResult = {
         trace: calc("DTAA Art. 20 leaves only pensions — periodic payments — to the country of residence; a lump-sum withdrawal from an IRA / 401(k) / plan stays taxable in the US as FDAP at 30% (§871(a)). India taxes it too if the client is resident there, with credit for the US tax (s.159, Form 44)", [
           { label: "Lump-sum withdrawals", amount: lumpRow.baseUsd }, { label: "Rate applied", display: "30%" }
         ]) });
-      if (add72tUsd > 0) extraRows.push({ label: "Early-withdrawal additional tax (§72(t))", usd: add72tUsd,
-        trace: calc("10% of retirement distributions paid before age 59½ that the US taxes, unless an exception is recorded on Layer 1 US (SEPP, separation at 55+, disability, ...). A periodic pension the treaty leaves to India carries no US tax, so no 10% either", [
-          { label: "Additional tax", amount: add72tUsd }
-        ]) });
+      var t72 = rows72t(add72tUsd, ctx, true);
+      extraRows = extraRows.concat(t72.rows);
       var totalParts = [
         { label: "Tax on ECI", amount: u.nra.eciTaxUsd },
         { label: "Tax on FDAP", amount: u.nra.fdapTaxUsd }
       ];
       if (ssTaxUsd > 0) totalParts.push({ label: "Tax on US Social Security", amount: ssTaxUsd });
       if (lumpTaxUsd > 0) totalParts.push({ label: "Tax on lump-sum retirement withdrawals", amount: lumpTaxUsd });
-      if (add72tUsd > 0) totalParts.push({ label: "§72(t) additional tax", amount: add72tUsd });
+      totalParts = totalParts.concat(t72.totalParts);
       totalParts.push({ label: "Additional Medicare tax", amount: u.additionalMedicareUsd });
       return {
         title: "US federal tax — Form 1040-NR (ECI graduated / FDAP flat)",
@@ -421,10 +454,7 @@ NODES.buildTaxComputationUsResult = {
             { label: "Non-refundable (offsets tax)", amount: u.ctcDetail.nonRefundableUsd },
             { label: "Refundable (Additional CTC)", amount: u.ctcDetail.refundableUsd }
           ]) }] : [])
-        .concat(u.additionalTax72tUsd > 0 ? [{ label: "Early-withdrawal additional tax (§72(t))", usd: u.additionalTax72tUsd,
-          trace: calc("10% of IRA/401(k) distributions taken before age 59½ (Schedule 2, line 8). Layer 1 doesn't collect the statutory exceptions (disability, SEPP, first home, education, medical), so the full 10% is assumed.", [
-            { label: "Additional tax", amount: u.additionalTax72tUsd }
-          ]) }] : [])
+        .concat(rows72t(u.additionalTax72tUsd, ctx, false).rows)
         .concat([{ label: "Total US tax (pre-FTC)", usd: u.totalTaxBeforeFtcUsd, emphasis: true,
           trace: calc("Income tax (ordinary + preferential) + NIIT + Additional Medicare tax + SE tax + AMT" + (u.additionalTax72tUsd > 0 ? " + §72(t) additional tax" : "") + " − non-refundable credits", [
             { label: "Income tax (ordinary + preferential)", amount: u.incomeTaxUsd },
@@ -432,7 +462,7 @@ NODES.buildTaxComputationUsResult = {
             { label: "Additional Medicare tax", amount: u.additionalMedicareUsd },
             { label: "SE tax", amount: u.seTaxUsd },
             { label: "AMT", amount: u.amtUsd }
-          ].concat(u.additionalTax72tUsd > 0 ? [{ label: "§72(t) additional tax", amount: u.additionalTax72tUsd }] : []).concat([
+          ].concat(rows72t(u.additionalTax72tUsd, ctx, false).totalParts).concat([
             { label: "Less credits", amount: -u.creditsUsd }
           ])) }]),
       totalUsd: u.totalTaxBeforeFtcUsd,

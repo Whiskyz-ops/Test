@@ -235,7 +235,8 @@ def _nra_derived_eci_fdap_result(d, ctx):
     """
     agg = d["aggregateUsIncomeResult"]
     # W-2 wages for work outside the US aren't ECI for an NRA (w2WorkLocation).
-    derived_eci_usd = agg["wages"]["usd"] - ((agg.get("w2WorkLocation") or {}).get("outsideUsWagesUsd") or 0) + agg["businessUs"]["usd"]
+    # Floored at 0 (DTAA Art. 22) — see findings-batch4-nodes.js.
+    derived_eci_usd = max(0, agg["wages"]["usd"] - ((agg.get("w2WorkLocation") or {}).get("outsideUsWagesUsd") or 0)) + agg["businessUs"]["usd"]
     derived_fdap_usd = agg["interestUs"]["usd"] + agg["ordinaryDividendsUs"]["usd"] + agg["rentalUs"]["usd"] + d["royaltiesDirectUsSourceUsdRaw"]
     return {
         "derivedEciUsd": derived_eci_usd, "derivedFdapUsd": derived_fdap_usd,
@@ -295,6 +296,14 @@ def _sepp_interest_text(a):
                 + ("; quarters after December 2026 taken at the last published rate (7%)" if a["assumedRates"] else ""))
     return who + "interest not worked out — " + ("the yearly amounts don't add up to the total of earlier payments entered" if a["interestStatus"] == "schedule_differs"
                                                   else "enter the earlier SEPP payments year by year on Layer 1 US")
+
+
+def _sepp_rule_notes(a):
+    return (
+        (" Not SEPP: payments from an employer plan that began before the client left that employer don't qualify (§72(t)(3)(B)) — every payment is an early distribution, and earlier years' returns should have included the 10% too." if a["notQualified"] else "")
+        + (" From an employer plan: confirm the client had left that employer before the first payment (§72(t)(3)(B)); if not, the series never qualified." if a["separationUnknown"] else "")
+        + (" The account ran out: a short or stopped payment isn't a change (Notice 2022-6 §3.03(a))." if a["exhausted"] else "")
+        + ((" Changed by reason of " + a["changeReason"] + ": not a change for the recapture (§72(t)(4)(A)); later payments keep the " + a["changeReason"] + " exception.") if a["changeReason"] else ""))
 
 
 def _sepp_why(a):
@@ -803,25 +812,34 @@ def _findings_us_result(d, ctx):
             "No recapture to report. Keep the SEPP start date and payment history on file in case the IRS asks.",
             0, ["§72(t)(4)"],
         ))
-    with_method = [a for a in srows if a["calc"]["method"]]
+    with_method = [a for a in srows if a["calc"]["method"] or a["notQualified"] or a["separationUnknown"] or a["exhausted"] or a["changeReason"]]
     if with_method:
         any_auto = any(a["autoBreak"] for a in with_method)
         any_first = any(a["mismatch"] and a["firstYear"] for a in with_method)
         any_over = any(a["calc"]["rate"] and a["calc"]["rate"]["over"] for a in with_method)
-        any_missing = any(a["calc"]["annualUsd"] is None for a in with_method)
+        any_missing = any(a["calc"]["method"] and a["calc"]["annualUsd"] is None for a in with_method)
+        any_not_q = any(a["notQualified"] for a in with_method)
+        any_sep_unknown = any(a["separationUnknown"] for a in with_method)
+        any_ended_ok = any(a["exhausted"] or a["changeReason"] for a in with_method)
         findings.append(make_finding(
-            "sepp_calculation", "warning" if any_auto or any_first or any_over or any_missing else "info", "credit",
-            ("SEPP check: a payment differs from the amount its method requires" if any_auto
+            "sepp_calculation", "warning" if any_not_q or any_auto or any_first or any_over or any_missing or any_sep_unknown else "info", "credit",
+            ("SEPP check: an employer-plan series that began before leaving the employer doesn't qualify" if any_not_q
+             else "SEPP check: a payment differs from the amount its method requires" if any_auto
              else "SEPP check: interest rate above the permitted limit" if any_over
              else "SEPP check: first-year payment differs from the method's amount" if any_first
+             else "SEPP check: confirm the client had left the employer before an employer-plan series began" if any_sep_unknown
              else "SEPP check: inputs missing to work out the required amount" if any_missing
+             else "SEPP check: series ended without a change (account exhausted, death or disability)" if any_ended_ok
              else "SEPP check: payments match the amount each method requires"),
             "Required annual amount under Notice 2022-6, from the IRS life-expectancy and mortality tables (Treas. Reg. §1.401(a)(9)-9): "
-            + " ".join(_sepp_calc_line(a) for a in with_method),
-            ("Compare with the custodian's own calculation and the 1099-R. A payment that differs from the method's amount "
+            + " ".join((_sepp_calc_line(a) if a["calc"]["method"] else _sepp_who(a) + ":") + _sepp_rule_notes(a) for a in with_method),
+            ("This year's payments are taxed as early distributions. Review the earlier years' returns for the 10% and amend them if it wasn't paid." if any_not_q
+             else "Compare with the custodian's own calculation and the 1099-R. A payment that differs from the method's amount "
              "after the first year changes the series (§72(t)(4)); if the inputs on Layer 1 US are wrong, correct them." if any_auto or any_first
              else "A rate above the limit means the payments were never SEPP: check the rate and the federal mid-term rate for the two months before the first payment." if any_over
+             else "Record on Layer 1 US whether the client had left that employer before the first SEPP payment." if any_sep_unknown
              else "Complete the SEPP inputs on Layer 1 US → Retirement distributions so WISING can check the amount." if any_missing
+             else "No recapture. Keep the evidence (account statements, or the death certificate / disability documentation) on file." if any_ended_ok
              else "Nothing to do. Keep the calculation on file."),
             0, ["§72(t)(2)(A)(iv)", "Notice 2022-6", "Treas. Reg. §1.401(a)(9)-9"],
         ))

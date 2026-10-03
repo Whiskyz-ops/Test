@@ -15,6 +15,9 @@ const STATUS = {
   off_schedule: { label: "Off schedule", fg: PAL.amberText, bg: "rgba(245,166,35,0.12)", bd: "rgba(245,166,35,0.4)" },
   broken: { label: "Broken", fg: PAL.redText, bg: "rgba(239,68,68,0.12)", bd: "rgba(239,68,68,0.4)" },
   period_ended: { label: "Period ended", fg: PAL.blueText, bg: "rgba(96,165,250,0.12)", bd: "rgba(96,165,250,0.35)" },
+  not_qualified: { label: "Not SEPP", fg: PAL.redText, bg: "rgba(239,68,68,0.12)", bd: "rgba(239,68,68,0.4)" },
+  exhausted: { label: "Ended — account ran out", fg: PAL.blueText, bg: "rgba(96,165,250,0.12)", bd: "rgba(96,165,250,0.35)" },
+  ended_exempt: { label: "Ended — no recapture", fg: PAL.blueText, bg: "rgba(96,165,250,0.12)", bd: "rgba(96,165,250,0.35)" },
   unchecked: { label: "Not checked", fg: PAL.muted, bg: "rgba(255,255,255,0.05)", bd: "rgba(255,255,255,0.12)" }
 };
 const usd2 = (n) => "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -42,6 +45,9 @@ export function SeppBadge({ status }) {
 
 // What the status means right now, in one phrase.
 function statusLine(s) {
+  if (s.status === "not_qualified") return "employer plan, began before leaving the employer — every payment is taxed as an early distribution";
+  if (s.status === "exhausted") return "the account ran out — not a change, no recapture";
+  if (s.status === "ended_exempt") return "changed by reason of " + s.changeReason + " — no recapture";
   if (s.status === "broken") {
     return s.brokenThisYear
       ? "changed " + fmtDate(s.changeDate) + " — recapture " + fmtUsd(s.priorPaymentsUsd * 0.1) + " + " + fmtUsd(s.interestUsd) + " interest"
@@ -54,7 +60,7 @@ function statusLine(s) {
   return "on schedule";
 }
 function safeLine(s) {
-  if (!s.periodEnd || s.status === "broken" || s.status === "period_ended") return null;
+  if (!s.periodEnd || ["broken", "period_ended", "not_qualified", "exhausted", "ended_exempt"].indexOf(s.status) >= 0) return null;
   const c = countdown(s.asOf, s.periodEnd);
   return "safe to change after " + fmtDate(s.periodEnd) + (c ? " (" + c + ")" : "");
 }
@@ -150,7 +156,8 @@ function SeriesCard({ s, taxYear }) {
           <Row label="Age 59½" value={fmtDate(s.age59HalfDate)} />
           <Row label="Series must hold until (the later)" value={fmtDate(s.periodEnd)} strong />
           {safeLine(s) && <p className="text-[11px] mt-2" style={{ color: PAL.blueText }}>{safeLine(s)[0].toUpperCase() + safeLine(s).slice(1)}</p>}
-          {s.status !== "broken" && s.status !== "period_ended" && (
+          {s.separationUnknown && <p className="text-[11px] mt-1" style={{ color: PAL.amberText }}>Employer plan: confirm on Layer 1 US that the client had left this employer before the first payment — otherwise the series never qualified.</p>}
+          {["broken", "period_ended", "not_qualified", "exhausted", "ended_exempt"].indexOf(s.status) < 0 && (
             <p className="text-[11px] text-muted mt-1">Until then, any extra withdrawal, a different amount, a rollover or transfer out, or stopping early ends the series and recaptures the 10% on every payment so far, plus interest.</p>
           )}
         </Section>

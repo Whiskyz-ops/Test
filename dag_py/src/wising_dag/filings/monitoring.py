@@ -25,6 +25,9 @@ deadlines) is naive.
 """
 from __future__ import annotations
 
+import re
+
+from ..us.retirement_dist import sepp_tracker
 from datetime import datetime, timedelta, timezone
 
 from ..core.graph import NodeDef
@@ -233,7 +236,7 @@ def _projections_monitor_result(d, ctx):
 # ================= 3. COMPLIANCE CALENDAR =================
 US_RETURN_DOCS = [
     "fincen_114", "form_8938", "form_1116", "form_2555", "form_8833",
-    "form_8621", "form_5471", "form_8865", "form_3520", "form_3520a", "form_1040nr", "form_8960", "form_8959", "form_6251",
+    "form_8621", "form_5471", "form_8865", "form_3520", "form_3520a", "form_1040nr", "form_8960", "form_8959", "form_6251", "form_5329",
     "form_540", "form_it201", "form_nj1040", "form_8858",
 ]
 IN_RETURN_DOCS = ["form_67", "trc", "form_10f", "schedule_fa", "schedule_fsi_tr", "schedule_al", "form_3cb_3cd", "form_3ceb", "form_29b", "form_10iea", "form_10ic", "form_10id"]
@@ -285,7 +288,7 @@ def _calendar_monitor_result(d, ctx):
         {"name": india_filing["label"], "jur": "IN", "date": india_filing["date"], "cat": "Filing", "docIds": IN_RETURN_DOCS},
         {"name": "US extended " + us_filing["label"].removeprefix("US ") + " deadline", "jur": "US", "date": us_filing["ext"], "cat": "Extension", "docIds": US_RETURN_DOCS},
         {"name": "India belated / revised ITR", "jur": "IN", "date": _mdate(base_year + 1, 12, 31), "cat": "Extension", "docIds": IN_RETURN_DOCS},
-    ]
+    ] + _sepp_deadlines(ctx, base_year)
     meta = d["metaResult"]
     deadlines = [x for x in deadlines if (meta["hasIndiaScope"] is not False if x["jur"] == "IN" else (meta["hasUsScope"] is not False if x["jur"] == "US" else True))]
     for x in deadlines:
@@ -299,6 +302,26 @@ def _calendar_monitor_result(d, ctx):
     next_deadline = upcoming[0] if upcoming else None
 
     return {"all": deadlines, "upcoming": upcoming, "next": next_deadline}
+
+
+def _sepp_deadlines(ctx, base_year) -> list:
+    """SEPP payment due by 31 Dec and the end of the required period — see report-batch6-nodes.js seppDeadlines."""
+    # The monitoring stage runs on the finished model (ctx["model"]), not the raw forms.
+    model = ctx.get("model") if isinstance(ctx, dict) else None
+    t = (model.get("assets") or {}).get("seppTracker") if isinstance(model, dict) and model.get("assets") is not None else (sepp_tracker(ctx) if ctx.get("us") else None)
+    out = []
+    for s in ((t or {}).get("series") or []):
+        if s["status"] not in ("on_track", "off_schedule", "unchecked"):
+            continue
+        who = s["payerName"] or "SEPP series"
+        rem = s["remainingUsd"]
+        out.append({"name": f"SEPP payment for {base_year} — {who}" + (f": ${js_round(rem):,} still to take" if rem is not None and rem > 0 else ""),
+                    "jur": "US", "date": _mdate(base_year, 12, 31), "cat": "SEPP", "docIds": []})
+        m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", s["periodEnd"] or "")
+        if m:
+            out.append({"name": "SEPP required period ends — " + who + " (can be changed without recapture from this date)", "jur": "US",
+                        "date": _mdate(int(m.group(1)), int(m.group(2)), int(m.group(3))), "cat": "SEPP", "docIds": []})
+    return out
 
 
 # ================= 4. HEALTH SCORE + ALERTS =================

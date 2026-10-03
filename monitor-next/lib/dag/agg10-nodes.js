@@ -294,8 +294,10 @@ NODES.residencyMonitorResult = withSyntheticCtx(baseNodes.residencyMonitorResult
 NODES.projectionsMonitorResult = withSyntheticCtx(baseNodes.projectionsMonitorResult, ["limitsResult"], function (d) {
   return { computed: { limits: d.limitsResult } };
 });
-NODES.calendarMonitorResult = withSyntheticCtx(baseNodes.calendarMonitorResult, ["metaResult"], function (d) {
-  return { model: { meta: d.metaResult } };
+NODES.calendarMonitorResult = withSyntheticCtx(baseNodes.calendarMonitorResult, ["metaResult"], function (d, ctx) {
+  // assets.seppTracker: the SEPP dates (report-batch6-nodes.js seppDeadlines),
+  // built from the real ctx's forms — no graph dependency added.
+  return { model: { meta: d.metaResult, assets: { seppTracker: ctx && ctx.us ? require("./retirement-dist.js").seppTracker(ctx) : null } } };
 });
 // healthAlertsMonitorResult and monitorResult read NO ctx at all (pure
 // functions of their deps, verified by grep) — no override needed: they

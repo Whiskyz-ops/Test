@@ -185,7 +185,7 @@ WISING.PROFILES.forEach(function (p) {
   // 2026): no engine equivalent for any of these — see
   // findings-batch5-nodes.js's usStateTaxResult and report-batch1-nodes.js's
   // DOCUMENTS_CATALOG comments.
-  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance", "form_8880", "form_w7", "form_27d"];
+  var DAG_ONLY_DOC_IDS = ["form_5329", "form_8233", "form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance", "form_8880", "form_w7", "form_27d"];
   var docsForDiff = out.buildDocumentsResult.filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) === -1; });
   if (docsFieldExcused) {
     console.log("    (DELIBERATE divergence — wholesale cascade, see this file's own detector comments) documents/returnForms");

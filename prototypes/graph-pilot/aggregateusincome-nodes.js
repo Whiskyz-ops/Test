@@ -732,7 +732,9 @@ var NODES = {
       return { usRetirementIncomeExclSsUsd: t.totalUsd, socialSecurityUsUsd: socialSecurityGrossUsd, retirementDistributionsSubjectTo72tUsd: t.totalUsd - t.pensionUsd,
         // Paid as a lump sum vs periodically (DTAA Art. 20: only periodic
         // pensions are taxable only in the country of residence).
-        usRetirementLumpSumUsd: t.lumpSumUsd, usRetirementPeriodicUsd: t.periodicUsd };
+        usRetirementLumpSumUsd: t.lumpSumUsd, usRetirementPeriodicUsd: t.periodicUsd,
+        // By plan type, for the Reconciliation breakdown.
+        usRetirementByType: { iraUsd: t.iraUsd, k401Usd: t.k401Usd, pensionUsd: t.pensionUsd, otherUsd: t.otherUsd } };
     }
   },
 
@@ -958,7 +960,7 @@ var NODES = {
         usRetirementIncome: m(ret.usRetirementIncomeExclSsUsd + ret.socialSecurityUsUsd, ctx),
         usRetirementIncomeExclSs: m(ret.usRetirementIncomeExclSsUsd, ctx),
         retirementDistributionsSubjectTo72tUsd: ret.retirementDistributionsSubjectTo72tUsd,
-        usRetirementLumpSumUsd: ret.usRetirementLumpSumUsd, usRetirementPeriodicUsd: ret.usRetirementPeriodicUsd,
+        usRetirementLumpSumUsd: ret.usRetirementLumpSumUsd, usRetirementPeriodicUsd: ret.usRetirementPeriodicUsd, usRetirementByType: ret.usRetirementByType,
         art22ExemptWagesUsd: art22ExemptUsd,
         socialSecurityUs: m(ret.socialSecurityUsUsd, ctx),
         taxExemptInterestUs: m(di.taxExemptInterestUsUsd, ctx),

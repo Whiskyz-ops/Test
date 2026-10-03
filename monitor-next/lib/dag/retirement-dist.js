@@ -49,6 +49,16 @@
  *    year: the recapture belonged on that year's return, and this year's
  *    payments have no exception. A change in a later year doesn't touch
  *    this return.
+ *  - Not a change (Notice 2022-6 §3.03(a), §72(t)(4)(A)): the account running
+ *    out (sepp_account_exhausted — a short or stopped payment is not a
+ *    change), or a change by reason of death or disability
+ *    (sepp_change_reason). After disability or death the payments keep an
+ *    exception of their own (§72(t)(2)(A)(ii), (iii)).
+ *  - Employer plans (401(k), pension, other plan — not an IRA): the SEPP
+ *    exception applies only to payments that began after the client left
+ *    that employer (§72(t)(3)(B)). sepp_separated_from_service false: the
+ *    series never qualified, every payment is an early distribution; not
+ *    answered: flagged.
  *  - SEPP payments are periodic payments: while the series holds, the
  *    treaty treats them as periodic (DTAA Art. 20, taxable in the country
  *    of residence); a payment that loses the exception is taxed like a lump
@@ -117,8 +127,15 @@ function seppAnalysis(r, dobRaw, baseYear, asOf) {
   var req = calc.annualUsd, tol = req != null ? Math.max(2, req * 0.001) : 0;
   var over = req != null && paidUsd > req + tol, under = req != null && paidUsd < req - tol;
   var yearOver = !today || before([year, 12, 31], today);
-  var mismatch = over || (under && yearOver), shortSoFar = under && !yearOver;
-  var autoBreak = mismatch && !firstYear, marked = r.sepp_broken === true;
+  var exhausted = r.sepp_account_exhausted === true;
+  var deathOrDisability = r.sepp_change_reason === "death" || r.sepp_change_reason === "disability";
+  var employerPlan = ["401k", "pension", "other_plan"].indexOf(r.plan_type) >= 0;
+  var notQualified = employerPlan && r.sepp_separated_from_service === false;
+  var separationUnknown = employerPlan && r.sepp_separated_from_service !== true && r.sepp_separated_from_service !== false;
+  // A shortfall because the account ran out isn't a change.
+  var mismatch = over || (under && yearOver && !exhausted), shortSoFar = under && !yearOver && !exhausted;
+  var autoBreak = mismatch && !firstYear && !deathOrDisability;
+  var marked = r.sepp_broken === true && !deathOrDisability && !exhausted;
   // The date an overpayment happened: the payment that took the year past the required amount.
   var overDate = null;
   if (over && pays.length) { var cum = 0; for (var k = 0; k < pays.length; k++) { cum += pays[k].amountUsd; if (cum > req + tol) { overDate = pays[k].date; break; } } }
@@ -136,7 +153,10 @@ function seppAnalysis(r, dobRaw, baseYear, asOf) {
     return { year: x.year, amountUsd: x.amountUsd, recaptureUsd: brokenThisYear ? Math.round(x.amountUsd * 10) / 100 : null, interestUsd: brokenThisYear && x.interestUsd != null ? x.interestUsd : null };
   });
   history.push({ year: year, amountUsd: paidUsd, recaptureUsd: null, interestUsd: null, current: true });
-  var status = brokenThisYear || brokenEarlier ? "broken"
+  var status = notQualified ? "not_qualified"
+    : brokenThisYear || brokenEarlier ? "broken"
+    : deathOrDisability && r.sepp_broken === true ? "ended_exempt"
+    : exhausted ? "exhausted"
     : periodOver ? "period_ended"
     : req == null ? "unchecked"
     : (mismatch && firstYear) || (calc.rate && calc.rate.over) || (shortSoFar && today && !before(today, [year, 11, 16])) ? "off_schedule"
@@ -145,7 +165,9 @@ function seppAnalysis(r, dobRaw, baseYear, asOf) {
     startBalanceUsd: num(r.sepp_start_balance_usd) || null, balanceUsd: num(r.sepp_balance_usd) || null, payments: pays.map(function (p) { return { date: fmtDate(p.date), amountUsd: p.amountUsd }; }),
     history: history, historySource: brokenThisYear ? rec.scheduleSource : seppSchedule(r, calc, dobRaw, year).source,
     requiredUsd: req, remainingUsd: req != null ? Math.max(0, Math.round((req - paidUsd) * 100) / 100) : null, shortSoFar: shortSoFar, over: over,
-    firstYear: firstYear, mismatch: mismatch, autoBreak: autoBreak, status: status, asOf: fmtDate(today), startDate: fmtDate(st),
+    firstYear: firstYear, mismatch: mismatch, autoBreak: autoBreak, status: status,
+    exhausted: exhausted, changeReason: deathOrDisability ? r.sepp_change_reason : null, employerPlan: employerPlan,
+    notQualified: notQualified, separationUnknown: separationUnknown, asOf: fmtDate(today), startDate: fmtDate(st),
     marked: marked, changeDate: fmtDate(change), changeYear: change ? change[0] : null, periodEnd: fmtDate(end), missingStartDate: !end,
     age59HalfDate: fmtDate(age59HalfDate(dobRaw)), fiveYearDate: st ? fmtDate([st[0] + 5, st[1], st[2]]) : null,
     afterPeriod: modified && !broken, brokenThisYear: brokenThisYear, brokenEarlier: brokenEarlier,
@@ -153,7 +175,7 @@ function seppAnalysis(r, dobRaw, baseYear, asOf) {
     interestStatus: rec.interestStatus, assumedRates: rec.assumedRates, yearsBeforeRates: rec.yearsBeforeRates, interestTo: brokenThisYear ? fmtDate([change[0] + 1, 4, 15]) : null,
     // §72(t)(4): every payment that relied on the exception loses it,
     // including this year's before the change (no interest on those).
-    losesException: brokenEarlier || brokenThisYear };
+    losesException: notQualified || brokenEarlier || brokenThisYear };
 }
 // The earlier payments, year by year, and the recapture interest (see the
 // header). interestStatus: "computed" | "no_schedule" | "schedule_differs" |
@@ -306,5 +328,58 @@ function seppTracker(ctx) {
   return st.rows.length ? { taxYear: require("./treaty-art22.js").baseYearOf(ctx.router, ctx.us), series: st.rows } : null;
 }
 
-module.exports = { seppTracker: seppTracker, asOfFromCtx: asOfFromCtx, toYmd: toYmd, seppAnalysis: seppAnalysis, seppStatus: seppStatus, seppWindowEnd: seppWindowEnd, seppRecaptureBaseUsd: seppRecaptureBaseUsd, additionalTax72tUsd: additionalTax72tUsd, TREATY_EXEMPTS_72T: TREATY_EXEMPTS_72T, treatyPeriodicExempt: treatyPeriodicExempt, early72tBaseAfterTreatyUsd: early72tBaseAfterTreatyUsd, PLAN_TYPES: PLAN_TYPES, EXCEPTIONS: EXCEPTIONS, rows: rows, totals: totals, age59HalfDate: age59HalfDate, isEarly: isEarly,
+// Dollars and cents, by integer cents (the same in the Python engine).
+function fmt2(x) {
+  var c = Math.round(Math.abs(x) * 100), d = Math.floor(c / 100), ce = c % 100;
+  return (x < 0 ? "-$" : "$") + String(d).replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + (ce < 10 ? "0" : "") + ce;
+}
+function ctxDob(ctx) {
+  return ctx.router && ctx.router.date_of_birth != null ? ctx.router.date_of_birth
+    : ctx.india && ctx.india.profile && ctx.india.profile.date_of_birth != null ? ctx.india.profile.date_of_birth
+    : ctx.us && ctx.us.profile && ctx.us.profile.date_of_birth != null ? ctx.us.profile.date_of_birth : null;
+}
+/* Form 5329 (Part I): required when there is §72(t) additional tax this
+ * year (early distributions, a SEPP recapture), or an early distribution
+ * relies on an exception that the 1099-R's box 7 code may not show. With a
+ * recapture, the line-4 explanation the IRS asks for (Pub. 590-B): each
+ * earlier year's payments, the 10% and the interest. */
+function form5329(ctx) {
+  var dob = ctxDob(ctx), by = require("./treaty-art22.js").baseYearOf(ctx.router, ctx.us), asOf = asOfFromCtx(ctx);
+  var taxUsd = additionalTax72tUsd(ctx.us, ctx.india, dob, by, asOf), exceptedUsd = exceptedEarlyUsd(ctx.us, dob, by, asOf);
+  var st = seppStatus(ctx.us, dob, by, asOf), lines = [];
+  st.rows.filter(function (a) { return a.brokenThisYear; }).forEach(function (a) {
+    lines.push((a.payerName || "SEPP series") + ": substantially equal periodic payments begun " + (a.startDate || "(start date not entered)") +
+      ", modified " + a.changeDate + " (before " + (a.periodEnd || "the end of the required period") + ").");
+    if (a.schedule.length && (a.interestStatus === "computed" || a.interestStatus === "before_rates")) {
+      lines.push("Year | SEPP payments | 10% additional tax | Interest to " + a.interestTo);
+      var s = 0, t = 0, n = 0;
+      a.schedule.forEach(function (x) {
+        s += x.amountUsd; t += x.amountUsd * 0.10; n += x.interestUsd || 0;
+        lines.push(x.year + " | " + fmt2(x.amountUsd) + " | " + fmt2(x.amountUsd * 0.10) + " | " + (x.interestUsd == null ? "not computed (before 2017)" : fmt2(x.interestUsd)));
+      });
+      lines.push("Total | " + fmt2(s) + " | " + fmt2(t) + " | " + fmt2(n));
+    } else {
+      lines.push("Earlier SEPP payments before 59½ (total; no yearly amounts): " + fmt2(a.priorPaymentsUsd) + " | 10%: " + fmt2(a.priorPaymentsUsd * 0.10) + " | interest not computed");
+    }
+    lines.push("Recapture tax: 10% of " + fmt2(a.priorPaymentsUsd) + " = " + fmt2(a.priorPaymentsUsd * 0.10) + ", plus interest " + fmt2(a.interestUsd) +
+      " = " + fmt2(a.priorPaymentsUsd * 0.10 + a.interestUsd) + ".");
+  });
+  if (lines.length) lines.push("Interest: IRS underpayment rate (IRC §6621(a)(2)), compounded daily (§6622), on each year's 10% from 15 April of the following year to the due date of this return.");
+  return { required: taxUsd > 0 || exceptedUsd > 0, taxUsd: taxUsd, exceptedUsd: exceptedUsd,
+    attachment: lines.length ? "Form 5329, line 4 — recapture tax under IRC §72(t)(4)\n" + lines.join("\n") : null };
+}
+
+// The §72(t) additional tax split into its parts, for the Reconciliation
+// rows: 10% on this year's early distributions (after the treaty on a
+// 1040-NR), the SEPP recapture and its interest — the same functions as the
+// tax itself, so the parts add up to it.
+function additionalTax72tParts(ctx, treaty) {
+  var dob = ctxDob(ctx), by = require("./treaty-art22.js").baseYearOf(ctx.router, ctx.us), asOf = asOfFromCtx(ctx);
+  var earlyBaseUsd = treaty ? early72tBaseAfterTreatyUsd(ctx.us, ctx.india, dob, by, asOf) : early72tBaseUsd(ctx.us, dob, by, null, asOf);
+  var st = seppStatus(ctx.us, dob, by, asOf);
+  return { earlyBaseUsd: earlyBaseUsd, earlyUsd: earlyBaseUsd * 0.10, recaptureBaseUsd: st.recaptureBaseUsd, recaptureUsd: st.recaptureBaseUsd * 0.10,
+    interestUsd: st.interestUsd, series: st.rows.filter(function (a) { return a.brokenThisYear; }) };
+}
+
+module.exports = { additionalTax72tParts: additionalTax72tParts, form5329: form5329, fmt2: fmt2, seppTracker: seppTracker, asOfFromCtx: asOfFromCtx, toYmd: toYmd, seppAnalysis: seppAnalysis, seppStatus: seppStatus, seppWindowEnd: seppWindowEnd, seppRecaptureBaseUsd: seppRecaptureBaseUsd, additionalTax72tUsd: additionalTax72tUsd, TREATY_EXEMPTS_72T: TREATY_EXEMPTS_72T, treatyPeriodicExempt: treatyPeriodicExempt, early72tBaseAfterTreatyUsd: early72tBaseAfterTreatyUsd, PLAN_TYPES: PLAN_TYPES, EXCEPTIONS: EXCEPTIONS, rows: rows, totals: totals, age59HalfDate: age59HalfDate, isEarly: isEarly,
   early72tRows: early72tRows, early72tBaseUsd: early72tBaseUsd, exceptedEarlyUsd: exceptedEarlyUsd };

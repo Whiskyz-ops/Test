@@ -632,10 +632,12 @@ function treatyFindings(d, ctx, isNra) {
           (isNra ? "As a non-resident alien the client claims it directly. "
             : "As a US resident alien who is neither a citizen nor a green-card holder, the client keeps it under the saving clause's exception (DTAA Art. 1(4)(b)). ") +
           "WISING leaves " + usd(a22.exemptUsd) + " out of US " + (isNra ? "income." : "wages."),
-        recommendation: "Attach Form 8833 (treaty-based return position) and give the payer Form 8233 to stop withholding. The exemption needs the client to " +
+        recommendation: (isNra ? "Give the university / employer Form 8233 so it stops withholding on this pay. "
+            : "Ask the employer to stop withholding on this pay (Form W-4), and show it on the return as exempt income citing DTAA Art. 22. ") +
+          "No Form 8833 is needed: Treas. Reg. §301.6114-1(c)(1)(iv) waives it for treaty claims on pensions, social security, students, trainees and teachers. The exemption needs the client to " +
           "have been resident in India immediately before arriving, and the pay to be for teaching or research at a university or other recognised educational " +
           "institution; it ends two years after arrival." + (a22.arrivalDate ? "" : " Enter the arrival date on Layer 1 US so WISING can apply the two-year limit."),
-        amountUsd: 0, refs: ["DTAA Art. 22", "DTAA Art. 1(4)(b)", "Form 8833", "Form 8233"]
+        amountUsd: 0, refs: isNra ? ["DTAA Art. 22", "Form 8233", "Treas. Reg. §301.6114-1(c)(1)(iv)"] : ["DTAA Art. 22", "DTAA Art. 1(4)(b)", "Treas. Reg. §301.6114-1(c)(1)(iv)"]
       });
     } else {
       out.push({
@@ -676,9 +678,9 @@ function treatyFindings(d, ctx, isNra) {
       detail: "The client claims the India–US treaty's student and business-apprentice exemption on " + usd(a21.paymentsUsd) + " of payments from " +
         "outside the US for maintenance, education or training. As a US resident alien who is neither a citizen nor a green-card holder, the client keeps " +
         "it under the saving clause's exception (DTAA Art. 1(4)(b)). WISING leaves these payments out of US income.",
-      recommendation: "Attach Form 8833 (treaty-based return position). The exemption needs the client to have been resident in India immediately " +
+      recommendation: "Show the payments on the return and subtract them as exempt income, citing India and DTAA Art. 21(1). No Form 8833 is needed: Treas. Reg. §301.6114-1(c)(1)(iv) waives it for treaty claims on pensions, social security, students, trainees and teachers. The exemption needs the client to have been resident in India immediately " +
         "before arriving and to be in the US solely for education or training; it doesn't cover pay for work done in the US.",
-      amountUsd: 0, refs: ["DTAA Art. 21(1)", "DTAA Art. 1(4)(b)", "Form 8833"]
+      amountUsd: 0, refs: ["DTAA Art. 21(1)", "DTAA Art. 1(4)(b)", "Treas. Reg. §301.6114-1(c)(1)(iv)"]
     });
   }
 
@@ -864,6 +866,10 @@ NODES.findingsAllResult = {
       // change the tax already computed.
       var derived = d.nraDerivedEciFdapResult;
       var declaredEciUsd = d.nraEciIncomeUsdRaw || 0, declaredFdapUsd = d.nraFdapIncomeUsdRaw || 0;
+      // Layer 1's ECI is before the DTAA Art. 22 exemption; the re-derivation
+      // (aggregate wages) is after it — take it off here too, as the tax does.
+      var a22Check = require("./treaty-art22.js").art22(ctx.us, require("./treaty-art22.js").baseYearOf(ctx.router, ctx.us));
+      if (a22Check && !a22Check.blockedBy) declaredEciUsd -= Math.min(Math.max(0, declaredEciUsd), a22Check.exemptUsd);
       var declaredTotalUsd = declaredEciUsd + declaredFdapUsd;
       var deltaUsd = derived.derivedTotalUsd - declaredTotalUsd;
       var materialityUsd = Math.max(100, 0.01 * derived.derivedTotalUsd);

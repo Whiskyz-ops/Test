@@ -109,10 +109,15 @@ def sepp_analysis(r, dob_raw, base_year, as_of=None) -> dict:
     over = req is not None and paid_usd > req + tol
     under = req is not None and paid_usd < req - tol
     year_over = today is None or (year, 12, 31) < today
-    mismatch = over or (under and year_over)
-    short_so_far = under and not year_over
-    auto_break = mismatch and not first_year
-    marked = r.get("sepp_broken") is True
+    exhausted = r.get("sepp_account_exhausted") is True
+    death_or_disability = r.get("sepp_change_reason") in ("death", "disability")
+    employer_plan = r.get("plan_type") in ("401k", "pension", "other_plan")
+    not_qualified = employer_plan and r.get("sepp_separated_from_service") is False
+    separation_unknown = employer_plan and r.get("sepp_separated_from_service") is not True and r.get("sepp_separated_from_service") is not False
+    mismatch = over or (under and year_over and not exhausted)
+    short_so_far = under and not year_over and not exhausted
+    auto_break = mismatch and not first_year and not death_or_disability
+    marked = r.get("sepp_broken") is True and not death_or_disability and not exhausted
     over_date = None
     if over and pays:
         cum = 0.0
@@ -135,8 +140,14 @@ def sepp_analysis(r, dob_raw, base_year, as_of=None) -> dict:
     history = [{"year": x["year"], "amountUsd": x["amountUsd"], "recaptureUsd": js_round(x["amountUsd"] * 10) / 100 if broken_this_year else None,
                 "interestUsd": x.get("interestUsd") if broken_this_year else None} for x in hist_sched]
     history.append({"year": year, "amountUsd": paid_usd, "recaptureUsd": None, "interestUsd": None, "current": True})
-    if broken_this_year or broken_earlier:
+    if not_qualified:
+        status = "not_qualified"
+    elif broken_this_year or broken_earlier:
         status = "broken"
+    elif death_or_disability and r.get("sepp_broken") is True:
+        status = "ended_exempt"
+    elif exhausted:
+        status = "exhausted"
     elif period_over:
         status = "period_ended"
     elif req is None:
@@ -151,7 +162,9 @@ def sepp_analysis(r, dob_raw, base_year, as_of=None) -> dict:
             "history": history, "historySource": hist_source,
             "requiredUsd": req, "remainingUsd": max(0, js_round((req - paid_usd) * 100) / 100) if req is not None else None,
             "shortSoFar": short_so_far, "over": over,
-            "firstYear": first_year, "mismatch": mismatch, "autoBreak": auto_break, "status": status, "asOf": _fmt_date(today), "startDate": _fmt_date(st),
+            "firstYear": first_year, "mismatch": mismatch, "autoBreak": auto_break, "status": status,
+            "exhausted": exhausted, "changeReason": r.get("sepp_change_reason") if death_or_disability else None, "employerPlan": employer_plan,
+            "notQualified": not_qualified, "separationUnknown": separation_unknown, "asOf": _fmt_date(today), "startDate": _fmt_date(st),
             "marked": marked, "changeDate": _fmt_date(change), "changeYear": change[0] if change else None,
             "periodEnd": _fmt_date(end), "missingStartDate": end is None,
             "age59HalfDate": _fmt_date(age_59_half_date(dob_raw)), "fiveYearDate": _fmt_date((st[0] + 5, st[1], st[2])) if st else None,
@@ -160,7 +173,7 @@ def sepp_analysis(r, dob_raw, base_year, as_of=None) -> dict:
             "priorPaymentsUsd": rec["baseUsd"], "schedule": rec["schedule"], "scheduleSource": rec["scheduleSource"], "interestUsd": rec["interestUsd"],
             "interestStatus": rec["interestStatus"], "assumedRates": rec["assumedRates"], "yearsBeforeRates": rec["yearsBeforeRates"],
             "interestTo": _fmt_date((change[0] + 1, 4, 15)) if broken_this_year else None,
-            "losesException": broken_earlier or broken_this_year}
+            "losesException": not_qualified or broken_earlier or broken_this_year}
 
 
 def _sepp_schedule(r, calc, dob_raw, until_year):
@@ -348,3 +361,61 @@ def sepp_tracker(ctx) -> dict | None:
     by = base_year_of(ctx.get("router"), ctx.get("us"))
     st = sepp_status(ctx.get("us"), dob, by, as_of_from_ctx(ctx))
     return {"taxYear": by, "series": st["rows"]} if st["rows"] else None
+
+
+def fmt2(x) -> str:
+    """Dollars and cents by integer cents — see retirement-dist.js fmt2."""
+    c = int(js_round(abs(x) * 100))
+    return ("-$" if x < 0 else "$") + f"{c // 100:,}" + "." + f"{c % 100:02d}"
+
+
+def _ctx_dob(ctx):
+    router, india, us = ctx.get("router") or {}, ctx.get("india") or {}, ctx.get("us") or {}
+    dob = router.get("date_of_birth")
+    if dob is None:
+        dob = (india.get("profile") or {}).get("date_of_birth")
+    if dob is None:
+        dob = (us.get("profile") or {}).get("date_of_birth")
+    return dob
+
+
+def form_5329(ctx) -> dict:
+    """Form 5329 trigger and line-4 explanation — see retirement-dist.js form5329."""
+    from .treaty_art22 import base_year_of
+    dob, by, as_of = _ctx_dob(ctx), base_year_of(ctx.get("router"), ctx.get("us")), as_of_from_ctx(ctx)
+    tax_usd = additional_tax_72t_usd(ctx.get("us"), ctx.get("india"), dob, by, as_of)
+    excepted_usd = excepted_early_usd(ctx.get("us"), dob, by, as_of)
+    st = sepp_status(ctx.get("us"), dob, by, as_of)
+    lines = []
+    for a in [a for a in st["rows"] if a["brokenThisYear"]]:
+        lines.append((a["payerName"] or "SEPP series") + ": substantially equal periodic payments begun " + (a["startDate"] or "(start date not entered)")
+                     + ", modified " + a["changeDate"] + " (before " + (a["periodEnd"] or "the end of the required period") + ").")
+        if a["schedule"] and a["interestStatus"] in ("computed", "before_rates"):
+            lines.append("Year | SEPP payments | 10% additional tax | Interest to " + a["interestTo"])
+            s = t = n = 0.0
+            for x in a["schedule"]:
+                s += x["amountUsd"]
+                t += x["amountUsd"] * 0.10
+                n += x.get("interestUsd") or 0
+                lines.append(f"{x['year']} | {fmt2(x['amountUsd'])} | {fmt2(x['amountUsd'] * 0.10)} | "
+                             + ("not computed (before 2017)" if x.get("interestUsd") is None else fmt2(x["interestUsd"])))
+            lines.append(f"Total | {fmt2(s)} | {fmt2(t)} | {fmt2(n)}")
+        else:
+            lines.append("Earlier SEPP payments before 59½ (total; no yearly amounts): " + fmt2(a["priorPaymentsUsd"]) + " | 10%: "
+                         + fmt2(a["priorPaymentsUsd"] * 0.10) + " | interest not computed")
+        lines.append("Recapture tax: 10% of " + fmt2(a["priorPaymentsUsd"]) + " = " + fmt2(a["priorPaymentsUsd"] * 0.10) + ", plus interest "
+                     + fmt2(a["interestUsd"]) + " = " + fmt2(a["priorPaymentsUsd"] * 0.10 + a["interestUsd"]) + ".")
+    if lines:
+        lines.append("Interest: IRS underpayment rate (IRC §6621(a)(2)), compounded daily (§6622), on each year's 10% from 15 April of the following year to the due date of this return.")
+    return {"required": tax_usd > 0 or excepted_usd > 0, "taxUsd": tax_usd, "exceptedUsd": excepted_usd,
+            "attachment": ("Form 5329, line 4 — recapture tax under IRC §72(t)(4)\n" + "\n".join(lines)) if lines else None}
+
+
+def additional_tax_72t_parts(ctx, treaty) -> dict:
+    """The §72(t) additional tax split into its parts — see retirement-dist.js additionalTax72tParts."""
+    from .treaty_art22 import base_year_of
+    dob, by, as_of = _ctx_dob(ctx), base_year_of(ctx.get("router"), ctx.get("us")), as_of_from_ctx(ctx)
+    early_base = early_72t_base_after_treaty_usd(ctx.get("us"), ctx.get("india"), dob, by, as_of) if treaty else early_72t_base_usd(ctx.get("us"), dob, by, None, as_of)
+    st = sepp_status(ctx.get("us"), dob, by, as_of)
+    return {"earlyBaseUsd": early_base, "earlyUsd": early_base * 0.10, "recaptureBaseUsd": st["recaptureBaseUsd"], "recaptureUsd": st["recaptureBaseUsd"] * 0.10,
+            "interestUsd": st["interestUsd"], "series": [a for a in st["rows"] if a["brokenThisYear"]]}

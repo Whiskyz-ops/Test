@@ -61,7 +61,7 @@ const DAG_ONLY_KEYS = new Set([
   // aggregateusincome-nodes.js's foreignWagesSourcing) — DAG-only fields.
   "foreignWagesUsSource", "foreignWagesSourcing",
   // Retirement distributions: lump sum vs periodic (retirement-dist.js, DTAA Art. 20).
-  "usRetirementLumpSumUsd", "usRetirementPeriodicUsd", "art22ExemptWagesUsd",
+  "usRetirementLumpSumUsd", "usRetirementPeriodicUsd", "usRetirementByType", "art22ExemptWagesUsd",
   // India salary work-location sourcing (aggregateindiaincome-nodes.js's
   // salaryWorkLocation → ftc-nodes.js) — DAG-only fields.
   "salaryWorkLocation", "salaryOutsideIndiaInr", "usWorkSalaryUsd", "indiaTaxOnUsWorkSalaryUsd", "indiaNotChargeableSalaryUsd", "indiaNotChargeableSalaryTaxUsd", "salaryWorkBasis", "indiaSalaryOutsideIndiaUsd",
@@ -433,7 +433,7 @@ function checkResult(id, dag, real, profile) {
   // UN-stripped documents list (report-batch5-nodes.js) — adjusted by the
   // same amount so this known, deliberate divergence doesn't rely on
   // deepCheck's +/-2 numeric tolerance to go unnoticed.
-  const DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance", "form_8880", "form_w7", "form_27d"];
+  const DAG_ONLY_DOC_IDS = ["form_5329", "form_8233", "form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance", "form_8880", "form_w7", "form_27d"];
   const droppedRequiredCount = dag.documents.filter((x) => DAG_ONLY_DOC_IDS.includes(x.id) && x.required).length;
   const dagDocs = dag.documents.filter((x) => !DAG_ONLY_DOC_IDS.includes(x.id));
   const dagSummary = droppedRequiredCount > 0 && dag.summary && typeof dag.summary.requiredDocs === "number"
