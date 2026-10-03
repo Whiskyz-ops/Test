@@ -50,7 +50,7 @@ Form 40, s.159 / Form 41, Form 44, Rule 76). Phase 0 maps every one to ITA 2025.
 4. **Intake changes are small and optional.**
    - **Router (Layer 0):** no changes.
    - **US form:** one collapsed block of 7 optional fields, shown only in a
-     move year, plus 4 retirement-balance fields.
+     move year, plus an optional `retirement_balances[]` list (§8.5).
    - **India form:** 2 optional fields per bank account, 1 new account type,
      an optional 10-row residency-history table, and one 3-field
      retirement-relief block.
@@ -75,7 +75,14 @@ Form 40, s.159 / Form 41, Form 44, Rule 76). Phase 0 maps every one to ITA 2025.
    a standard: steps with who and when, forms, a real deadline, the cost of
    not acting, and when it doesn't apply. Today 3 of the product's 174
    findings have step-by-step guidance.
-10. **"Every case" is defined, tested and bounded.** About 30 distinct cases
+10. **Decisions, not just consequences.** For each asset the client has to
+    decide what to do and *when*. §8.4–§8.8 add decision windows,
+    guides for every retirement, health and education account type on
+    both sides, how to leave a US state, and keep/sell/move guides for the
+    house, car, bank accounts, stocks, options, S-corp, gifts and
+    insurance. Logistics (customs, shipping, immigration) are stated out of
+    scope.
+11. **"Every case" is defined, tested and bounded.** About 35 distinct cases
     are hand-worked in Phase 0 (§10). Anything outside them raises a
     `move_not_covered` finding instead of being skipped (§6.9).
 
@@ -929,6 +936,169 @@ issues. Each item is new to this plan unless it says otherwise.
 | G-29 | Spouse and dependants' IDs, H-4 work permits | Covered by B-US-13. | — | — |
 | G-30 | Death or incapacity during the transition | — | — | Out of scope beyond the estate-tax flag. |
 
+### 8.4 Decision windows — when the client acts decides the tax
+
+For most assets the question is not only *what changes* but **what to do,
+and when**. Each window is taxed differently, so every decision guide
+(§8.5, §8.7) compares the options window by window.
+
+| Direction | Window | US status | India status | Typical effect |
+|---|---|---|---|---|
+| Returning to India | **W1** before leaving | Resident | NR | US taxes; India doesn't. |
+| | **W2** RNOR years (move FY and up to about 2 more) | Non-resident | RNOR | **Often neither country taxes foreign-source gains.** Exceptions: US real estate, and US-source income (US withholding still applies). India taxes it if it is first received in India (G-16). |
+| | **W3** after becoming ROR | Non-resident | ROR | India taxes worldwide income, with credit for US tax. |
+| Moving to the US | **W1** before arriving | Non-resident | Resident | India only. Best time to sell appreciated Indian assets. |
+| | **W2** after arriving | Resident | NR (or ROR in the departure FY) | Both may tax. No US cost reset. |
+
+`moveContext` gives each window real dates. The balance sheet (§6.7) gains an
+**Options** column: for each asset, the options and their tax in each country
+in each window. Amounts are computed where the data exists and shown as
+qualitative where it doesn't.
+
+### 8.5 Retirement, health and education accounts — every type
+
+**[Certain] What the product collects today:**
+- **US form:** *contributions* to Traditional IRA, Roth IRA, Roth 401(k),
+  SEP IRA, Solo 401(k), HSA (and coverage type), 529 and Trump accounts;
+  `rmd_required`; dated `retirement_distributions[]`.
+- **India form:** PPF, NSC, Sukanya Samriddhi and NPS contributions, EPF
+  interest, NPS withdrawals. Indian EPF/PPF/NPS balances sit on the US form.
+- **Not collected:** **no balances for any US account**, no record of
+  after-tax money in a Traditional IRA (the Form 8606 basis), no Roth start
+  year, no SIMPLE start date, no inherited-IRA flag.
+
+**New optional intake (Phase 3):** the four balance fields proposed in §4.8
+become one `retirement_balances[]` list on the US form:
+`{ type, custodian, balance_usd, after_tax_basis_usd, roth_first_year,
+simple_start_date, inherited, beneficiary_named,
+custodian_accepts_foreign_address }`.
+
+**US accounts**
+
+| Account | Contributions after moving | Withdrawals: US | Withdrawals / growth: India | What to do (by window) | Conf. |
+|---|---|---|---|---|---|
+| **401(k) / 403(b)** (pre-tax) | Stop when US employment ends. | Resident: graduated tax + §72(t) under 59½. Non-resident: periodic payments exempt under Art. 20(1); lump sum 30% + §72(t) (built for full-year 1040-NR). | RNOR: not taxed if received outside India. ROR: taxed; the s.89A/158 deferral (Form 40) is available for "specified accounts". | **W1:** keep in the plan, roll to an IRA (tax-free), or cash out. Check the plan and IRA provider accept an Indian address. Employer stock in the plan: the NUA option (gain taxed as capital gain). Loan outstanding: L-5. **W2:** lump sums cost 30% US with no India tax; periodic (SEPP) payments may be untaxed in both — flagged for specialist judgement. **W3:** file Form 40 by the return due date. | Certain (US) / Likely (India) |
+| **457(b)** | As above. | Governmental 457(b): **no §72(t)**. Non-governmental: unfunded, paid out on leaving per plan terms. | As above. | Check the payout election before leaving; a non-governmental 457(b) can force a lump sum. | Certain |
+| **Traditional IRA** | Needs US taxable compensation; FEIE-excluded pay doesn't count. Usually stops after return. | As 401(k). **After-tax basis (Form 8606) comes out tax-free** — needs the basis on file. | As 401(k); Form 40 deferral covers it. | **W1:** decide on Roth conversion (see Roth). Record the 8606 basis. **W2:** as 401(k). | Certain / Likely |
+| **SEP / SIMPLE IRA** | Stop with the business or employer. | As IRA, except **SIMPLE: 25% penalty within 2 years** of first participation. | As IRA. | Check the SIMPLE start date before any withdrawal or rollover. | Certain |
+| **Roth IRA / Roth 401(k)** | Roth IRA needs compensation and income under the limit. | Qualified withdrawals tax-free (5-year rule and 59½). | **India doesn't recognise Roth.** ROR: growth or withdrawals may be taxed. The Form 40 deferral likely doesn't fit, because the US never taxes the withdrawal. | **W1:** Roth conversion while a US resident (graduated rates). **W2:** a conversion is probably 30% US tax and untaxed in India — compare. **W3:** consider withdrawing contributions before ROR. Roll a Roth 401(k) into a Roth IRA before leaving. | Certain (US) / Verify (India) |
+| **Inherited IRA** | — | 10-year rule (SECURE Act); non-resident beneficiary 30% withholding. | As above. | Plan the 10-year schedule across the windows. | Certain |
+| **Defined-benefit pension** | — | Annuity = periodic (Art. 20); lump sum taxed 30% as non-resident. | Periodic: India taxes as resident (RNOR: only if received in India). | **Choose annuity or lump sum before leaving**; the choice fixes the treaty treatment. | Likely |
+| **Non-qualified deferred comp (409A)** | — | Paid on separation; US-source by US workdays; stays US-taxed. Former state can't tax if paid over 10+ years (4 U.S.C. §114). | Taxed by India as salary when received, with credit. | Check the payment schedule; 409A elections can't be changed late. | Likely |
+| **HSA** | **Stops once US high-deductible cover ends.** Indian insurance doesn't qualify. | Medical spending tax-free, **including medical care abroad**; other spending taxed + 20% before 65. California and New Jersey tax HSAs as ordinary accounts. | Not recognised. ROR: growth likely taxable; no Form 40 relief. | **W1:** spend down on qualified US medical costs or keep for later medical bills. **W3:** report on Schedule FA. | Certain (US) / Verify (India) |
+| **Health FSA / dependent-care FSA** | Ends with US employment. | **Use it or lose it at separation.** | — | Spend the balance before the last working day. | Certain |
+| **529 plan** | Gift-tax rules apply. | Qualified education costs tax-free, **including eligible foreign universities** (some Indian institutions qualify). Non-qualified: tax + 10%. Up to $35k can roll into the beneficiary's Roth IRA after 15 years. | Not recognised; growth likely taxable for ROR. | Keep if a child may study in the US or at an eligible institution; otherwise plan withdrawals. | Certain (US) / Verify (India) |
+| **Trump account (§530A)** | For US-citizen children. | As per §530A. | Not recognised. | Disclosure for US-citizen children (G-4). | Verify |
+| **Annuities (non-qualified)** | — | Gain taxed on withdrawal; non-resident withholding. | ROR: taxed. | Disclosure. | Likely |
+| **US Social Security** | No India–US social-security agreement. | Taxed as in §12 item 5. | As in §12 item 5. | Check 40 credits are earned before leaving (G-25). Medicare Part B late-enrolment penalty for those near 65. | Certain / Verify |
+
+**For every US account (all windows):**
+- [Likely] retirement accounts are US-situs assets for US estate tax on a
+  non-resident (A-US-12);
+- name or update beneficiaries;
+- update the address and residency (W-8BEN);
+- once the client is ROR, list each account on Schedule FA.
+
+**Indian accounts (mainly for arrivals; the reverse for returnees)**
+
+| Account | Becoming NR in India | US treatment once US resident | What to do | Conf. |
+|---|---|---|---|---|
+| **EPF / VPF** | Can stay; interest keeps accruing. It becomes taxable in India after 3 years without contributions. Withdrawal under 5 years of service: taxable, with TDS. | Growth and employer contributions possibly taxed yearly; classification disputed. Form 8938 / FBAR. | Decide: withdraw before arriving (India tax only) or keep. | Likely / Verify |
+| **PPF** | NRI can't open; existing account continues to maturity, **no extension**. Recent rule changes on interest for NRIs. | Interest taxable in US yearly (exempt in India, so no credit). Reportable. | Decide whether to close at maturity; check the current NRI interest rule. | Verify |
+| **NPS** | NRI can continue; OCI eligibility to confirm. | Growth possibly taxable; reportable. | Keep or exit per NPS rules. | Verify |
+| **SCSS / Sukanya Samriddhi / NSC** | SCSS and Sukanya have NRI restrictions (closure or no extension). NSC: hold to maturity. | Interest taxable in US. | Check each scheme's NRI rule before leaving. | Verify |
+| **Superannuation / gratuity** | Gratuity as B-IN-5. | Taxable if received while US resident. | Take before arriving where possible. | Likely |
+| **Atal Pension Yojana** | Not open to NRIs. | — | Close or note. | Likely |
+
+**Returning US citizens working in India (A3):** [Likely] a US citizen
+without an Indian passport is an *international worker* under Indian EPF
+rules. EPF is mandatory on full salary and, with no India–US
+social-security agreement, generally can't be withdrawn until 58. This needs
+a guide.
+
+### 8.6 Leaving a US state — the "how"
+
+G-1 says states can keep taxing; this is what to do about it. Tier 1 = tax
+decisions; Tier 2 = evidence and admin (see §8.8).
+
+1. **Decide the domicile-break date** = the move date unless a reason
+   differs. Keep the evidence trail consistent with it.
+2. **Evidence (Tier 2, client, before or on the move date):**
+   - surrender the driver's licence;
+   - cancel the car registration or sell the car;
+   - cancel voter registration;
+   - remove any homestead exemption;
+   - give up or rent out any home kept in the state;
+   - change the address with the employer, banks, brokers and the IRS
+     (Form 8822);
+   - move or close safe-deposit boxes;
+   - end club and gym memberships where they matter for domicile tests.
+3. **State-specific rules (specialist):**
+   - **California:** closest-connection test and the employment-abroad safe
+     harbour. RSUs and options stay CA-taxable by CA workdays. 3⅓%
+     withholding on a non-resident's CA property sale.
+   - **New York:** statutory resident at 183 days + a permanent place of
+     abode. Residency audits are common; keep day logs.
+   - **Virginia, New Jersey, Massachusetts and others:** domicile plus
+     183-day rules.
+   - **No-income-tax states (TX, FL, WA):** little to do. **Washington
+     taxes capital gains.**
+4. **Returns:** a final **part-year** return for the move year, then
+   **non-resident** state returns for any state-source income (rent from
+   the old home, its sale, RSUs, deferred comp not protected by §114).
+5. **Protected:** most retirement income after leaving (4 U.S.C. §114).
+   [Certain]
+6. **Arrivals:** part-year resident return for the first year. Most states
+   give no credit for Indian tax.
+
+Engine: Phase 1 generalises the existing CA departure alert into
+`move_us_state_exit` with this guide. The existing
+`state_residency.*` fields supply the state and move date.
+
+### 8.7 Decision guides for other assets
+
+Each guide lists options × windows (§8.4) with the tax in each country.
+Tier 1 unless marked.
+
+| Asset | Options compared | Key points | Conf. |
+|---|---|---|---|
+| **US home** | Sell in W1 · sell in W2 · keep and rent | **Sell in W1:** §121 (up to $250k/$500k), India NR so no India tax. **Sell in W2:** §121 still available within 3 years of moving out; FIRPTA 15% withholding (refund via 1040-NR); state tax and withholding; India RNOR not taxed if proceeds stay abroad. **Keep and rent:** §871(d) net-basis election each year, depreciation, recapture on sale, §121 shrinks, India taxes rent and gain once ROR. Mortgage: L-2. | Certain / Likely |
+| **Indian home (arrivals)** | Sell in W1 · keep or rent · sell later | **Sell in W1:** India tax only. **Later:** both tax; §121 if 2 of 5 years; buyer deducts NR TDS (s.197 lower-TDS certificate); INR loan FX gain (L-1); proceeds repatriated within $1M per FY. | Certain / Likely |
+| **Car** | Sell · ship · keep in the US | Tax: no deductible loss on a personal car; pay off or settle the loan (L-6). Registration is domicile evidence (§8.6). Shipping to India and customs duty: Tier 3, out of scope. | Certain |
+| **US bank accounts** | Keep one · close the rest | Keep one US account for US income, IRS refunds, retirement payouts and Social Security. W-8BEN. [Likely] some banks close accounts with foreign addresses. Interest is exempt for a non-resident (bank deposit interest). | Certain / Likely |
+| **US credit cards** | Keep one | Not tax: credit history for a future return (Tier 2). | — |
+| **US brokerage / stocks** | Sell in W1 · sell in W2 · keep · move to an international broker | **W1:** US resident rates. **W2:** generally no US tax (§871(a)(2) aside) and no India tax if kept abroad. **Keep:** 25% withholding on dividends; US estate tax over $60k (A-US-12); broker restrictions (G-19). Employer shares at the plan broker: check they can stay. | Likely |
+| **Indian demat / mutual funds (arrivals)** | Sell in W1 · convert to NRI and keep | Convert to NRI demat (PIS for buying listed shares). [Likely] some fund houses refuse US residents. PFIC from the arrival date (B-US-6). No US cost reset (B-US-7). | Likely |
+| **Indian demat / funds (returnees)** | Convert back to resident | Update KYC and FATCA status; NR TDS stops (G-15). | Likely |
+| **Stock options and unvested awards on leaving the employer** | Exercise before the window closes · let lapse | Exercise windows after leaving are often 90 days. ISOs lose ISO status 3 months after leaving. Unvested awards may be forfeited or accelerated. Exercise is US-taxed by US workdays; India taxes when allotted. | Certain |
+| **S-corp (owner returning to India)** | Revoke · restructure · transfer shares before departure | **[Certain] The S election ends automatically when a shareholder becomes a non-resident alien.** The company becomes a C-corp mid-year. Plan before the move. | Certain |
+| **US LLC / sole proprietorship** | Wind down · keep | Keeping: G-6 hybrid issue; ongoing US filings. Partnership: §1446 withholding on a non-resident partner. | Likely |
+| **Gifts and estate** | Gift before vs after · wills in both countries | **A non-citizen spouse gets no unlimited marital deduction (QDOT needed)**, and the annual gift exclusion to them is capped (about $190k). Gifts by a non-resident: only US real estate and tangible property are subject to US gift tax. Inheritance of Indian assets: §1014 basis = value at death; Form 3520 over $100k. | Certain / Likely |
+| **Insurance** | Keep · replace | US term life: continuation terms differ by insurer. Health: COBRA vs Indian cover. Umbrella and landlord cover for a kept US home. | Likely |
+| **Agricultural land in India (arrivals)** | Keep · sell | An NRI/OCI can't buy agricultural land, a farmhouse or a plantation, but can keep land acquired while resident or inherited. | Certain |
+| **Indian company directorships, firms** | Resign · keep | Company: one director must be India-resident (182 days). Firms and proprietorships: FEMA limits for NRIs. | Likely / Verify |
+
+### 8.8 The three tiers — what the product covers and how
+
+| Tier | What | How the product handles it | Review |
+|---|---|---|---|
+| **1 — Tax decisions** | §8.4–§8.7 decision guides; all A-, B-, L- and G- rules | Findings with full 8-part guides (§6.8) and the Options column | CA + CPA, before shipping |
+| **2 — Admin that affects tax** | Driver's licence, car registration, voter registration, Form 8822, W-8BEN/W-9 changes, KYC/FATCA updates, PAN–Aadhaar, power of attorney for Indian property (the agent must deduct TDS correctly), keeping a US bank account and card, cash over $10k crossing the border (FinCEN Form 105), record keeping for cost basis | Checklist steps (who, when) inside the relevant guide; ticked off in the Action plan | Specialist |
+| **3 — Logistics** | Customs and transfer-of-residence rules, shipping the car and household goods, pets, immigration and visas, moving companies, school admissions | **Out of scope**, listed so firms know | — |
+
+### 8.9 Second gap sweep — items added after the first
+
+| # | Area | What the move changes | Conf. | Plan |
+|---|---|---|---|---|
+| G-31 | Repeat movers | A second return within a few years usually gets no RNOR (fails both lookback tests); §121's 3-year window and PFIC history carry over. | Certain | Case-list dimension (§10). |
+| G-32 | Timing income and deductions around the move | Bunching charitable gifts, harvesting US losses or gains, prepaying deductible items while still a US resident at graduated rates. | Likely | Phase 1 planning finding (W1). |
+| G-33 | Charitable giving | US deduction only while a US taxpayer and only for US charities. India 80G only for a resident. | Likely | Disclosure. |
+| G-34 | Alimony and child support | DTAA Art. 20 also covers alimony and child support; US treatment depends on the divorce date (post-2018: not deductible or taxable). | Likely | Disclosure. |
+| G-35 | Inheritance received across the move | Indian inheritance to a US resident: no US tax, Form 3520 over $100k, basis = value at death (§1014). | Certain | Balance sheet note. |
+| G-36 | Residency audits after leaving | NY and CA audit former residents; day logs and evidence (§8.6) are the defence. | Likely | Part of the state guide. |
+| G-37 | Treaty forms | W-8BEN (individual), Form 8233 (treaty exemption for pay), Form 8833 (treaty position), Form 6166 (US residency certificate), TRC + Form 41 (India). | Certain | Documents panel. |
+| G-38 | Remote work for an Indian employer after moving to the US | US taxes as resident; India TDS on pay for India-performed work only. | Likely | Phase 1 guide, B direction. |
+
 ---
 
 ## 9. Intake change summary
@@ -937,7 +1107,7 @@ issues. Each item is new to this plan unless it says otherwise.
 |---|---|---|---|
 | L0 Router | None | 0 | — |
 | L1 US | "Move-year split" block | 7 numeric fields | Only when status is `DUAL_STATUS` |
-| L1 US | Retirement balances | 4 numeric fields | Always (retirement step) |
+| L1 US | `retirement_balances[]` (§8.5): type, custodian, balance, after-tax basis (Form 8606), Roth first year, SIMPLE start, inherited, beneficiary named, custodian accepts foreign address | 9 fields per account | Retirement step; optional |
 | L1 India | Bank account `interest_inr`, `redesignation_date`, type `rfc` | 2 fields + 1 option per row | Always (bank step) |
 | L1 India | Residency history table | 10 rows × 3 fields | Collapsed, "optional — improves RNOR projection" |
 | L1 India | Foreign retirement relief (s.158) | 3 fields | Only when status is RNOR/ROR and US retirement balances exist |
@@ -967,12 +1137,12 @@ and needs evidence first.
    - **Five things vary between cases:** direction (2); US status: visa,
      green card, citizen, student (4); resulting India status: ROR / RNOR /
      NR (3); move timing: Jan–Mar / Apr–Sep / Oct–Dec (3); household:
-     single / couple moving together / couple moving on different dates (3).
-     That is 216 combinations.
+     single / couple moving together / couple moving on different dates (3);
+     first move / repeat move (2, G-31). That is 432 combinations.
    - **Pruning:** Phase 0 merges combinations that follow identical rules,
      with a written reason for each merge. Examples: after moving to the US,
      India status is only NR or ROR; RNOR arises only on return; a student
-     is an arrival case. **[Likely]** About 30 distinct cases remain.
+     is an arrival case. **[Likely]** About 35 distinct cases remain.
    - **Personas A1–A4 and B1–B4 are the first 8.** Each further case adds
      assets and loans from §8, so the balance sheet and guides are tested
      too.
@@ -1011,9 +1181,9 @@ and needs evidence first.
 |---|---|---|---|
 | **0 — Law, cases and guides** | Resolve every **Verify** in §12. Map ITA 1961 → ITA 2025 section numbers. Prune the case list (§10) and write each case's worksheet. Draft and review the guide (§6.8) for every planned finding. | None | Case worksheets and guides signed off by a CA and a CPA. No code. **Professional review time, not engineering, sets the pace here.** |
 | **0.5 — Client tax years (§7)** | Per-year client records and migration; roll forward; Record-a-move action; spouse-link and conflict-log keys per year. Can run in parallel with Phase 0. | None (the year-aware key function is shared code; plus the 3-line US-form spouse-key helper) | §7.3 exit criteria. |
-| **1 — Detect, disclose, guide** | `moveContext`; all disclosure and planning findings that need only existing fields (A-US-1/2/3/7/8/9/12/13/14/15, A-IN-1/3/7, B-US-1/4/5/6/7/8/12/13/14/15, B-IN-1/3/4/5/8, B-PLAN-*, G-1–G-4, G-11–G-16, G-21, G-22, G-24–G-26), each with its full guide and `steps`; `moveBalanceSheet` from existing data; `move_not_covered`; documents and calendar rows (incl. G-13 due dates); the post-move day-counter (G-2). | None | All §2 gates green. No-change diff empty. Personas: correct finding ids. |
+| **1 — Detect, disclose, guide** | `moveContext`; decision guides §8.4–§8.7 with qualitative options per window; Tier 2 checklist steps (§8.8); `move_us_state_exit` (§8.6); G-31–G-38; all disclosure and planning findings that need only existing fields (A-US-1/2/3/7/8/9/12/13/14/15, A-IN-1/3/7, B-US-1/4/5/6/7/8/12/13/14/15, B-IN-1/3/4/5/8, B-PLAN-*, G-1–G-4, G-11–G-16, G-21, G-22, G-24–G-26), each with its full guide and `steps`; `moveBalanceSheet` from existing data; `move_not_covered`; documents and calendar rows (incl. G-13 due dates); the post-move day-counter (G-2). | None | All §2 gates green. No-change diff empty. Personas: correct finding ids. |
 | **2 — Correct the move-year US computation** | `moveYearAttribution` (direction defaults + dated records + India quarters); `arrivalElectionComparator`; direction-aware return form; January–March moves read the previous FY (§3.1); retirement withdrawals split by `date_paid`, reusing the built 1040-NR treaty rule (A-US-10); 401(k) loan offset at departure (L-5); ESPP (G-9); relocation benefits (G-10); move-date control in the what-if bar. | `previous_fy_status` / `previous_fy_q4`, only when no previous-year record exists | A1/A3/B1/B2 US tax matches the worksheets within $1. Gates green. |
-| **3 — Accounts, loans, lots** | `nriAccountInterest`; s.158 / Roth / 401(k) once ROR; `rnorWindow`; s.115H (if Verify clears); loan rules L-1–L-4, L-6 with FX on repayment; LRS/TCS cost (G-17); India gains on US shares from lot data (G-20). | India bank fields, history table, s.158 block; US retirement balances; `loans[]` on both forms; US holding lot fields | A1/A2/A4 India tax matches worksheets. Round-trip and field audits green. |
+| **3 — Accounts, loans, lots** | Options column quantified per window from `retirement_balances[]`, loans and lots; `nriAccountInterest`; s.158 / Roth / 401(k) once ROR; `rnorWindow`; s.115H (if Verify clears); loan rules L-1–L-4, L-6 with FX on repayment; LRS/TCS cost (G-17); India gains on US shares from lot data (G-20). | India bank fields, history table, s.158 block; US retirement balances; `loans[]` on both forms; US holding lot fields | A1/A2/A4 India tax matches worksheets. Round-trip and field audits green. |
 | **4 — Move tab and overrides** | Monitor Move tab: timeline, tiles, balance sheet, Action plan (§6.6); "changes on move" tags on Holdings/Accounts; start/stop reports on Filings; firm-wide "Moves in progress" on Clients (G-27); US "Move-year split" block; optional router question only if Phase 1–3 data shows derivation gaps. | US split block | Playwright check of the tab, the Action plan tick-off and the split block. Gates green. |
 
 Phases 1 and 2 need almost no intake change — only the January–March
@@ -1064,6 +1234,21 @@ to an **existing** client without overwriting their previous year.
 18. Indian tax treatment of employer relocation reimbursements (G-10).
 19. 401(k) loan offset: the rollover deadline and whether the treaty
     changes the offset's treatment after departure (L-5).
+20. India's treatment of a Roth IRA, an HSA, a 529 and a Trump account for
+    an ROR (yearly growth vs withdrawal), and whether any of them is a
+    "specified account" for Form 40.
+21. Whether India taxes a 401(k)-to-IRA rollover or a Roth conversion made
+    while ROR.
+22. US tax on a Roth conversion by a non-resident (30% flat vs graduated)
+    and on SEPP payments in W2 (possible non-taxation in both countries —
+    specialist judgement).
+23. Current NRI rules for PPF (interest, extension), SCSS, Sukanya
+    Samriddhi, NPS (including OCI eligibility) and EPF for international
+    workers.
+24. US classification of EPF/PPF/NPS (trust, Form 3520, yearly taxation)
+    and their Form 8938/FBAR reporting.
+25. FEMA limits on NRI holdings in Indian partnership firms and
+    proprietorships.
 
 ---
 
@@ -1086,3 +1271,6 @@ to an **existing** client without overwriting their previous year.
   (§6.8).
 - Per-child computation for US-citizen children (disclosed only, G-4).
 - Personal guarantees, co-signed loans and lease terminations.
+- Tier 3 logistics (§8.8): customs and transfer-of-residence rules,
+  shipping cars and household goods, pets, immigration and visas, moving
+  companies, school admissions.
