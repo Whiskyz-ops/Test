@@ -7,11 +7,13 @@
  * visitor exploring on their own can't land on unaudited data or create
  * half-filled profiles.
  *
- * ?mode=full switches this browser to the full demo (all profiles, every
- * control) and remembers it; ?mode=investor switches back. The forms
+ * Default by address: investor mode on demo.wising.app (INVESTOR_HOST), the
+ * full app everywhere else (the development link, local). ?mode=full /
+ * ?mode=investor override it in this browser and are remembered. The forms
  * (router.html, layer1_india.html, layer1_us.html) read the same saved value.
  */
 export const MODE_KEY = "wising_mode";
+export const INVESTOR_HOST = "demo.wising.app";
 export const INVESTOR_CLIENT_IDS = ["c_rohan_mehta", "c_priya_mehta"];
 
 export function resolveMode() {
@@ -22,5 +24,8 @@ export function resolveMode() {
     if (p === "full" || p === "investor") { mode = p; window.localStorage.setItem(MODE_KEY, p); }
     if (!mode) mode = window.localStorage.getItem(MODE_KEY);
   } catch (e) { /* storage blocked: default below */ }
-  return mode === "full" ? "full" : "investor";
+  if (mode === "full" || mode === "investor") return mode;
+  // Default: investor mode only on the investor link; every other address
+  // (the development link, local) opens the full app.
+  return window.location.hostname === INVESTOR_HOST ? "investor" : "full";
 }

@@ -22,7 +22,10 @@
             if (p === 'full' || p === 'investor') { m = p; localStorage.setItem('wising_mode', p); }
             if (!m) m = localStorage.getItem('wising_mode');
         } catch (e) { /* default below */ }
-        document.documentElement.setAttribute('data-mode', m === 'full' ? 'full' : 'investor');
+        // Default: investor mode only on the investor link (demo.wising.app);
+        // every other address (the development link, local) is the full app.
+        if (m !== 'full' && m !== 'investor') m = window.location.hostname === 'demo.wising.app' ? 'investor' : 'full';
+        document.documentElement.setAttribute('data-mode', m);
     })();
 </script>
 <style>html[data-mode="investor"] .investor-hide { display: none !important; }</style>
