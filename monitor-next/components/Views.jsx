@@ -2304,7 +2304,7 @@ export function EntityStructureView({ activeId, clients, onPick }) {
 // — carries ownershipPct/relationship for the small badge next to the name.
 // `hasChildren`/`expanded`/`onToggle` drive the twisty arrow; a row with no
 // owned entities gets no arrow at all, not a disabled one.
-const ClientRow = ({ c, depth, link, activeId, onPick, hasChildren, expanded, onToggle }) => {
+const ClientRow = ({ c, depth, link, activeId, onPick, hasChildren, expanded, onToggle, onRemove }) => {
   const healthColor = (h) => (h >= 80 ? PAL.positive : h >= 50 ? PAL.approaching : PAL.exposed);
   // A preparer recognizes a client by NAME, not by their residency scenario
   // — `label` is a scenario description for demo profiles ("Dual Resident —
@@ -2357,7 +2357,13 @@ const ClientRow = ({ c, depth, link, activeId, onPick, hasChildren, expanded, on
       <td className="px-4 py-3 text-[12px]"><span className="font-bold" style={{ color: PAL.redText }}>{c.critical}</span><span className="text-muted"> · </span><span style={{ color: PAL.amberText }}>{c.warning}</span></td>
       <td className="px-4 py-3"><div className="flex items-center gap-2"><div className="w-16 h-1.5 rounded-full bg-white/[0.06] overflow-hidden"><div className="h-full rounded-full" style={{ width: Math.max(4, c.healthScore) + "%", background: healthColor(c.healthScore) }} /></div><span className="text-[11px] font-mono" style={{ color: healthColor(c.healthScore) }}>{c.healthScore}</span></div></td>
       <td className="px-4 py-3 text-[11px] text-body">{c.nextDeadline ? c.nextDeadline.dateLabel + " · in " + c.nextDeadline.daysUntil + "d" : "—"}</td>
-      <td className="px-4 py-3 text-right"><span className="text-[11px] font-bold text-accent">Open →</span></td>
+      <td className="px-4 py-3 text-right">
+        <span className="text-[11px] font-bold text-accent">Open →</span>
+        {onRemove && (
+          <button type="button" onClick={(e) => { e.stopPropagation(); onRemove(c); }} title="Remove this client and its forms from this browser"
+            className="block ml-auto mt-1 text-[10.5px] font-semibold text-muted hover:text-red-400">Remove</button>
+        )}
+      </td>
     </tr>
   );
 };
@@ -2365,7 +2371,7 @@ const ClientRow = ({ c, depth, link, activeId, onPick, hasChildren, expanded, on
 const CLIENT_PIN_TOP = ["c_rohan_mehta"];
 const CLIENT_PIN_BOTTOM = ["us_resident_indian_income"];
 
-export function ClientsView({ clients, activeId, onPick, onAddClient, onAddExampleHousehold, search }) {
+export function ClientsView({ clients, activeId, onPick, onAddClient, onAddExampleHousehold, search, onRemoveClient, canRemove }) {
   const [expanded, setExpanded] = useState(() => new Set());
   if (!clients || !clients.length) return <Empty>Loading clients…</Empty>;
   // KPI tiles sum the FULL book (every real filing, whether nested or not)
@@ -2417,6 +2423,7 @@ export function ClientsView({ clients, activeId, onPick, onAddClient, onAddExamp
     const isExpanded = expanded.has(c.id);
     const rows = [
       <ClientRow key={(link ? link.ownerId + "-" : "") + c.id} c={c} depth={depth} link={link} activeId={activeId} onPick={onPick}
+        onRemove={onRemoveClient && canRemove && canRemove(c.id) ? onRemoveClient : null}
         hasChildren={owned.length > 0} expanded={isExpanded} onToggle={toggleExpand} />
     ];
     if (isExpanded) {

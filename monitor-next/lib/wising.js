@@ -60,6 +60,28 @@ export function createClient() {
   return W && W.ClientRegistry ? W.ClientRegistry.create() : null;
 }
 
+// Removes a registry client from this browser (its router / India / US
+// data and its registry entry). A spouse still linked to it is unlinked
+// first (us.profile.spouse_client_id cleared, as the US form does on unlink),
+// so no remaining client points at a client that no longer exists.
+export function removeClient(id) {
+  const W = getWISING();
+  if (!W || !W.ClientRegistry || !id) return false;
+  try {
+    W.ClientRegistry.list().forEach((c) => {
+      if (c.id === id) return;
+      const key = "wising_client_" + c.id + "_us"; // the registry's per-client key (constants.js clientScopedKey)
+      const us = JSON.parse(window.localStorage.getItem(key) || "null");
+      if (us && us.profile && us.profile.spouse_client_id === id) {
+        us.profile.spouse_client_id = null;
+        window.localStorage.setItem(key, JSON.stringify(us));
+      }
+    });
+  } catch (e) { /* storage blocked: still remove below */ }
+  W.ClientRegistry.remove(id);
+  return true;
+}
+
 // A registry client's raw {router,india,us} — read directly from its own
 // namespaced keys, bypassing the shared global slot entirely. Used to view
 // a SPECIFIC client's Monitor without disturbing whatever "Live"/demo state

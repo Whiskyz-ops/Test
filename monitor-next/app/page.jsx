@@ -10,7 +10,7 @@ import DetailTable from "@/components/DetailTable";
 import { ConflictsPanel, ChecksRegistryPanel, ResidencyView, FilingsView, ReconciliationView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView, WithholdingView, ScopeNotesCard, EntityStructureView, OwnedEntitiesBanner, EntitySwitcher, HouseholdCard } from "@/components/Views";
 import { COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
-import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries, analyzeProfileById, createClient, getClientRawState, isRegistryClientId, isUsPersonResult, isUsPersonOnlyGauge } from "@/lib/wising";
+import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries, analyzeProfileById, createClient, removeClient, getClientRawState, isRegistryClientId, isUsPersonResult, isUsPersonOnlyGauge } from "@/lib/wising";
 import { monitorSnapshotDag, allClientSummariesDag, analyzeProfileByIdDag } from "@/lib/dag-adapter";
 import { resolveMode, INVESTOR_CLIENT_IDS } from "@/lib/mode";
 import { attachHouseholds, householdFor, householdReconFor, addExampleHousehold, ensureExampleHousehold, exampleHouseholdEdited, applyHouseholdToSnapshot } from "@/lib/household";
@@ -356,6 +356,16 @@ export default function MonitorPage() {
     if (typeof window !== "undefined") window.open("router.html?client=" + encodeURIComponent(id), "_blank");
     refreshClientSummaries();
   }, [refreshClientSummaries]);
+  // Remove a client the user added (Rohan & Priya, the checked example, are
+  // protected — canRemoveClient). Asks first; if it was open, shows Rohan.
+  const canRemoveClient = useCallback((id) => isRegistryClientId(id) && !INVESTOR_CLIENT_IDS.includes(id), []);
+  const onRemoveClient = useCallback((c) => {
+    if (!canRemoveClient(c.id)) return;
+    if (typeof window !== "undefined" && !window.confirm("Remove " + (c.name || c.label || "this client") + "?\n\nTheir forms and results are deleted from this browser. This can't be undone. Close any open form tabs for this client first.")) return;
+    removeClient(c.id);
+    refreshClientSummaries();
+    if (activeProfile === c.id) onPickClient(INVESTOR_CLIENT_IDS[0]);
+  }, [canRemoveClient, refreshClientSummaries, activeProfile, onPickClient]);
   const onAddExampleHousehold = useCallback(() => {
     const id = addExampleHousehold();
     refreshClientSummaries();
@@ -605,7 +615,7 @@ export default function MonitorPage() {
           </>
         )}
 
-        {view === "clients" && <ClientsView clients={visibleClients} activeId={activeProfile} onPick={pickFromClients} onAddClient={onAddClient} onAddExampleHousehold={investor ? undefined : onAddExampleHousehold} search={clientSearch} />}
+        {view === "clients" && <ClientsView clients={visibleClients} activeId={activeProfile} onPick={pickFromClients} onAddClient={onAddClient} onAddExampleHousehold={investor ? undefined : onAddExampleHousehold} search={clientSearch} onRemoveClient={onRemoveClient} canRemove={canRemoveClient} />}
         {view === "structure" && <EntityStructureView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} />}
         {view === "holdings" && <HoldingsView result={result} links={activeLinks} onPick={pickFromClients} />}
         {view === "business" && <BusinessView result={result} links={activeLinks} onPick={pickFromClients} selectedEntityId={selectedEntityId} />}
