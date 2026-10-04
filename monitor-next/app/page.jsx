@@ -325,7 +325,9 @@ export default function MonitorPage() {
     setSiteMode(m);
     const params = new URLSearchParams(window.location.search);
     const c = params.get("client");
-    if (c && isRegistryClientId(c) && (m === "full" || INVESTOR_CLIENT_IDS.includes(c))) pinnedClientRef.current = c;
+    // Any client in this browser's registry (the Mehtas, or one the visitor
+    // added) — never a built-in demo profile in investor mode.
+    if (c && isRegistryClientId(c)) pinnedClientRef.current = c;
     else if (m === "investor") pinnedClientRef.current = INVESTOR_CLIENT_IDS[0];
     const v = params.get("view");
     if (v === "monitor") setView("monitor");
@@ -408,7 +410,9 @@ export default function MonitorPage() {
   // client's data lives under its ?client= keys, and without the id the
   // forms fall back to the shared slot (empty) and bounce to Layer 0.
   const layer1Query = activeProfile && isRegistryClientId(activeProfile) ? "?client=" + encodeURIComponent(activeProfile) : "";
-  const visibleClients = useMemo(() => (investor ? clientSummaries.filter((c) => INVESTOR_CLIENT_IDS.includes(c.id)) : clientSummaries), [investor, clientSummaries]);
+  // Investor mode: the Mehtas plus any client the visitor added (both live in
+  // this browser's client registry); the built-in demo profiles stay hidden.
+  const visibleClients = useMemo(() => (investor ? clientSummaries.filter((c) => INVESTOR_CLIENT_IDS.includes(c.id) || isRegistryClientId(c.id)) : clientSummaries), [investor, clientSummaries]);
   const activeLinks = useMemo(() => entityLinksFor(activeProfile, clientSummaries), [activeProfile, clientSummaries]);
   // Structure (ownership links between client profiles) only for clients
   // who have any — an individual with no linked company would see an empty
@@ -608,7 +612,7 @@ export default function MonitorPage() {
           </>
         )}
 
-        {view === "clients" && <ClientsView clients={visibleClients} activeId={activeProfile} onPick={pickFromClients} onAddClient={investor ? undefined : onAddClient} onAddExampleHousehold={investor ? undefined : onAddExampleHousehold} search={clientSearch} />}
+        {view === "clients" && <ClientsView clients={visibleClients} activeId={activeProfile} onPick={pickFromClients} onAddClient={onAddClient} onAddExampleHousehold={investor ? undefined : onAddExampleHousehold} search={clientSearch} />}
         {view === "structure" && <EntityStructureView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} />}
         {view === "holdings" && <HoldingsView result={result} links={activeLinks} onPick={pickFromClients} />}
         {view === "business" && <BusinessView result={result} links={activeLinks} onPick={pickFromClients} selectedEntityId={selectedEntityId} />}
