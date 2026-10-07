@@ -145,14 +145,13 @@ export default function RightPanel() {
           {metrics.map((m) => (
             <div key={m.label} className="flex justify-between text-xs border-b border-line pb-1">
               <span className="text-muted">{m.label}</span>
-              <span className="font-mono text-head">{fmt(m.value)}</span>
+              <span className="font-mono text-head">{!m.value ? "—" : fmt(m.value)}</span>
             </div>
           ))}
         </div>
         <p className="text-[9px] text-muted/70 leading-relaxed">
-          AMT/NIIT/FBAR figures are populated once you visit the AMT & NIIT / Foreign Assets steps — unlike
-          residency status, these aren&apos;t yet centrally re-derived on every keystroke everywhere (see
-          docs/LAYER1_US_REACT_PORT_GAPS.md).
+          &ldquo;—&rdquo; means nothing worked out yet (or zero): AMT/NIIT/FBAR fill in once you visit the AMT &amp; NIIT /
+          Foreign Assets steps (see docs/LAYER1_US_REACT_PORT_GAPS.md).
         </p>
       </div>
     </aside>

@@ -11947,9 +11947,9 @@ div.innerHTML = `
         }
         if (usState.financial_holdings) {
             usState.financial_holdings.forEach(acc => {
-                // Explicit flag wins; a legacy row without one is reportable only
-                // when it isn't a US account (US brokerages aren't FBAR assets).
-                const reportable = acc.is_fbar_reportable !== undefined ? acc.is_fbar_reportable !== false : !isUsCountry(acc.country);
+                // A US account is never an FBAR asset, whatever its flag says;
+                // otherwise the class-derived flag decides.
+                const reportable = !isUsCountry(acc.country) && acc.is_fbar_reportable !== false;
                 if (reportable) {
                     fbarSum += acc.peak_balance_usd || 0;
                     fatcaPeakSum += acc.peak_balance_usd || 0;
@@ -19628,6 +19628,9 @@ div.innerHTML = `
     // 8938), but saved data can carry them; they're kept as-is, off the list
     // and out of the FBAR total, instead of being blanked and re-counted.
     let preservedUsBankRows = [];
+    // US brokerage rows (country US) aren't foreign assets: kept as saved, never
+    // shown as holding cards and never counted toward FBAR / Form 8938.
+    let preservedUsHoldingRows = [];
 
     // Shared items (docs/HOUSEHOLD_DESIGN.md section 3): a row co-owned with
     // the spouse records this client's share; 50% when left blank.
@@ -19880,6 +19883,7 @@ div.innerHTML = `
         `;
         applyHydrationToDiv(div, data);
         list.appendChild(div);
+        if (data && data.country) div.dataset.country = data.country;
         
         if (data) {
             if (div.querySelector('.hld-broker')) div.querySelector('.hld-broker').value = data.broker_or_institution || '';
@@ -19983,6 +19987,7 @@ div.innerHTML = `
                 broker_or_institution: div.querySelector('.hld-broker').value || null,
                 asset_name: div.querySelector('.hld-name').value || null,
                 asset_class: cls,
+                country: div.dataset.country || null,
                 is_fbar_reportable: isFbarReportable,
                 peak_balance_usd: parseFormattedNumber(div.querySelector('.hld-peak').value) || null,
                 last_day_balance_usd: parseFormattedNumber(div.querySelector('.hld-last').value) || null,
@@ -20005,7 +20010,7 @@ div.innerHTML = `
                 closed_during_year: div.querySelector('.hld-closed') ? div.querySelector('.hld-closed').checked : false
             });
         });
-        usState.financial_holdings = list;
+        usState.financial_holdings = list.concat(preservedUsHoldingRows);
         recalculateDerivedFields();
         saveStateAndSync();
     }
@@ -22304,6 +22309,11 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             if (usState.bank_accounts) {
                 preservedUsBankRows = usState.bank_accounts.filter(x => x && isUsCountry(x.country));
                 usState.bank_accounts.filter(x => !(x && isUsCountry(x.country))).forEach(x => addBankRow(x));
+            }
+            if (usState.financial_holdings) {
+                const savedHoldings = usState.financial_holdings.slice();
+                preservedUsHoldingRows = savedHoldings.filter(x => x && isUsCountry(x.country));
+                savedHoldings.filter(x => x && !isUsCountry(x.country)).forEach(x => addHoldingRow(x));
             }
             // NOTE: pfic_holdings has no manual-entry UI/add-row function of its
             // own (it's populated exclusively by the India hydration engine

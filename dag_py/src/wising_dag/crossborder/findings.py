@@ -326,6 +326,12 @@ def _taxes_paid_us_result(d, ctx):
     }
 
 
+
+def _foreign_rows(rows):
+    def is_us(r):
+        return str((r or {}).get("country") or "").strip().upper() in ("US", "USA", "UNITED STATES")
+    return [r for r in (rows or []) if not is_us(r)]
+
 NODES = {
     "usFtcFormXbr": NodeDef(deps=("usEntityKind",), compute=lambda d, ctx: "Form 1118" if d["usEntityKind"] == "ccorp" else "Form 1116"),
 
@@ -388,9 +394,12 @@ NODES = {
     )),
 
     # ---- fbar_limit / AGG-5 (findings-batch5-nodes.js) -----------------------
+    # A US account (country US/USA/United States) is never an FBAR or Form
+    # 8938 asset, so US-form rows marked that way are left out of every
+    # aggregate (mirrors findings-batch5-nodes.js's isUsCountryRow).
     "bankAccountsRaw": NodeDef(
         deps=(), compute=lambda d, ctx: {
-            "india": safe(ctx.get("india"), "bank_accounts", []) or [], "us": safe(ctx.get("us"), "bank_accounts", []) or [],
+            "india": safe(ctx.get("india"), "bank_accounts", []) or [], "us": _foreign_rows(safe(ctx.get("us"), "bank_accounts", [])),
             "usFormFbar": num(safe(ctx.get("us"), "fbar_aggregate_peak_usd", 0)),
             # layer1_us.html's Step 8 screen covers both bank_accounts AND
             # this financial_holdings list (securities, life insurance,
@@ -398,7 +407,7 @@ NODES = {
             # fbar_aggregate_peak_usd, gated on is_fbar_reportable !== false
             # per row. Read here so aggregateLastDayUsdResult (no equivalent
             # persisted override field) can mirror that same scope.
-            "usFinancialHoldings": safe(ctx.get("us"), "financial_holdings", []) or [],
+            "usFinancialHoldings": _foreign_rows(safe(ctx.get("us"), "financial_holdings", [])),
         },
         layer1_fields=("india.bank_accounts", "us.bank_accounts", "us.fbar_aggregate_peak_usd", "us.financial_holdings"),
     ),
