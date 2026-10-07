@@ -4676,11 +4676,11 @@
                             <span id="rep-salary" class="text-xs font-bold text-white font-mono">₹0</span>
                         </div>
                         <div class="flex items-center justify-between border-b border-white/5 pb-2">
-                            <span class="text-xs text-white/60">Business Income:</span>
+                            <span class="text-xs text-white/60">Business Income (preview):</span>
                             <span id="rep-business" class="text-xs font-bold text-white font-mono">₹0</span>
                         </div>
                         <div class="flex items-center justify-between border-b border-white/5 pb-2">
-                            <span class="text-xs text-white/60">Other Income:</span>
+                            <span class="text-xs text-white/60">Other Income (preview):</span>
                             <span id="rep-other" class="text-xs font-bold text-white font-mono">₹0</span>
                         </div>
                         <div class="flex items-center justify-between border-b border-white/5 pb-2">
@@ -4689,6 +4689,8 @@
                         </div>
                     </div>
                 </div>
+
+                <p class="text-[9px] text-white/40 leading-relaxed -mt-2">Preview lines use the quick Tax Estimator on the right. The Monitor runs the full computation (depreciation, set-offs, treaty rates); file from its figures.</p>
 
                 <!-- Hidden raw JSON output container for script parity and clipboard copying -->
                 <pre class="hidden" id="output-json"></pre>
@@ -5653,6 +5655,7 @@
         // Show selected panel
         const panel = document.getElementById(`panel-${stepId}`);
         if (panel) panel.classList.remove('hidden');
+        if (stepId === 'step-output') { try { evaluateSurchargeBuckets(); } catch (e) {} }
         
         // Mark button active
         const btn = document.getElementById(`btn-${stepId}`);
@@ -13426,6 +13429,32 @@ ${isProf ? '' : `
             return 0;
         }
     }
+    // Step 9's summary card. It used to show fixed sample values (ROR,
+    // "ABCDE1234F", ₹0) whatever the client entered; it now reads this
+    // client's answers and the annual figures the estimator just worked out.
+    function updateFinalReview(heads) {
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+        const fmt = v => '₹' + Math.round(v || 0).toLocaleString('en-IN');
+        const res = (state.residency_detail && state.residency_detail.final_india_residency_status) || null;
+        set('rep-residency', res || 'Not worked out yet');
+        const pathEl = document.getElementById('cert-statutory-path');
+        set('rep-path', res && pathEl ? pathEl.textContent.trim() : '—');
+        const regime = String((state.profile && state.profile.tax_regime) || 'NEW').toUpperCase();
+        set('rep-regime', regime === 'OLD' ? 'OLD (opted out of Section 202)' : 'NEW (Section 202)');
+        const pan = state.profile && state.profile.pan;
+        set('rep-pan', pan ? String(pan).toUpperCase() : 'Not entered');
+        set('rep-salary', fmt(heads.grossSalary));
+        set('rep-business', fmt(heads.business));
+        set('rep-other', fmt(Math.max(0, heads.other)));
+        // Advance tax (4 instalments) + TDS (incl. each by-source entry, as
+        // tds-entries.js counts them) + TCS. The Monitor also adds this
+        // client's share of TDS on joint accounts, which isn't known here.
+        const tc = state.tax_credits || {};
+        const n = v => Number(v) || 0;
+        const tdsEntries = (Array.isArray(tc.tds_entries) ? tc.tds_entries : []).reduce((t, e) => t + (e && n(e.tds_inr) > 0 ? n(e.tds_inr) : 0), 0);
+        set('rep-taxes-paid', fmt(n(tc.advance_tax_q1_15jun_inr) + n(tc.advance_tax_q2_15sep_inr) + n(tc.advance_tax_q3_15dec_inr) + n(tc.advance_tax_q4_15mar_inr)
+            + n(tc.tds_already_deducted_inr) + n(tc.tds_inr) + tdsEntries + n(tc.tcs_inr)));
+    }
     function _evaluateSurchargeBuckets() {
         const entity = state.profile.entity_type;
         const regime = state.profile.tax_regime; // 'NEW' or 'OLD'
@@ -13943,6 +13972,8 @@ ${isProf ? '' : `
         }
 
         
+        if (!window.isHeadlessSimulation) updateFinalReview({ grossSalary: totalGrossSalary, business: business, other: totalIncome - salary - business });
+
         // --- Calculate Required Advance Tax ---
         if (window.isHeadlessSimulation) return totalTax; // Return early for headless sim to avoid persisting
         

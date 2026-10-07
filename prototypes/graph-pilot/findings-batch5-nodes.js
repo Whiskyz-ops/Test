@@ -267,10 +267,17 @@ NODES.taxesPaidUsResult = {
 };
 
 // ---- AGG-5: aggregateAccounts, ported in full (normalize.js:1997-2014) ---
+// A US account (country US/USA/United States) is never an FBAR or Form 8938
+// asset, so US-form rows marked that way are left out of every aggregate.
+function isUsCountryRow(r) {
+  var c = String((r && r.country) || "").trim().toUpperCase();
+  return c === "US" || c === "USA" || c === "UNITED STATES";
+}
 NODES.bankAccountsRaw = {
   deps: [], compute: function (d, ctx) {
+    function foreign(list) { return (list || []).filter(function (r) { return !isUsCountryRow(r); }); }
     return {
-      india: safe(ctx.india, "bank_accounts", []) || [], us: safe(ctx.us, "bank_accounts", []) || [], usFormFbar: num(safe(ctx.us, "fbar_aggregate_peak_usd", 0)),
+      india: safe(ctx.india, "bank_accounts", []) || [], us: foreign(safe(ctx.us, "bank_accounts", [])), usFormFbar: num(safe(ctx.us, "fbar_aggregate_peak_usd", 0)),
       // layer1_us.html's Step 8 screen ("Comprehensive Foreign Assets (FBAR
       // & 8938)") is ONE screen covering both bank_accounts AND this
       // financial_holdings list (securities, life insurance, etc., via
@@ -282,7 +289,7 @@ NODES.bankAccountsRaw = {
       // never saves its own fatcaLastDaySum anywhere) can mirror that same
       // scope; no double-count risk since aggregatePeakUsdResult's own
       // usFormFbar override replaces (not adds to) its from-scratch peak.
-      usFinancialHoldings: safe(ctx.us, "financial_holdings", []) || []
+      usFinancialHoldings: foreign(safe(ctx.us, "financial_holdings", []))
     };
   }
 };

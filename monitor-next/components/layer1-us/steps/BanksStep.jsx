@@ -233,7 +233,8 @@ export default function BanksStep() {
       }
     });
     holdings.forEach((acc) => {
-      if (acc.is_fbar_reportable !== false) {
+      // A US account (e.g. a US brokerage) is never an FBAR / 8938 asset.
+      if (!isUsCountry(acc.country) && acc.is_fbar_reportable !== false) {
         fbarSum += acc.peak_balance_usd || 0;
         fatcaPeakSum += acc.peak_balance_usd || 0;
         fatcaLastDaySum += acc.last_day_balance_usd || 0;

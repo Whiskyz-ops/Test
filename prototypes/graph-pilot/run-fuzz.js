@@ -1210,6 +1210,15 @@ function isUsSingleBracketFixProfile(dag) {
   var rows = [].concat(u.filingStatus === "single" ? (u.ordinaryBracketBreakdown || []) : [], nra.eciBracketBreakdown || []);
   return rows.some(function (b) { return b && b.to > 49840; });
 }
+// (c) US-country rows on the US form's bank / holdings lists (country US) are
+// no longer FBAR / Form 8938 accounts (findings-batch5-nodes.js
+// isUsCountryRow); the frozen engine counted them. Only profiles with such a
+// row can differ: the account list and every FBAR/8938 total built on it.
+function isUsCountryAccountProfile(profile) {
+  var us = (profile && profile.us) || {};
+  function isUs(r) { var c = String((r && r.country) || "").trim().toUpperCase(); return c === "US" || c === "USA" || c === "UNITED STATES"; }
+  return (us.bank_accounts || []).some(isUs) || (us.financial_holdings || []).some(isUs);
+}
 // (b) §72(t) 10% additional tax now in the US total (was a finding only).
 function isUs72tInTotalProfile(dag) {
   var u = dag.computed && dag.computed.usTax;
@@ -1590,6 +1599,7 @@ function compareOne(label, profile, saveOnFail) {
     .concat(isNraDerivedSplitProfile(dag) ? KNOWN_NRA_DERIVED_SPLIT_PATHS : [])
     // Section-profile audit law fixes (see the classifiers above).
     .concat(isUsSingleBracketFixProfile(dag) || isUs72tInTotalProfile(dag) ? KNOWN_NRA_DERIVED_SPLIT_PATHS : [])
+    .concat(isUsCountryAccountProfile(profile) ? KNOWN_NRA_DERIVED_SPLIT_PATHS.concat(["model.accounts"]) : [])
     .concat(isIndiaAdvanceTaxCumulativeProfile(dag, real) ? ["findings", "summary", "monitoring"] : [])
     .concat(isIndiaLawFixProfile(profile).income ? KNOWN_INDIA_SALARY_EXEMPTION_DIVERGENT_PATHS : [])
     .concat(isIndiaLawFixProfile(profile).scheduleFa ? ["documents", "summary", "monitoring"] : [])
