@@ -1550,7 +1550,7 @@
                     ANNUAL
                 </button>
                 <div class="w-px h-6 bg-white/10 mx-1"></div>
-                <button id="btn-q-autofill" onclick="autoFillYear()" class="px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-widest uppercase transition-all text-brandCyan border border-brandCyan/30 bg-brandCyan/10 hover:bg-brandCyan/20 flex items-center gap-1" title="Copy current quarter to all other quarters">
+                <button id="btn-q-autofill" onclick="autoFillYear()" class="px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-widest uppercase transition-all text-brandCyan border border-brandCyan/30 bg-brandCyan/10 hover:bg-brandCyan/20 flex items-center gap-1" title="Copy the amount you last typed on this quarter's tab into the other three quarters">
                     <span>🪄 Auto-Fill Year</span>
                 </button>
             </div>
@@ -5611,30 +5611,109 @@
         evaluateSurchargeBuckets();
     }
 
+    // Auto-Fill Year copies ONE amount: the field last typed in on this
+    // quarter's tab, into the other three quarters. It used to copy the whole
+    // quarter, so income entered once in Q1 (e.g. interest received only in
+    // Q1) was silently counted four times. The paths the edit changed are
+    // found by comparing the quarter's data from when the field was entered
+    // with the data after typing, so it works for any field, including a
+    // field inside a row (a row the other quarters don't have is copied whole).
+    const AUTOFILL_KEYS = ['domestic_income', 'other_sources', 'lrs_outbound', 'nro_repatriation', 'capital_gains'];
+    let autoFillFocus = null;   // { el, quarter, before }
+    let autoFillLast = null;    // { el, quarter, paths, label, value }
+    function autoFillSlice() {
+        const o = {};
+        AUTOFILL_KEYS.forEach(k => { o[k] = state[k] === undefined ? null : JSON.parse(JSON.stringify(state[k])); });
+        return o;
+    }
+    function autoFillDiff(a, b, path, out) {
+        if (JSON.stringify(a) === JSON.stringify(b)) return out;
+        const bothObj = a && b && typeof a === 'object' && typeof b === 'object';
+        if (!bothObj || Array.isArray(a) !== Array.isArray(b) || (Array.isArray(a) && a.length !== b.length)) { out.push(path); return out; }
+        new Set(Object.keys(a).concat(Object.keys(b))).forEach(k => autoFillDiff(a[k], b[k], path.concat(Array.isArray(b) ? Number(k) : k), out));
+        return out;
+    }
+    function autoFillLabel(el) {
+        const box = el.closest('div');
+        const lab = box && box.querySelector('label');
+        const own = lab ? Array.from(lab.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent).join(' ').replace(/\s+/g, ' ').trim() : '';
+        return own || (lab && lab.textContent.replace(/\s+/g, ' ').trim().slice(0, 60)) || el.getAttribute('placeholder') || 'this field';
+    }
+    document.addEventListener('focusin', e => {
+        const el = e.target;
+        if (!el.matches || !el.matches('input, select, textarea') || state.active_quarter === 'ANNUAL') return;
+        autoFillFocus = { el: el, quarter: state.active_quarter, before: autoFillSlice() };
+    });
+    function autoFillRecord(e) {
+        const f = autoFillFocus;
+        if (!f || e.target !== f.el || f.quarter !== state.active_quarter) return;
+        const paths = AUTOFILL_KEYS.reduce((acc, k) => autoFillDiff(f.before[k], state[k], [k], acc), []);
+        if (paths.length) autoFillLast = { el: f.el, quarter: f.quarter, paths: paths, label: autoFillLabel(f.el), value: f.el.type === 'checkbox' ? (f.el.checked ? 'ticked' : 'unticked') : f.el.value };
+    }
+    // Bubble phase: runs after the field's own oninput / onchange handler.
+    document.addEventListener('input', autoFillRecord);
+    document.addEventListener('change', autoFillRecord);
+
+    function autoFillCopyPath(src, dst, path) {
+        let s = src, d = dst;
+        for (let i = 0; i < path.length - 1; i++) {
+            const k = path[i], next = path[i + 1];
+            s = s == null ? undefined : s[k];
+            const missing = d[k] == null || typeof d[k] !== 'object' || Array.isArray(d[k]) !== Array.isArray(s);
+            if (missing || (Array.isArray(s) && typeof next === 'number' && next >= d[k].length)) {
+                d[k] = s === undefined ? null : JSON.parse(JSON.stringify(s)); // row / section the quarter lacks: copy it whole
+                return;
+            }
+            d = d[k];
+        }
+        const last = path[path.length - 1], v = s == null ? undefined : s[last];
+        d[last] = v === undefined ? null : JSON.parse(JSON.stringify(v));
+    }
+
+    // Copying an amount into a quarter means that income applies there too:
+    // turn on the head's switch (has_salary_income, has_other_sources_income,
+    // ...) on every level above the copied field, as it is in the source
+    // quarter. The engine ignores amounts under a switch that's off
+    // (india-switches.js).
+    function autoFillCopySwitches(src, dst, path) {
+        let s = src, d = dst;
+        for (let i = 0; i < path.length - 1; i++) {
+            s = s == null ? undefined : s[path[i]];
+            d = d == null ? undefined : d[path[i]];
+            if (!s || !d || typeof s !== 'object' || typeof d !== 'object' || Array.isArray(s) || Array.isArray(d)) return;
+            Object.keys(s).forEach(k => { if (/^has_/.test(k) && s[k] === true) d[k] = true; });
+        }
+    }
+
     function autoFillYear() {
         if (state.active_quarter === 'ANNUAL') return;
-        
         const currentQ = state.active_quarter;
-        
-        // Ensure current state is saved to the active quarter bucket first
-        state.quarters[currentQ].domestic_income = JSON.parse(JSON.stringify(state.domestic_income));
-        state.quarters[currentQ].other_sources = JSON.parse(JSON.stringify(state.other_sources));
-        state.quarters[currentQ].lrs_outbound = JSON.parse(JSON.stringify(state.lrs_outbound));
-        state.quarters[currentQ].nro_repatriation = JSON.parse(JSON.stringify(state.nro_repatriation));
-        state.quarters[currentQ].capital_gains = JSON.parse(JSON.stringify(state.capital_gains));
+        const last = autoFillLast;
+        if (!last || last.quarter !== currentQ) {
+            alert('Type an amount on this quarter\'s tab first, then press Auto-Fill Year.\n\nIt copies that one amount into the other three quarters. Nothing else is copied.');
+            return;
+        }
+        const others = ['Q1', 'Q2', 'Q3', 'Q4'].filter(q => q !== currentQ);
+        if (!confirm('Copy "' + last.label + '" = ' + (last.value || 'blank') + ' from ' + currentQ + ' into ' + others.join(', ') + '?\n\n'
+            + 'Their own value for this field is replaced, so the year total for it becomes 4 × the ' + currentQ + ' amount. Only this field is copied.')) return;
 
-        // Copy this bucket to all other quarters
-        ['Q1', 'Q2', 'Q3', 'Q4'].forEach(q => {
-            if (q !== currentQ) {
-                state.quarters[q] = JSON.parse(JSON.stringify(state.quarters[currentQ]));
-            }
+        // Ensure current state is saved to the active quarter bucket first
+        AUTOFILL_KEYS.forEach(k => { state.quarters[currentQ][k] = JSON.parse(JSON.stringify(state[k])); });
+        const defaultQ = JSON.parse(defaultQuarterStateTemplate);
+        others.forEach(q => {
+            if (!state.quarters[q]) state.quarters[q] = JSON.parse(JSON.stringify(defaultQ));
+            last.paths.forEach(path => {
+                if (state.quarters[q][path[0]] == null) state.quarters[q][path[0]] = JSON.parse(JSON.stringify(defaultQ[path[0]] || {}));
+                autoFillCopyPath(state.quarters[currentQ], state.quarters[q], path);
+                autoFillCopySwitches(state.quarters[currentQ], state.quarters[q], path);
+            });
         });
 
         // Flash UI feedback
         const btn = document.getElementById('btn-q-autofill');
         if (btn) {
             const originalHtml = btn.innerHTML;
-            btn.innerHTML = '<span>✅ Copied to All</span>';
+            btn.innerHTML = '<span>✅ Copied to ' + others.join(', ') + '</span>';
             setTimeout(() => { btn.innerHTML = originalHtml; }, 2000);
         }
         evaluateSurchargeBuckets();
