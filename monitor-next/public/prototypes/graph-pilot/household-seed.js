@@ -113,9 +113,25 @@
     try { list = JSON.parse(storage.getItem(key) || "[]"); } catch (e) { list = []; }
     var has = function (id) { return list.some(function (r) { return r.id === id; }) || storage.getItem("wising_client_" + id + "_router") != null; };
     var missing = [ROHAN_ID, PRIYA_ID].filter(function (id) { return !has(id); });
-    if (!missing.length) return [];
     var clients;
     try { clients = buildMehtaHousehold(W); } catch (e) { return []; }
+    // A browser that saved the Mehtas before an answer was added to the
+    // example keeps its copy (edits are never overwritten), so a Router
+    // question added later stayed blank there and was asked again. Fill
+    // only the Router answers still blank in that copy; nothing answered is
+    // changed. (The Router writes these into the forms when finished.)
+    clients.forEach(function (c) {
+      if (missing.indexOf(c.id) !== -1) return;
+      var rk = "wising_client_" + c.id + "_router", saved;
+      try { saved = JSON.parse(storage.getItem(rk) || "null"); } catch (e) { saved = null; }
+      if (!saved || typeof saved !== "object") return;
+      var changed = false;
+      Object.keys(c.router || {}).forEach(function (k) {
+        if ((saved[k] === null || saved[k] === undefined) && c.router[k] !== null && c.router[k] !== undefined) { saved[k] = clone(c.router[k]); changed = true; }
+      });
+      if (changed) storage.setItem(rk, JSON.stringify(saved));
+    });
+    if (!missing.length) return [];
     clients.forEach(function (c) {
       var inList = list.some(function (r) { return r.id === c.id; });
       if (!inList) list.push({ id: c.id, label: c.label, createdAt: new Date().toISOString() });
