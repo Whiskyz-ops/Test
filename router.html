@@ -1847,6 +1847,21 @@
             if (typeof ud.is_us_citizen === 'boolean') fill('is_us_citizen', ud.is_us_citizen);
             if (typeof ud.has_green_card === 'boolean') fill('has_green_card', ud.has_green_card);
             if (routerState.us_days > 0) fill('was_in_us_this_year', true);
+            // Tax IDs and the India follow-up answers the forms already hold,
+            // so a client whose forms are filled isn't asked to retype them
+            // (and a different answer typed here isn't written back over them).
+            fill('pan', (india.profile || {}).pan);
+            if ((us.profile || {}).ssn_or_itin_type === 'ssn') fill('ssn', (us.profile || {}).ssn_or_itin);
+            if (typeof rd.liable_to_tax_in_another_country_being_indian_citizen === 'boolean') fill('liable_to_tax_in_another_country', rd.liable_to_tax_in_another_country_being_indian_citizen);
+            if (rd.employment_or_crew_status) fill('left_india_for_employment_this_year', rd.employment_or_crew_status === 'employed_abroad');
+            // Indian income or assets: yes when the India form has any income
+            // head or holding switched on, or an Indian bank account.
+            const di = india.domestic_income || {};
+            const indiaHas = [(di.salary || {}).has_salary_income, (di.house_property || {}).has_house_property_income,
+                (di.business_income || {}).has_business_or_fo_income, di.has_agricultural_income, (india.other_sources || {}).has_other_sources_income,
+                (india.capital_gains || {}).has_capital_gains, (india.property || {}).has_indian_property_transaction,
+                (india.financial_holdings || {}).has_financial_transactions].some(v => v === true) || (india.bank_accounts || []).length > 0;
+            if (indiaHas) fill('has_india_source_income_or_assets', true);
         }
     } catch (e) { /* no saved answers */ }
     evaluateFlags();
