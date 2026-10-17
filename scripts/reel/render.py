@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
-"""Render the WISING launch-reel rough cut (1080x1920, 30fps) from the stills
+"""Render the WISING demo-reel rough cut (1080x1350, 4:5, 30fps) from the stills
 that scripts/reel/capture.js takes of the real build.
 
     python3 scripts/reel/render.py <stills_dir> <out.mp4>
-    python3 scripts/reel/render.py <stills_dir> <frames_dir> --frames 12.5,40.9
+    python3 scripts/reel/render.py <stills_dir> <frames_dir> --frames 12.5,30.4
 
-Screen segments crop the real screenshots with a moving "camera" and add a
-Clicky-style cursor, outline and red callout pill. Segments where the founder
-talks on camera are placeholder cards carrying the line and a shooting note;
-swap them for the real footage in the edit. Captions follow docs/LAUNCH_REEL.md.
-All coordinates are CSS pixels of the 1280px-wide capture viewport.
+The look is WISING's own: India in gold and the US in cyan (each intake form's
+accent), WISING's results in green. Two panes, India above the US, show the
+two sides; the signature move is the "ripple", a line running from the number
+typed on the India side to every figure it changes on the US side while those
+figures tick to their new values. Segments where the founder speaks on camera
+are placeholder cards carrying the line and a shooting note; swap them for the
+real footage in the edit. Captions follow docs/LAUNCH_REEL.md.
+
+All screen coordinates are CSS pixels of the 1280px-wide capture viewport.
 """
-import math
 import subprocess
 import sys
 from functools import lru_cache
@@ -19,36 +22,46 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-W, H, FPS = 1080, 1920, 30
-DPR = 2                                  # capture.js deviceScaleFactor
-WIN_Y, WIN_H = 230, 1350                 # product window inside the frame
-CAM_AR = WIN_H / W                       # camera rect height / width
-CAPTION_Y = 1450                         # caption centre (above the IG UI)
+W, H, FPS = 1080, 1350, 30
+DPR = 2                                   # capture.js deviceScaleFactor
+TOP, BOTTOM = 96, 1104                    # content area between the top bar and captions
+SPLIT_GAP = 16
+PANE_H = (BOTTOM - TOP - SPLIT_GAP) // 2  # each pane of a split
+CAPTION_Y = 1132
 
-FONT_DIR = "/usr/share/fonts/opentype/inter/"
-BG = (10, 10, 11)
+ROOT = Path(__file__).resolve().parents[2]
+INTER = "/usr/share/fonts/opentype/inter/"
+SERIF = ROOT / "monitor-next/node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-600-normal.woff"
+
+BG = (9, 9, 11)
+CARD = (20, 20, 24)
 WHITE = (255, 255, 255)
-MUTED = (150, 150, 158)
-GREEN = (52, 211, 153)
-RED = (239, 68, 68)
-CURSOR = (96, 165, 250)
+MUTED = (146, 146, 156)
+GOLD = (212, 175, 55)        # India form accent (brandGold)
+CYAN = (34, 211, 238)        # US form accent
+GREEN = (52, 211, 153)       # WISING
+RED = (248, 113, 113)        # WISING critical
+HL = {"gold": GOLD, "cyan": CYAN, "green": GREEN, "red": RED}
 
 
 @lru_cache(None)
 def font(weight, size):
-    return ImageFont.truetype(f"{FONT_DIR}Inter-{weight}.otf", size)
+    if weight == "Serif":
+        return ImageFont.truetype(str(SERIF), size)
+    return ImageFont.truetype(f"{INTER}Inter-{weight}.otf", size)
+
+
+def clamp(t):
+    return max(0.0, min(1.0, t))
 
 
 def ease(t):
-    t = max(0.0, min(1.0, t))
+    t = clamp(t)
     return 4 * t * t * t if t < 0.5 else 1 - (-2 * t + 2) ** 3 / 2
 
 
-def pop(t):
-    """0→1 with a little overshoot, for labels appearing."""
-    t = max(0.0, min(1.0, t))
-    c = 1.70158
-    return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2
+def ease_out(t):
+    return 1 - (1 - clamp(t)) ** 3
 
 
 def keyframes(kfs, t):
@@ -62,77 +75,88 @@ def keyframes(kfs, t):
     return kfs[-1][1]
 
 
-def active(events, t):
-    return [e for e in events if e["t0"] <= t < e["t1"]]
+def lerp_col(a, b, k):
+    return tuple(int(x + (y - x) * k) for x, y in zip(a, b))
 
 
 # --------------------------------------------------------------------------
-# Timeline. Times in seconds. Lines are the spoken script; *word* = highlight.
+# Timeline. Times in seconds. In captions, *word* is highlighted in the
+# caption's colour (hl). "who" is the speaker tag above the caption.
 # --------------------------------------------------------------------------
-TALK = "talk"
-SCREEN = "screen"
+VO = "YOU · VOICE-OVER"
+CAM = "YOU · ON CAMERA"
+FULL = (TOP, BOTTOM)
+UPPER = (TOP, TOP + PANE_H)
+LOWER = (BOTTOM - PANE_H, BOTTOM)
+
+EMAIL = dict(
+    sender="Rohan Mehta", subject="Quick question about Priya's salary",
+    body=("Hi — Priya's employer in India is still paying her while she works "
+          "from New York. Do we owe anything? And to which country?"))
 
 TIMELINE = [
-    dict(kind=TALK, t0=0.0, t1=4.2, note="Close-up. Chalkboard behind you: two overlapping circles, IN and US.",
-         captions=[(0.0, "This couple earns"), (1.0, "in India *and* the US."), (2.2, "*$4,408* of it"), (3.2, "is taxed *twice*.")]),
-    dict(kind=TALK, t0=4.2, t1=8.0, note="Tap the overlap on the chalkboard.",
-         captions=[(4.2, "So we built a system"), (5.4, "that reads *both* countries'"), (6.8, "tax law at once.")]),
-    dict(kind=TALK, t0=8.0, t1=11.0, note="Turn the laptop toward the camera.",
-         captions=[(8.0, "Meet Rohan."), (8.9, "Engineer in New York."), (9.9, "Business in Pune.")]),
-    dict(kind=SCREEN, t0=11.0, t1=27.0,
-         stills=[(11.0, "rohan")],
-         camera=[(11.0, (262, 330, 996)), (15.4, (262, 330, 996)), (16.4, (700, 820, 560)),
-                 (19.4, (700, 820, 560)), (20.4, (282, 1010, 660)), (23.4, (282, 1010, 660)),
-                 (24.4, (600, 2120, 560))],
-         cursor=[(11.6, (760, 900)), (12.4, (458, 496)), (13.8, (458, 496)), (14.6, (947, 545)),
-                 (16.4, (947, 545)), (17.2, (1083, 1143)), (20.4, (1083, 1143)), (21.2, (420, 1396)),
-                 (24.4, (420, 1396)), (25.2, (860, 2437))],
-         marks=[dict(t0=12.5, t1=16.2, box=(410, 470, 120, 52), label="US · $37,014 unpaid", side="above"),
-                dict(t0=14.7, t1=16.2, box=(900, 520, 120, 52), label="India · $14,032 unpaid", side="below"),
-                dict(t0=17.3, t1=20.2, box=(925, 1114, 316, 58), label="2 advance-tax payments missed", side="below"),
-                dict(t0=21.3, t1=24.2, box=(298, 1374, 296, 46), label="Taxed twice · $4,408", side="below"),
-                dict(t0=25.3, t1=27.0, box=(768, 2340, 232, 282), label="FBAR due · 542% over", side="above")],
-         captions=[(11.2, "Both countries"), (12.4, "say he *owes* them."), (14.6, "Both are right."),
-                   (16.4, "He's missed two"), (17.6, "tax payments in India…"), (20.4, "…and *$4,408*"),
-                   (21.6, "is being taxed *twice*."), (24.4, "Plus forms"), (25.4, "he's never heard of.")]),
-    dict(kind=TALK, t0=27.0, t1=30.0, note="Reaction. Grin at the camera.",
-         captions=[(27.0, "That's a CPA's afternoon"), (28.2, "of spreadsheets."), (29.0, "Done in *seconds*.")]),
-    dict(kind=TALK, t0=30.0, t1=33.5, note="Lean in. This is Clicky's 'something actually hard' beat.",
-         captions=[(30.0, "But here's what"), (31.0, "actually breaks"), (32.2, "the spreadsheet.")]),
-    dict(kind=TALK, t0=33.5, t1=37.0, note="Over the shoulder: the India form open on the laptop.",
-         captions=[(33.5, "His wife Priya's"), (34.4, "Indian employer pays her"), (35.6, "while she works from *New York*.")]),
-    dict(kind=SCREEN, t0=37.0, t1=44.5,
-         stills=[(37.0, "form_0"), (38.0, "form_1"), (39.3, "form_type_0"), (39.5, "form_type_1"),
-                 (39.7, "form_type_2"), (39.9, "form_type_3"), (40.1, "form_type_4"), (40.3, "form_type_5"),
-                 (40.5, "form_type_6"), (40.9, "form_2")],
-         camera=[(37.0, (360, 150, 540)), (40.9, (360, 150, 540)), (41.7, (370, 300, 520))],
-         cursor=[(37.2, (640, 420)), (37.9, (824, 281)), (38.5, (824, 281)), (39.1, (470, 506)),
-                 (41.0, (470, 506)), (41.7, (620, 600))],
-         clicks=[37.95, 39.15],
-         marks=[dict(t0=38.1, t1=39.1, box=(800, 262, 52, 38), label="Add her salary", side="below"),
-                dict(t0=39.3, t1=41.0, box=(400, 484, 147, 45), label="₹24 lakh", side="below"),
-                dict(t0=41.8, t1=44.5, box=(400, 536, 448, 140), label="0 days in India → India can't tax it", side="below")],
-         captions=[(37.2, "One edit."), (38.2, "Her salary:"), (39.3, "*₹24 lakh*."), (41.0, "India *can't* tax it."),
-                   (42.6, "The US can.")]),
-    dict(kind=SCREEN, t0=44.5, t1=53.0,
-         stills=[(44.5, "priya_before"), (46.2, "priya_after")], fade=0.3,
-         camera=[(44.5, (270, 130, 640)), (49.6, (270, 130, 640)), (50.6, (282, 1000, 660))],
-         cursor=[(44.7, (600, 600)), (45.4, (839, 182)), (47.6, (839, 182)), (48.2, (845, 269)),
-                 (50.6, (845, 269)), (51.3, (480, 1413))],
-         clicks=[46.1],
-         marks=[dict(t0=45.5, t1=46.2, box=(804, 166, 70, 32), label="Joint US tax $87,212", side="below"),
-                dict(t0=46.4, t1=47.8, box=(804, 166, 70, 32), label="$87,212 → $96,465", side="below"),
-                dict(t0=48.3, t1=50.4, box=(730, 250, 150, 34), label="Rohan 89% → 84%", side="below"),
-                dict(t0=51.4, t1=53.0, box=(311, 1392, 560, 42), label="New · $3,928 to stop or recover", side="below")],
-         captions=[(44.7, "Refresh."), (45.6, "The joint US return"), (46.4, "*recomputes*."),
-                   (47.8, "Rohan's share moved."), (49.0, "Nobody touched his file."),
-                   (50.6, "And it caught *$3,928*"), (51.8, "of Indian tax to claw back.")]),
-    dict(kind=TALK, t0=53.0, t1=56.5, note="Back to camera. Slow down.",
-         captions=[(53.0, "One edit."), (53.9, "Two countries. Two people."), (55.2, "Everything in *sync*.")]),
-    dict(kind=TALK, t0=56.5, t1=61.0, note="Straight to camera, deadpan. Your version of Clicky's 'I dare you.'",
-         captions=[(56.5, "If you file for Indians in the US,"), (58.0, "send us your *hardest* client."),
-                   (59.6, "Comment *WISING*.")]),
-    dict(kind="end", t0=61.0, t1=63.0),
+    dict(kind="email", t0=0.0, t1=6.5, who=VO,
+         captions=[(0.6, "Every cross-border CPA gets this email."),
+                   (3.6, "Here's what answering it usually takes.")]),
+    dict(kind="screen", t0=6.5, t1=14.5, who=VO,
+         panes=[dict(area=UPPER, color=GOLD, tag="INDIA  ·  ₹  ·  APR–MAR", stills=[(6.5, "india_form")],
+                     camera=[(6.5, (0, 0, 1280)), (14.5, (40, 20, 1180))],
+                     chips=[(7.2, "Tax year Apr–Mar"), (8.6, "Rupees"), (10.0, "ITR"), (11.4, "Schedule FA")]),
+                dict(area=LOWER, color=CYAN, tag="US  ·  $  ·  JAN–DEC", stills=[(6.5, "us_form")],
+                     camera=[(6.5, (0, 0, 1280)), (14.5, (40, 20, 1180))],
+                     chips=[(7.4, "Tax year Jan–Dec"), (8.8, "Dollars"), (10.2, "Form 1040"), (11.6, "FBAR · Form 1116")])],
+         captions=[(6.7, "Two tax years. Two currencies."), (9.4, "Two sets of law."),
+                   (11.6, "Usually: an afternoon in a spreadsheet.")]),
+    dict(kind="talk", t0=14.5, t1=17.5, who=CAM, note="On camera, laptop open beside you.",
+         captions=[(14.6, "Here's the same email, answered in *Wising*.")]),
+    dict(kind="screen", t0=17.5, t1=28.0, who=VO,
+         panes=[dict(area=FULL, color=GOLD, tag="INDIA  ·  PRIYA'S INTAKE FORM",
+                     stills=[(17.5, "form_1"), (19.0, "form_type_0"), (19.2, "form_type_1"), (19.4, "form_type_2"),
+                             (19.6, "form_type_3"), (19.8, "form_type_4"), (20.0, "form_type_5"),
+                             (20.2, "form_type_6"), (20.8, "form_2")],
+                     camera=[(17.5, (370, 330, 560)), (23.2, (370, 330, 560)), (24.2, (380, 400, 500))],
+                     glows=[dict(t0=18.6, t1=23.6, box=(400, 484, 147, 45), tag="₹24,00,000", tag_t=20.4),
+                            dict(t0=24.4, t1=28.0, box=(400, 536, 448, 140), tag="0 days worked in India")])],
+         captions=[(17.8, "One number: Priya's salary."), (19.2, "*₹24 lakh*.", "gold"),
+                   (21.6, "She worked zero days in India,"), (24.0, "so India *can't* tax it.", "gold"),
+                   (26.0, "The US can.", "cyan")]),
+    dict(kind="screen", t0=28.0, t1=41.0, who=VO,
+         panes=[dict(area=UPPER, color=GOLD, tag="INDIA  ·  PRIYA'S SALARY", stills=[(28.0, "form_2")],
+                     camera=[(28.0, (330, 350, 680))],
+                     glows=[dict(t0=28.2, t1=41.0, box=(400, 484, 147, 45))]),
+                dict(area=LOWER, color=CYAN, tag="US  ·  JOINT RETURN", stills=[(28.0, "priya_before"), (30.2, "priya_after")],
+                     fade=0.25, camera=[(28.0, (270, 122, 660))],
+                     glows=[dict(t0=30.2, t1=41.0, box=(800, 164, 76, 34)),
+                            dict(t0=33.2, t1=41.0, box=(806, 250, 74, 36))])],
+         ripples=[dict(t0=29.0, t1=30.2, src=(0, (480, 506)), dst=(1, (838, 181))),
+                  dict(t0=31.9, t1=33.2, src=(0, (480, 506)), dst=(1, (843, 268)))],
+         tickers=[dict(t0=30.2, pane=1, slot=0, label="Joint US tax", a=87212, b=96465, fmt="${:,.0f}", color=CYAN),
+                  dict(t0=33.2, pane=1, slot=1, label="Rohan's share", a=89, b=84, fmt="{:.0f}%", color=CYAN)],
+         captions=[(28.3, "Watch it ripple."), (30.3, "The joint US return *recomputes*.", "cyan"),
+                   (33.0, "Rohan's share moves too."), (35.6, "Nobody touched his file."),
+                   (38.0, "One number. Both countries. Both spouses.")]),
+    dict(kind="screen", t0=41.0, t1=52.0, who=VO,
+         panes=[dict(area=FULL, color=GREEN, tag="WISING  ·  PRIYA'S CONFLICTS", stills=[(41.0, "priya_after")],
+                     camera=[(41.0, (290, 1060, 760)), (43.6, (300, 1210, 640))],
+                     glows=[dict(t0=43.8, t1=52.0, box=(311, 1392, 625, 42), color=RED)])],
+         tickers=[dict(t0=44.2, pane=0, slot=0, label="Indian tax to stop or recover", a=0, b=3928, fmt="${:,.0f}", color=RED, wide=True)],
+         captions=[(41.3, "Then it catches what a spreadsheet misses:"), (44.0, "*$3,928* of Indian tax withheld", "red"),
+                   (46.4, "that India can't charge."), (48.4, "Money your client gets back."),
+                   (50.2, "That's the line they *remember*.")]),
+    dict(kind="screen", t0=52.0, t1=63.0, who=VO,
+         panes=[dict(area=FULL, color=GREEN, tag="WISING  ·  RECONCILIATION", stills=[(52.0, "recon_after")],
+                     camera=[(52.0, (268, 630, 488)), (57.2, (268, 630, 488)), (58.2, (268, 1200, 488))],
+                     glows=[dict(t0=52.6, t1=57.4, box=(287, 721, 446, 61), color=GOLD, tag="Left out of India's tax, with the reason"),
+                            dict(t0=58.4, t1=63.0, box=(292, 1272, 436, 78), color=GREEN)])],
+         tickers=[dict(t0=58.6, pane=0, slot=0, label="Unrelieved double tax", a=4408, b=3873, fmt="${:,.0f}", color=GREEN, wide=True)],
+         captions=[(52.3, "Every figure shows its working."), (54.6, "The salary leaves India's computation, with the reason."),
+                   (58.0, "Double tax drops to *$3,873*."), (60.4, "Which form. Which rule.")]),
+    dict(kind="talk", t0=63.0, t1=67.0, who=CAM, note="Back to camera. Calm, slower.",
+         captions=[(63.1, "One number."), (64.0, "Both countries. Both spouses."), (65.4, "Shown working.")]),
+    dict(kind="talk", t0=67.0, t1=75.0, who=CAM, note="Straight to camera. This is the ask: say it plainly.",
+         captions=[(67.1, "Send us one anonymised India–US client."), (70.0, "We'll run it and send you the full dashboard"),
+                   (72.4, "within *48 hours*.")]),
+    dict(kind="end", t0=75.0, t1=78.0),
 ]
 DURATION = TIMELINE[-1]["t1"]
 
@@ -140,108 +164,89 @@ DURATION = TIMELINE[-1]["t1"]
 # --------------------------------------------------------------------------
 # Drawing helpers
 # --------------------------------------------------------------------------
+def rounded(d, box, r, **kw):
+    d.rounded_rectangle([round(v) for v in box], radius=r, **kw)
+
+
+def comp(img, layer, pos=(0, 0)):
+    """Blend an RGBA layer over the RGB frame."""
+    img.paste(layer, (int(pos[0]), int(pos[1])), layer)
+
+
+def glow_layer(size, draw_fn, blur):
+    layer = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw_fn(ImageDraw.Draw(layer))
+    return layer.filter(ImageFilter.GaussianBlur(blur))
+
+
 def parse_rich(text):
-    """'a *b* c' -> [(word, highlighted)]"""
+    """'a *b*. c' -> words, each a list of (fragment, highlighted)."""
     out, hi, prev = [], False, " "
     for part in text.split("*"):
         for i, w in enumerate(part.split(" ")):
             if not w:
                 continue
             if i == 0 and out and not prev.endswith(" "):
-                out[-1][0].append((w, hi))   # e.g. the "." right after a highlight
+                out[-1].append((w, hi))      # e.g. the "." right after a highlight
             else:
-                out.append(([(w, hi)],))
+                out.append([(w, hi)])
         prev = part or prev
         hi = not hi
-    return [t[0] for t in out]
+    return out
 
 
-def draw_caption(img, text, t_in, t):
-    if not text:
-        return
-    words = parse_rich(text)
-    f = font("ExtraBold", 66)
+def draw_caption(img, who, text, hl, t_in, t):
+    """Lower-third caption: speaker tag, then left-aligned text beside a colour bar."""
+    k = ease_out((t - t_in) / 0.25)
+    accent = HL.get(hl, GREEN)
+    f = font("SemiBold", 46)
     space = f.getlength(" ")
     lines, cur, cur_w = [], [], 0
-    for word in words:
+    for word in parse_rich(text):
         ww = sum(f.getlength(w) for w, _ in word)
         if cur and cur_w + space + ww > 900:
             lines.append(cur); cur, cur_w = [], 0
         cur_w += (space if cur else 0) + ww
-        cur.append((word, ww))
+        cur.append(word)
     lines.append(cur)
-    k = pop((t - t_in) / 0.18)
-    line_h = 80
-    total_h = line_h * len(lines)
-    y0 = CAPTION_Y - total_h / 2 + (1 - k) * 18
-    layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    d = ImageDraw.Draw(layer)
+    d = ImageDraw.Draw(img, "RGBA")
+    x0 = 64 - (1 - k) * 24
+    d.text((64, CAPTION_Y), who, font=font("Bold", 22), fill=MUTED)
+    bar_h = 58 * len(lines)
+    d.rectangle([40, CAPTION_Y + 40, 46, CAPTION_Y + 40 + bar_h * k], fill=accent)
+    a = int(255 * k)
     for i, line in enumerate(lines):
-        lw = sum(ww for _, ww in line) + space * (len(line) - 1)
-        x = (W - lw) / 2
-        y = y0 + i * line_h
-        for word, ww in line:
+        x, y = x0, CAPTION_Y + 38 + i * 58
+        for word in line:
             for w, hi in word:
-                col = GREEN if hi else WHITE
-                d.text((x, y), w, font=f, fill=col + (int(255 * min(1, k)),), stroke_width=7, stroke_fill=(0, 0, 0, int(230 * min(1, k))))
+                d.text((x, y), w, font=f, fill=(accent if hi else WHITE) + (a,))
                 x += f.getlength(w)
             x += space
-    img.alpha_composite(layer)
 
 
-def rounded(d, box, r, **kw):
-    d.rounded_rectangle([round(v) for v in box], radius=r, **kw)
+def draw_top_bar(img, right):
+    d = ImageDraw.Draw(img, "RGBA")
+    d.text((40, 48), "W I S I N G", font=font("Serif", 40), fill=WHITE, anchor="lm")
+    d.text((W - 40, 48), right, font=font("Medium", 22), fill=MUTED, anchor="rm")
 
 
-def draw_pill(img, text, anchor, side, k, color=RED):
-    f = font("Bold", 40)
+def draw_tag(img, xy, text, color, anchor="lt"):
+    d = ImageDraw.Draw(img, "RGBA")
+    f = font("Bold", 22)
     tw = f.getlength(text)
-    pw, ph = tw + 48, 68
-    ax, ay = anchor
-    x = min(max(ax - pw / 2, 40), W - 40 - pw)
-    y = ay + 22 if side == "below" else ay - 22 - ph
-    y = min(max(y, WIN_Y + 20), WIN_Y + WIN_H - ph - 20)
-    s = 0.6 + 0.4 * k
-    layer = Image.new("RGBA", (int(pw) + 40, ph + 40), (0, 0, 0, 0))
-    d = ImageDraw.Draw(layer)
-    rounded(d, (20, 24, 20 + pw, 24 + ph), 18, fill=(0, 0, 0, 120))
-    layer = layer.filter(ImageFilter.GaussianBlur(8))
-    d = ImageDraw.Draw(layer)
-    rounded(d, (20, 20, 20 + pw, 20 + ph), 18, fill=color + (255,))
-    d.text((20 + 24, 20 + ph / 2), text, font=f, fill=WHITE, anchor="lm")
-    lw, lh = layer.size
-    layer = layer.resize((max(1, int(lw * s)), max(1, int(lh * s))), Image.LANCZOS)
-    a = layer.getchannel("A").point(lambda v: int(v * min(1, k)))
-    layer.putalpha(a)
-    cx, cy = x + pw / 2, y + ph / 2
-    img.alpha_composite(layer, (int(cx - layer.size[0] / 2), int(cy - layer.size[1] / 2)))
+    x, y = xy
+    if anchor == "lb":
+        y -= 40
+    rounded(d, (x, y, x + tw + 28, y + 40), 10, fill=(12, 12, 14), outline=color, width=2)
+    d.text((x + 14, y + 20), text, font=f, fill=color, anchor="lm")
 
 
-def draw_cursor(img, pos, press=0.0):
-    x, y = pos
-    s = 1.0 - 0.18 * press
-    pts = [(0, 0), (0, 46), (12, 35), (21, 55), (30, 51), (21, 32), (37, 32)]
-    pts = [(x + px * s, y + py * s) for px, py in pts]
-    layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    d = ImageDraw.Draw(layer)
-    d.polygon([(px + 3, py + 5) for px, py in pts], fill=(0, 0, 0, 110))
-    layer = layer.filter(ImageFilter.GaussianBlur(4))
-    d = ImageDraw.Draw(layer)
-    d.polygon(pts, fill=CURSOR + (255,), outline=WHITE + (255,), width=4)
-    img.alpha_composite(layer)
-
-
-def draw_ripple(img, pos, k):
-    if not 0 <= k <= 1:
-        return
-    d = ImageDraw.Draw(img)
-    r = 14 + 46 * k
-    a = int(220 * (1 - k))
-    d.ellipse([pos[0] - r, pos[1] - r, pos[0] + r, pos[1] + r], outline=CURSOR + (a,), width=5)
+def fmt_num(fmt, v):
+    return fmt.format(v)
 
 
 # --------------------------------------------------------------------------
-# Frames
+# Panes
 # --------------------------------------------------------------------------
 class Stills:
     def __init__(self, root):
@@ -250,128 +255,245 @@ class Stills:
 
     def get(self, name):
         if name not in self.cache:
-            if len(self.cache) > 4:
+            if len(self.cache) > 5:
                 self.cache.pop(next(iter(self.cache)))
             self.cache[name] = Image.open(self.root / f"{name}.png").convert("RGB")
         return self.cache[name]
 
 
-def chrome(img, label):
-    d = ImageDraw.Draw(img)
-    d.text((48, 170), "WISING", font=font("Black", 34), fill=WHITE, anchor="lm")
-    d.text((W - 48, 170), label, font=font("SemiBold", 26), fill=MUTED, anchor="rm")
+class PaneView:
+    """Maps capture CSS coordinates into a pane's place in the frame."""
+
+    def __init__(self, pane, t):
+        y0, y1 = pane["area"]
+        self.x0, self.y0, self.w, self.h = 24, y0, W - 48, y1 - y0
+        cx, cy, cw = keyframes(pane["camera"], t)
+        self.cx, self.cy, self.cw = cx, cy, cw
+        self.ch = cw * self.h / self.w
+        self.scale = self.w / cw
+
+    def to_frame(self, px, py):
+        return (self.x0 + (px - self.cx) * self.scale, self.y0 + (py - self.cy) * self.scale)
+
+    def crop(self, src):
+        box = [self.cx * DPR, self.cy * DPR, (self.cx + self.cw) * DPR, (self.cy + self.ch) * DPR]
+        return src.crop([round(v) for v in box]).resize((self.w, self.h), Image.LANCZOS)
+
+
+def draw_pane(img, pane, t, stills):
+    v = PaneView(pane, t)
+    names = pane["stills"]
+    cur = max((s for s in names if s[0] <= t), key=lambda s: s[0])
+    view = v.crop(stills.get(cur[1]))
+    fade = pane.get("fade")
+    idx = names.index(cur)
+    if fade and idx > 0 and t - cur[0] < fade:
+        view = Image.blend(v.crop(stills.get(names[idx - 1][1])), view, (t - cur[0]) / fade)
+    mask = Image.new("L", (v.w, v.h), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, v.w - 1, v.h - 1], radius=22, fill=255)
+    img.paste(view, (v.x0, v.y0), mask)
+
+    for g in pane.get("glows", []):
+        if not g["t0"] <= t < g["t1"]:
+            continue
+        k = ease_out((t - g["t0"]) / 0.35)
+        col = g.get("color", pane["color"])
+        bx, by, bw, bh = g["box"]
+        x0, y0 = v.to_frame(bx, by)
+        x1, y1 = v.to_frame(bx + bw, by + bh)
+        breathe = 0.75 + 0.25 * abs(((t - g["t0"]) % 1.6) / 0.8 - 1)
+        comp(img, glow_layer(img.size, lambda d: rounded(
+            d, (x0 - 4, y0 - 4, x1 + 4, y1 + 4), 14, outline=col + (int(220 * k * breathe),), width=10), 10))
+        rounded(ImageDraw.Draw(img, "RGBA"), (x0, y0, x1, y1), 12, outline=col + (int(255 * k),), width=3)
+        if g.get("tag") and k > 0.3 and t >= g.get("tag_t", 0):
+            draw_tag(img, (max(v.x0 + 12, x0), min(y1 + 12, v.y0 + v.h - 52)), g["tag"], col)
+
+    d = ImageDraw.Draw(img, "RGBA")
+    rounded(d, (v.x0, v.y0, v.x0 + v.w, v.y0 + v.h), 22, outline=pane["color"] + (200,), width=3)
+    draw_tag(img, (v.x0 + 16, v.y0 + 16), pane["tag"], pane["color"])
+
+    chips = [c for c in pane.get("chips", []) if c[0] <= t]
+    for i, (c_t, text) in enumerate(chips):
+        k = ease_out((t - c_t) / 0.3)
+        f = font("ExtraBold", 40)
+        tw = f.getlength(text)
+        col, row = i % 2, i // 2
+        x = v.x0 + 24 + col * 500
+        y = v.y0 + v.h - 150 + row * 70 + (1 - k) * 20
+        rounded(d, (x, y, x + tw + 40, y + 58), 14, fill=(10, 10, 12, int(235 * k)), outline=pane["color"] + (int(255 * k),), width=3)
+        d.text((x + 20, y + 29), text, font=f, fill=pane["color"] + (int(255 * k),), anchor="lm")
+    return v
+
+
+def draw_ripple(img, r, views, t):
+    """A line from the India figure to the US figure it changes, gold turning cyan."""
+    p = ease((t - r["t0"]) / (r["t1"] - r["t0"]))
+    if p <= 0:
+        return
+    sx, sy = views[r["src"][0]].to_frame(*r["src"][1])
+    ex, ey = views[r["dst"][0]].to_frame(*r["dst"][1])
+    c1 = (sx, sy + (ey - sy) * 0.55)
+    c2 = (ex, sy + (ey - sy) * 0.45)
+    n = 60
+    pts = []
+    for i in range(int(n * p) + 1):
+        u = i / n
+        x = (1 - u) ** 3 * sx + 3 * (1 - u) ** 2 * u * c1[0] + 3 * (1 - u) * u * u * c2[0] + u ** 3 * ex
+        y = (1 - u) ** 3 * sy + 3 * (1 - u) ** 2 * u * c1[1] + 3 * (1 - u) * u * u * c2[1] + u ** 3 * ey
+        pts.append((x, y, lerp_col(GOLD, CYAN, u)))
+    fade = 1 - clamp((t - r["t1"] - 0.6) / 0.6)
+    if fade <= 0:
+        return
+
+    def strokes(d, width, alpha):
+        for (x0, y0, c), (x1, y1, _) in zip(pts, pts[1:]):
+            d.line([x0, y0, x1, y1], fill=c + (int(alpha * fade),), width=width)
+
+    comp(img, glow_layer(img.size, lambda d: strokes(d, 16, 160), 9))
+    strokes(ImageDraw.Draw(img, "RGBA"), 4, 255)
+    hx, hy, hc = pts[-1]
+    if p < 1:
+        comp(img, glow_layer(img.size, lambda d: d.ellipse([hx - 16, hy - 16, hx + 16, hy + 16], fill=hc + (230,)), 8))
+        ImageDraw.Draw(img, "RGBA").ellipse([hx - 7, hy - 7, hx + 7, hy + 7], fill=WHITE)
+    else:
+        k = clamp((t - r["t1"]) / 0.5)
+        rr = 10 + 50 * k
+        ImageDraw.Draw(img, "RGBA").ellipse([ex - rr, ey - rr, ex + rr, ey + rr], outline=CYAN + (int(255 * (1 - k)),), width=4)
+
+
+def draw_ticker(img, tk, view, t):
+    k = ease_out((t - tk["t0"]) / 0.35)
+    if k <= 0:
+        return
+    tick = ease((t - tk["t0"] - 0.15) / 1.1)
+    val = tk["a"] + (tk["b"] - tk["a"]) * tick
+    w = (view.w - 48) if tk.get("wide") else (view.w - 72) // 2
+    h = 132
+    x = view.x0 + 24 + tk["slot"] * (w + 24)
+    y = view.y0 + view.h - h - 24 + (1 - k) * 24
+    d = ImageDraw.Draw(img, "RGBA")
+    comp(img, glow_layer(img.size, lambda dd: rounded(dd, (x, y + 8, x + w, y + h + 8), 20, fill=(0, 0, 0, 200)), 14))
+    rounded(d, (x, y, x + w, y + h), 20, fill=(14, 14, 18, int(250 * k)), outline=tk["color"] + (int(255 * k),), width=3)
+    d.text((x + 24, y + 30), tk["label"].upper(), font=font("Bold", 22), fill=MUTED + (int(255 * k),), anchor="lm")
+    d.text((x + 24, y + 86), fmt_num(tk["fmt"], val), font=font("ExtraBold", 60), fill=tk["color"] + (int(255 * k),), anchor="lm")
+    was = "was " + fmt_num(tk["fmt"], tk["a"])
+    d.text((x + w - 24, y + 92), was, font=font("Medium", 26), fill=MUTED + (int(255 * k * tick),), anchor="rm")
+
+
+# --------------------------------------------------------------------------
+# Scenes
+# --------------------------------------------------------------------------
+def new_frame():
+    return Image.new("RGB", (W, H), BG)
 
 
 def screen_frame(seg, t, stills):
-    img = Image.new("RGBA", (W, H), BG + (255,))
-    cx, cy, cw = keyframes([(a, b) for a, b in seg["camera"]], t)
-    ch = cw * CAM_AR
-    scale = W / cw
-
-    def crop(name):
-        src = stills.get(name)
-        box = [cx * DPR, cy * DPR, (cx + cw) * DPR, (cy + ch) * DPR]
-        return src.crop([round(v) for v in box]).resize((W, WIN_H), Image.LANCZOS)
-
-    names = seg["stills"]
-    cur = max((s for s in names if s[0] <= t), key=lambda s: s[0])
-    view = crop(cur[1])
-    fade = seg.get("fade")
-    if fade:
-        idx = names.index(cur)
-        if idx > 0 and t - cur[0] < fade:
-            prev = crop(names[idx - 1][1])
-            view = Image.blend(prev, view, (t - cur[0]) / fade)
-    img.paste(view, (0, WIN_Y))
-
-    def to_frame(px, py):
-        return ((px - cx) * scale, WIN_Y + (py - cy) * scale)
-
-    d = ImageDraw.Draw(img)
-    for m in active(seg.get("marks", []), t):
-        k = pop((t - m["t0"]) / 0.25)
-        bx, by, bw, bh = m["box"]
-        x0, y0 = to_frame(bx, by)
-        x1, y1 = to_frame(bx + bw, by + bh)
-        a = int(255 * min(1, k))
-        rounded(d, (x0, y0, x1, y1), 14, outline=RED + (a,), width=6)
-        anchor = ((x0 + x1) / 2, y1 if m["side"] == "below" else y0)
-        draw_pill(img, m["label"], anchor, m["side"], k)
-
-    cur_kf = seg.get("cursor")
-    if cur_kf and t >= cur_kf[0][0]:
-        px, py = keyframes(cur_kf, t)
-        fx, fy = to_frame(px, py)
-        press = 0.0
-        for c in seg.get("clicks", []):
-            draw_ripple(img, (fx, fy), (t - c) / 0.45)
-            if 0 <= t - c < 0.15:
-                press = 1.0
-        draw_cursor(img, (fx, fy), press)
-
-    # soft top/bottom edges so the window reads as a crop, not a slab
-    grad = Image.new("L", (1, 60))
-    for i in range(60):
-        grad.putpixel((0, i), int(255 * (1 - i / 60)))
-    edge = Image.new("RGBA", (W, 60), BG + (255,))
-    edge.putalpha(grad.resize((W, 60)))
-    img.alpha_composite(edge, (0, WIN_Y))
-    img.alpha_composite(edge.transpose(Image.FLIP_TOP_BOTTOM), (0, WIN_Y + WIN_H - 60))
-    chrome(img, "Example household · illustrative")
+    img = new_frame()
+    views = [draw_pane(img, p, t, stills) for p in seg["panes"]]
+    for r in seg.get("ripples", []):
+        if t >= r["t0"]:
+            draw_ripple(img, r, views, t)
+    for tk in seg.get("tickers", []):
+        if t >= tk["t0"]:
+            draw_ticker(img, tk, views[tk["pane"]], t)
+    draw_top_bar(img, "Example client · illustrative")
     return img
 
 
-def talk_frame(seg, t):
-    img = Image.new("RGBA", (W, H), BG + (255,))
-    d = ImageDraw.Draw(img)
-    rounded(d, (40, WIN_Y, W - 40, WIN_Y + WIN_H), 36, fill=(22, 22, 26), outline=(48, 48, 56), width=2)
-    tag = "YOU · ON CAMERA"
-    f = font("Bold", 30)
-    tw = f.getlength(tag)
-    rounded(d, (W / 2 - tw / 2 - 26, 420, W / 2 + tw / 2 + 26, 476), 28, fill=(16, 44, 36), outline=GREEN, width=2)
-    d.text((W / 2, 448), tag, font=f, fill=GREEN, anchor="mm")
-    # shooting note, wrapped
-    nf = font("Medium", 36)
-    words, lines, cur = seg["note"].split(), [], ""
+def email_frame(seg, t):
+    img = new_frame()
+    d = ImageDraw.Draw(img, "RGBA")
+    x0, y0, x1, y1 = 48, 200, W - 48, 900
+    k = ease_out((t - seg["t0"]) / 0.4)
+    y_off = (1 - k) * 30
+    rounded(d, (x0, y0 + y_off, x1, y1 + y_off), 28, fill=CARD, outline=(44, 44, 52), width=2)
+    y = y0 + y_off
+    d.ellipse([x0 + 36, y + 40, x0 + 108, y + 112], fill=(58, 58, 70))
+    d.text((x0 + 72, y + 76), "RM", font=font("Bold", 28), fill=WHITE, anchor="mm")
+    d.text((x0 + 132, y + 58), EMAIL["sender"], font=font("Bold", 34), fill=WHITE, anchor="lm")
+    d.text((x0 + 132, y + 98), "to me  ·  9:14 AM", font=font("Medium", 26), fill=MUTED, anchor="lm")
+    d.text((x0 + 36, y + 170), EMAIL["subject"], font=font("Bold", 40), fill=WHITE, anchor="lm")
+    d.line([x0 + 36, y + 216, x1 - 36, y + 216], fill=(44, 44, 52), width=2)
+    # body types on
+    body = EMAIL["body"]
+    n = int(len(body) * clamp((t - seg["t0"] + 0.4) / 2.8))  # first words already on frame one
+    f = font("Regular", 38)
+    words, lines, cur = body[:n].split(" "), [], ""
     for w in words:
         test = (cur + " " + w).strip()
-        if nf.getlength(test) > 840:
+        if f.getlength(test) > x1 - x0 - 72:
             lines.append(cur); cur = w
         else:
             cur = test
     lines.append(cur)
     for i, line in enumerate(lines):
-        d.text((W / 2, 560 + i * 52), line, font=nf, fill=MUTED, anchor="mm")
-    chrome(img, "Placeholder · replace with footage")
+        d.text((x0 + 36, y + 250 + i * 56), line, font=f, fill=(222, 222, 228))
+    if n < len(body) and int(t * 2) % 2 == 0:
+        lx = x0 + 36 + f.getlength(lines[-1]) + 4
+        ly = y + 250 + (len(lines) - 1) * 56
+        d.rectangle([lx, ly + 6, lx + 3, ly + 46], fill=WHITE)
+    draw_top_bar(img, "Example client · illustrative")
     return img
 
 
-def end_frame(seg, t):
-    img = Image.new("RGBA", (W, H), BG + (255,))
-    d = ImageDraw.Draw(img)
-    k = pop((t - seg["t0"]) / 0.4)
-    a = int(255 * min(1, k))
-    d.text((W / 2, 760), "WISING", font=font("Black", 120), fill=WHITE + (a,), anchor="mm")
-    d.text((W / 2, 860), "India + US tax, on one screen", font=font("SemiBold", 42), fill=MUTED + (a,), anchor="mm")
-    rounded(d, (W / 2 - 330, 1000, W / 2 + 330, 1110), 55, fill=GREEN + (a,))
-    d.text((W / 2, 1055), "Comment WISING", font=font("ExtraBold", 50), fill=(4, 18, 15, a), anchor="mm")
-    d.text((W / 2, 1180), "Send us your hardest India–US client.", font=font("Medium", 36), fill=MUTED + (a,), anchor="mm")
+def talk_frame(seg, t):
+    img = new_frame()
+    d = ImageDraw.Draw(img, "RGBA")
+    rounded(d, (24, TOP, W - 24, BOTTOM), 22, fill=CARD, outline=(44, 44, 52), width=2)
+    tag = "YOU · ON CAMERA"
+    f = font("Bold", 28)
+    tw = f.getlength(tag)
+    rounded(d, (W / 2 - tw / 2 - 26, 470, W / 2 + tw / 2 + 26, 526), 28, fill=(16, 44, 36), outline=GREEN, width=2)
+    d.text((W / 2, 498), tag, font=f, fill=GREEN, anchor="mm")
+    nf = font("Medium", 34)
+    words, lines, cur = seg["note"].split(), [], ""
+    for w in words:
+        test = (cur + " " + w).strip()
+        if nf.getlength(test) > 820:
+            lines.append(cur); cur = w
+        else:
+            cur = test
+    lines.append(cur)
+    for i, line in enumerate(lines):
+        d.text((W / 2, 600 + i * 50), line, font=nf, fill=MUTED, anchor="mm")
+    draw_top_bar(img, "Placeholder · replace with footage")
+    return img
+
+
+@lru_cache(None)
+def logo(stills_root, height):
+    im = Image.open(Path(stills_root) / "logo.png").convert("RGBA")
+    return im.resize((int(im.width * height / im.height), height), Image.LANCZOS)
+
+
+def end_frame(seg, t, stills):
+    img = new_frame()
+    k = ease_out((t - seg["t0"]) / 0.6)
+    a = int(255 * k)
+    mark = logo(str(stills.root), 150).copy()
+    mark.putalpha(mark.getchannel("A").point(lambda v: int(v * k)))
+    comp(img, mark, ((W - mark.width) // 2, 300))
+    d = ImageDraw.Draw(img, "RGBA")
+    d.text((W / 2, 540), "W I S I N G", font=font("Serif", 76), fill=WHITE + (a,), anchor="mm")
+    d.text((W / 2, 640), "Send one India–US client.", font=font("SemiBold", 44), fill=WHITE + (a,), anchor="mm")
+    d.text((W / 2, 700), "Get the full dashboard in 48 hours.", font=font("SemiBold", 44), fill=MUTED + (a,), anchor="mm")
+    rounded(d, (W / 2 - 300, 800, W / 2 + 300, 900), 50, fill=GREEN + (a,))
+    d.text((W / 2, 850), "[ your booking link ]", font=font("ExtraBold", 40), fill=(4, 18, 15, a), anchor="mm")
     return img
 
 
 def frame_at(t, stills):
-    seg = next(s for s in TIMELINE if s["t0"] <= t < s["t1"]) if t < DURATION else TIMELINE[-1]
-    if seg["kind"] == SCREEN:
-        img = screen_frame(seg, t, stills)
-    elif seg["kind"] == TALK:
-        img = talk_frame(seg, t)
-    else:
-        return end_frame(seg, t).convert("RGB")
+    seg = next((s for s in TIMELINE if s["t0"] <= t < s["t1"]), TIMELINE[-1])
+    kind = seg["kind"]
+    if kind == "end":
+        return end_frame(seg, t, stills)
+    img = {"screen": lambda: screen_frame(seg, t, stills), "email": lambda: email_frame(seg, t),
+           "talk": lambda: talk_frame(seg, t)}[kind]()
     caps = [c for c in seg["captions"] if c[0] <= t]
     if caps:
-        t_in, text = caps[-1]
-        draw_caption(img, text, t_in, t)
-    return img.convert("RGB")
+        c = caps[-1]
+        draw_caption(img, seg["who"], c[1], c[2] if len(c) > 2 else "green", c[0], t)
+    return img
 
 
 def main():
