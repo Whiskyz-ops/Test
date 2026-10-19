@@ -307,7 +307,8 @@ def property_sale_findings(ps, opts, ctx) -> list:
             if ind["term"] == "LTCG" and ind["exemptInr"] == 0 and ind["taxableInr"] > 0 and not ind["notCapitalAsset"]:
                 rec.append("the tax can be reduced by reinvesting the gain in another house or in 54EC bonds within the time limits")
             out.append({
-                "id": "india_property_sale" + sfx, "severity": "info", "category": "credit",
+                # Non-resident: TDS to reconcile / reclaim and money to move out of India.
+                "id": "india_property_sale" + sfx, "severity": "info" if resident else "warning", "category": "credit",
                 "title": "Indian property sold — " + r["label"] + ": India " + _term_word(ind["term"]) + " gain " + _inr(ind["taxableInr"]),
                 "detail": detail,
                 "recommendation": "; ".join(rec) + "." if rec else "Report the gain in the Indian return's capital-gains schedule.",

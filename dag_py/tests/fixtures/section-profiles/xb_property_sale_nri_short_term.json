@@ -79,8 +79,8 @@
   },
   {
    "path": "findings[id=india_property_sale].severity",
-   "value": "info",
-   "why": "summary; its recommendation flags that no buyer TDS is recorded"
+   "value": "warning",
+   "why": "non-resident seller: a warning (no buyer TDS recorded to reconcile; Form 15CA/15CB to move the money)"
   }
  ]
 }

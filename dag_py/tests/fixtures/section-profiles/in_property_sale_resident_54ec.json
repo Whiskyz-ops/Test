@@ -63,7 +63,7 @@
   {
    "path": "findings[id=india_property_sale].severity",
    "value": "info",
-   "why": "the sale summary, with the 54EC exemption"
+   "why": "resident seller: the sale summary (with the 54EC exemption) stays info"
   },
   {
    "path": "findings[id=india_property_gain_mismatch]",

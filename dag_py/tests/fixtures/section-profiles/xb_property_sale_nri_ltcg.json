@@ -91,6 +91,11 @@
    "path": "findings[id=india_property_gain_mismatch].severity",
    "value": "warning",
    "why": "India's gain at 87.1468 is $113,028 vs the US $62,183 (stamp-duty value, improvement and cost at older, lower rupee rates)"
+  },
+  {
+   "path": "findings[id=india_property_sale].severity",
+   "value": "warning",
+   "why": "non-resident seller: TDS refund to claim and Form 15CA/15CB to move the money — a warning"
   }
  ]
 }
