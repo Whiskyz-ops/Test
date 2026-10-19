@@ -275,7 +275,9 @@ function propertySaleFindings(ps, opts, ctx) {
       }
       if (ind.term === "LTCG" && ind.exemptInr === 0 && ind.taxableInr > 0 && !ind.notCapitalAsset) rec.push("the tax can be reduced by reinvesting the gain in another house or in 54EC bonds within the time limits");
       out.push({
-        id: "india_property_sale" + sfx, severity: "info", category: "credit",
+        // A non-resident has TDS to reconcile / reclaim and the money to move
+        // out of India: a warning, not just information.
+        id: "india_property_sale" + sfx, severity: resident ? "info" : "warning", category: "credit",
         title: "Indian property sold — " + r.label + ": India " + (ind.term === "LTCG" ? "long-term" : "short-term") + " gain " + inrFmt(ind.taxableInr),
         detail: detail,
         recommendation: rec.length ? rec.join("; ") + "." : "Report the gain in the Indian return's capital-gains schedule.",
