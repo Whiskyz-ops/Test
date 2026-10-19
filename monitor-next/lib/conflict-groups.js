@@ -63,6 +63,10 @@ export const AT_RISK_IDS = new Set(["salary_not_taxable_india_tds", "us_withhold
 export function groupOf(id) {
   if (GROUP_OF[id]) return GROUP_OF[id];
   if (/^holding_period_mismatch/.test(id)) return "mismatch";
+  // Indian property sales (one set per sale; "_N" when more than one).
+  if (/^india_property_gain_mismatch/.test(id)) return "mismatch";
+  if (/^india_property_sale_review/.test(id)) return "docs";
+  if (/^india_property_sale/.test(id)) return "double_tax";
   if (/^residency_status_/.test(id)) return "residency";
   return "other";
 }

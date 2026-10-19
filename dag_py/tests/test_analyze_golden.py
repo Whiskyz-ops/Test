@@ -90,7 +90,10 @@ FIXTURES_TESTED = [
 ]
 
 DAG_ONLY_DOCUMENT_IDS = {"form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id"}
-DAG_ONLY_FINDING_IDS = {"msme_disallowance_s43Bh_india", "presumptive_lockin_active_india"}
+# india_property_sale*: Indian property sales (india/property_sale.py), no
+# frozen-engine equivalent.
+DAG_ONLY_FINDING_IDS = {"msme_disallowance_s43Bh_india", "presumptive_lockin_active_india",
+                        "india_property_sale", "india_property_gain_mismatch", "india_property_sale_review"}
 
 
 def _is_entity_fixture(golden: dict) -> bool:

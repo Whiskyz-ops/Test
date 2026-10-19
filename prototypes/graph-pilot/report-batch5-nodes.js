@@ -504,6 +504,27 @@ NODES.lrsInvestmentTcsFinding = {
   }
 };
 
+// Indian property sold (india-property-sale.js): how India taxes it, a US
+// person's different US gain, and anything not worked out.
+NODES.indiaPropertySaleFinding = {
+  deps: ["indiaIncomeModelResult"],
+  compute: function (d, ctx) {
+    function safe(o, path, dflt) {
+      var v = path.split(".").reduce(function (a, k) { return a == null ? undefined : a[k]; }, o);
+      return v === undefined || v === null ? dflt : v;
+    }
+    var ps = d.indiaIncomeModelResult && d.indiaIncomeModelResult.propertySales;
+    if (!ps) return [];
+    var usStatus = safe(ctx.us, "us_residency_detail.final_us_residency_status", null);
+    var usEntity = safe(ctx.us, "profile.tax_entity_type", "individual") || "individual";
+    return require("./india-property-sale.js").propertySaleFindings(ps, {
+      residency: safe(ctx.india, "residency_detail.final_india_residency_status", null),
+      usWorldwide: usEntity === "individual" && ["US_CITIZEN", "RESIDENT_ALIEN", "DUAL_STATUS"].indexOf(usStatus) >= 0,
+      entityType: safe(ctx.india, "profile.entity_type", "individual")
+    }, ctx);
+  }
+};
+
 NODES.buildTaxComputationResult = {
   deps: ["buildTaxComputationIndiaResult", "buildTaxComputationUsResult", "buildTaxComputationUsStateResult"],
   compute: function (d) {
@@ -556,13 +577,13 @@ NODES.findingsAllResult = {
     "indiaAdvanceTaxInterestFinding", "underpayment2210Finding", "earlyWithdrawalPenalty72tFinding",
     "retirementExcessElectiveDeferralFinding", "retirementExcessIraContributionFinding", "hsaExcessContributionFinding", "retirementRmdRequiredFinding",
     "s83bElectionNotFiledTimelyFinding", "itinApplicationRequiredFinding", "lrsInvestmentTcsFinding", "scheduleFaInconsistentFinding", "blackMoneyActExposureFinding",
-    "indiaTdsRefundDueFinding"],
+    "indiaTdsRefundDueFinding", "indiaPropertySaleFinding"],
   compute: function (d) {
     var all = [].concat(d.findingsBatch1Result, d.findingsBatch2Result, d.findingsBatch3Result,
       d.findingsBatch4Result, d.findingsBatch5Result, d.holdingPeriodMismatchFindingsResult,
       d.residencyConsistencyFindings, d.indiaAdvanceTaxInterestFinding, d.underpayment2210Finding,
       d.earlyWithdrawalPenalty72tFinding, d.retirementExcessElectiveDeferralFinding, d.retirementExcessIraContributionFinding,
-      d.hsaExcessContributionFinding, d.retirementRmdRequiredFinding, d.s83bElectionNotFiledTimelyFinding, d.itinApplicationRequiredFinding, d.lrsInvestmentTcsFinding, d.scheduleFaInconsistentFinding, d.blackMoneyActExposureFinding, d.indiaTdsRefundDueFinding);
+      d.hsaExcessContributionFinding, d.retirementRmdRequiredFinding, d.s83bElectionNotFiledTimelyFinding, d.itinApplicationRequiredFinding, d.lrsInvestmentTcsFinding, d.scheduleFaInconsistentFinding, d.blackMoneyActExposureFinding, d.indiaTdsRefundDueFinding, d.indiaPropertySaleFinding);
     // detectConflicts's own final step (conflicts.js:1546-1551) — not just a
     // convenience, LIM-7's alerts feed (monitor()) depends on findings[]
     // actually being in this order (.filter(critical).slice(0,4)) to pick

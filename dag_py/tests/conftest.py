@@ -70,6 +70,13 @@ GOLDEN_DIVERGENT_FIXTURES_INDIA_INCOME_FILL = {"sample", "dual_resident_h1b", "u
 # already assumed it had). Moves India tax and everything downstream
 # (headline/summary) for this ROR fixture only; JS DAG === Python DAG holds.
 GOLDEN_DIVERGENT_FIXTURES_US_INCOME_INTO_INDIA = {"india_ror_us_income"}
+# Indian property sales (india/property_sale.py, 18 Oct 2026): the engine now
+# taxes a sold Indian property and credits the buyer's TDS. sharma_huf's
+# Jaipur plot sale has no acquisition date or cost, so its gain isn't
+# worked out (a review finding says so) but the ₹68,000 buyer TDS is now
+# credited — lowering the advance-tax interest finding's amounts. The frozen
+# engine ignored the sale entirely. JS DAG === Python DAG holds.
+GOLDEN_DIVERGENT_FIXTURES_PROPERTY_SALE = {"sharma_huf"}
 # Demo data made form-enterable (27 Sep 2026): dual_resident_h1b,
 # india_ror_us_income and india_only_ca_client now record salary the way
 # Layer 1 India does (gross salary, + ESOP perquisite) instead of a

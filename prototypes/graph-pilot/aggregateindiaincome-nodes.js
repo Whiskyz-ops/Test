@@ -713,10 +713,16 @@ var NODES = {
         if (months > 24) unlistedEquityLtcg197Inr += g4; else unlistedEquityStcgSlabInr += g4;
       });
 
+      // Indian immovable property sold (Property screen): long-term → the
+      // 12.5% no-exemption bucket, short-term → slab (india-property-sale.js,
+      // which also works out the same sale under US rules). India-source, so
+      // taxable whatever the residency.
+      var propertySales = require("./india-property-sale.js").propertySales(india, ctx);
+
       var stcgInr = num(safe(d.diAgg, "capital_gains.short_term_15_pct", 0)) + num(safe(annualCg, "stcg_111a_inr", 0)) + buybackStcgInr + otherStcg20Inr;
       var ltcgInr = num(safe(annualCg, "ltcg_112a_inr", 0)) + buybackLtcgInr + otherLtcg198Inr;
-      var ltcg197Inr = buybackLtcg197Inr + foreignEquityLtcg197Inr + otherLtcg197Inr + commodityLtcg197Inr + unlistedEquityLtcg197Inr;
-      var stcgSlabInr = buybackStcgSlabInr + foreignEquityStcgSlabInr + otherStcgSlabInr + commodityStcgSlabInr + unlistedEquityStcgSlabInr;
+      var ltcg197Inr = buybackLtcg197Inr + foreignEquityLtcg197Inr + otherLtcg197Inr + commodityLtcg197Inr + unlistedEquityLtcg197Inr + propertySales.ltcgInr;
+      var stcgSlabInr = buybackStcgSlabInr + foreignEquityStcgSlabInr + otherStcgSlabInr + commodityStcgSlabInr + unlistedEquityStcgSlabInr + propertySales.stcgInr;
 
       return {
         stcgInr: stcgInr, ltcgInr: ltcgInr, ltcg197Inr: ltcg197Inr, stcgSlabInr: stcgSlabInr,
@@ -724,7 +730,8 @@ var NODES = {
         chapterXiiaInvestmentIncomeInr: chapterXiiaInvestmentIncomeInr,
         chapterXiiaSfeaHoldingCount: chapterXiiaSfeaHoldingCount,
         deemedDividendInr: deemedDividendInr, promoterBuybackLtcgInr: promoterBuybackLtcgInr, promoterBuybackStcgInr: promoterBuybackStcgInr,
-        holdingPeriodMismatches: holdingPeriodMismatches
+        holdingPeriodMismatches: holdingPeriodMismatches,
+        propertySales: propertySales
       };
     }
   },
@@ -833,6 +840,9 @@ var NODES = {
         total: m(total)
       };
       var basket = indiaIncomeBasketSplit(result);
+      // Only when the client sold Indian property, so every other profile's
+      // model is unchanged.
+      if (cg.propertySales.rows.length) result.propertySales = cg.propertySales;
       result.passive = m(basket.passiveInr);
       result.general = m(basket.generalInr);
       return result;

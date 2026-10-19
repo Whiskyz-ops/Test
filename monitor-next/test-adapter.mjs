@@ -100,7 +100,7 @@ const KNOWN_EXTRA_FINDING_IDS = new Set([
   "presumptive_lockin_active_india", "msme_disallowance_s43Bh_india",
   "retirement_excess_elective_deferral", "retirement_excess_ira_contribution",
   "hsa_excess_contribution", "retirement_rmd_required", "s83b_election_not_filed_timely",
-  "itin_application_required", "lrs_investment_tcs",
+  "itin_application_required", "lrs_investment_tcs", "india_property_sale", "india_property_gain_mismatch", "india_property_sale_review",
   "nra_eci_fdap_classification_check", "us_withholding_outside_us_wages", "dtaa_16_2_short_stay_us", "dtaa_16_2_short_stay_india", "treaty_rate_not_recognized",
   "ftc_gap", "ftc_available", "niit_medicare_not_creditable", "underpayment_2210",
   "cfc", "cfc_below_threshold",

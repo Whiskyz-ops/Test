@@ -1,0 +1,86 @@
+{
+ "id": "xb_property_sale_nri_short_term",
+ "form": "layer1_india.html",
+ "section": "Capital Gains — Property (NRI, short-term)",
+ "story": "Green-card holder, non-resident of India (15 days), sells a Goa villa bought 1 Sep 2025 for ₹80,00,000 on 30 Jun 2026 for ₹95,00,000; no buyer TDS recorded.",
+ "router": {
+  "jurisdiction": "dual",
+  "base_tax_year": 2026,
+  "is_us_citizen": false,
+  "has_green_card": true,
+  "us_days": 340
+ },
+ "india": {
+  "profile": {
+   "entity_type": "individual",
+   "tax_regime": "NEW"
+  },
+  "residency_detail": {
+   "manual_days": 15,
+   "days_in_india_current_year": 15,
+   "final_india_residency_status": "NR"
+  },
+  "domestic_income": {},
+  "other_sources": {},
+  "property": {
+   "has_indian_property_transaction": true,
+   "properties": [
+    {
+     "property_type": "residential",
+     "status": "sold",
+     "address": "Villa 3, Goa",
+     "acquisition_date": "2025-09-01",
+     "actual_cost": 8000000,
+     "actual_cost_currency": "INR",
+     "sale_date": "2026-06-30",
+     "sale_consideration": 9500000,
+     "sale_consideration_currency": "INR"
+    }
+   ]
+  }
+ },
+ "us": {
+  "profile": {
+   "tax_entity_type": "individual",
+   "filing_status": "single",
+   "ssn_or_itin_type": "ssn"
+  },
+  "us_residency_detail": {
+   "is_us_citizen": false,
+   "has_green_card": true,
+   "us_days_current_year": 340,
+   "spt_test_met": true,
+   "final_us_residency_status": "RESIDENT_ALIEN"
+  },
+  "state_residency": {
+   "primary_state_of_residence": "TX"
+  }
+ },
+ "expect": [
+  {
+   "path": "model.income.india.stcgSlabInr",
+   "value": 1500000,
+   "why": "held 10 months (24 or less) → short-term at slab"
+  },
+  {
+   "path": "computed.indiaTax.totalTaxInr",
+   "value": 109200,
+   "why": "new-regime slabs on 15,00,000: 20,000 + 40,000 + 15% x 3,00,000 = 1,05,000; cess 4% = 4,200; income over 12L, so no rebate"
+  },
+  {
+   "path": "model.income.us.foreignStcg.usd",
+   "value": 17212.34,
+   "why": "US: 95,00,000/87.1468 - 80,00,000/87.1468 (2026 sale uses the latest published annual average, 2025) = 109,011.46 - 91,799.13; held 10 months → short-term"
+  },
+  {
+   "path": "findings[id=india_property_gain_mismatch]",
+   "value": null,
+   "why": "same rate both ends, so India's gain in dollars equals the US gain"
+  },
+  {
+   "path": "findings[id=india_property_sale].severity",
+   "value": "info",
+   "why": "summary; its recommendation flags that no buyer TDS is recorded"
+  }
+ ]
+}

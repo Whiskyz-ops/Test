@@ -883,8 +883,20 @@ var NODES = {
       // Rent under US rules (no Indian 30% deduction, no deemed rent) when the
       // India side hands it over; India's house-property figure otherwise.
       fill("rentalUsd", "rental", di.foreignRentalUsd > 0, src.rentalUsRulesInr != null ? num(src.rentalUsRulesInr) : num(ii.houseProperty && ii.houseProperty.inr));
-      fill("stcgUsd", "stcg", di.foreignStcgUsd > 0, num(ii.stcg && ii.stcg.inr) + num(ii.stcgSlabInr) + num(ii.vdaGainInr));
-      fill("ltcgUsd", "ltcg", di.foreignLtcgUsd > 0, num(ii.ltcg && ii.ltcg.inr) + num(ii.ltcg197Inr));
+      // Indian property sold (india-property-sale.js): India's property gains
+      // come out of India's figures and the gain under US rules goes in
+      // instead — proceeds and cost at their own years' exchange rates, no
+      // stamp-duty rule or Indian exemption, long-term after 12 months.
+      var ps = ii.propertySales || null;
+      var psIndiaStInr = ps ? ps.stcgInr : 0, psIndiaLtInr = ps ? ps.ltcgInr : 0;
+      var psUsStUsd = ps ? ps.usStcgUsd : 0, psUsLtUsd = ps ? ps.usLtcgUsd : 0;
+      function fillGain(key, flag, usHas, inr, extraUsd) {
+        if (usHas) return;
+        var v = usd(inr) + extraUsd;
+        if (v > 0) { out[key] = v; out.filled[flag] = true; }
+      }
+      fillGain("stcgUsd", "stcg", di.foreignStcgUsd > 0, num(ii.stcg && ii.stcg.inr) + num(ii.stcgSlabInr) + num(ii.vdaGainInr) - psIndiaStInr, psUsStUsd);
+      fillGain("ltcgUsd", "ltcg", di.foreignLtcgUsd > 0, num(ii.ltcg && ii.ltcg.inr) + num(ii.ltcg197Inr) - psIndiaLtInr, psUsLtUsd);
       // Family pension has a Layer 1 US counterpart (foreign pension): filled
       // there, gross (India's s.57(iia) deduction has no US equivalent).
       // Taxable EPF interest / NPS withdrawal already reach US income via

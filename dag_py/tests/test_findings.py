@@ -29,7 +29,7 @@ test_analyze_golden.py, once usTaxResult's entity/NRA routing and
 apportionmentResultBoundary are both closed and the full 61-finding set can
 be compared id-set-for-id-set against golden without carve-outs.
 """
-from conftest import GOLDEN_DIVERGENT_FIXTURES_FEIE_WAGES, GOLDEN_DIVERGENT_FIXTURES_S44BBB, ctx_for, load_golden
+from conftest import GOLDEN_DIVERGENT_FIXTURES_PROPERTY_SALE, GOLDEN_DIVERGENT_FIXTURES_FEIE_WAGES, GOLDEN_DIVERGENT_FIXTURES_S44BBB, ctx_for, load_golden
 from support import deep_diff
 
 from wising_dag.core.registry import NodeRegistry
@@ -122,6 +122,8 @@ def test_india_findings_match_golden(fixture_id):
     fired = values["findingsIndiaResult"] + values["indiaResidencyConsistencyFinding"]
 
     skip_ids = ALWAYS_SKIP_IDS | (US_TAX_RESULT_DEPENDENT_IDS if _is_entity_or_nra(golden) else set())
+    if fixture_id in GOLDEN_DIVERGENT_FIXTURES_PROPERTY_SALE:
+        skip_ids |= {"india_advance_tax_interest"}  # see conftest.py: property-sale TDS is now credited
     _assert_fired_findings_match_golden(fired, golden_by_id, fixture_id, skip_ids)
 
 

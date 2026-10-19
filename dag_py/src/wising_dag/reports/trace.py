@@ -1157,6 +1157,18 @@ def _findings_all_result_with_lrs_tcs(d, ctx, base_compute):
             ),
             "amountUsd": lrs["tcsInr"] / fx_rate(ctx), "refs": ["s.206C(1G)", "LRS"],
         })
+    # Indian property sold (india/property_sale.py; mirrors report-batch5-
+    # nodes.js indiaPropertySaleFinding).
+    ps = (d["indiaIncomeModelResult"] or {}).get("propertySales")
+    if ps:
+        from ..india.property_sale import property_sale_findings
+        us_status = safe(ctx.get("us"), "us_residency_detail.final_us_residency_status", None)
+        us_entity = safe(ctx.get("us"), "profile.tax_entity_type", "individual") or "individual"
+        all_findings.extend(property_sale_findings(ps, {
+            "residency": safe(ctx.get("india"), "residency_detail.final_india_residency_status", None),
+            "usWorldwide": us_entity == "individual" and us_status in ("US_CITIZEN", "RESIDENT_ALIEN", "DUAL_STATUS"),
+            "entityType": safe(ctx.get("india"), "profile.entity_type", "individual"),
+        }, ctx))
     return all_findings
 
 
@@ -1175,7 +1187,7 @@ def build(base):
         r.override(
             "findingsAllResult",
             NodeDef(
-                deps=base_findings_all.deps + ("withholdingDetailIndiaRaw",),
+                deps=base_findings_all.deps + tuple(x for x in ("withholdingDetailIndiaRaw", "indiaIncomeModelResult") if x not in base_findings_all.deps),
                 compute=lambda d, ctx: _findings_all_result_with_lrs_tcs(d, ctx, base_findings_all.compute),
             ),
             reason="report-batch5-nodes.js: adds lrs_investment_tcs finding (task #48, LRS-investor flag) on top of reports/assembly.py's own findingsAllResult",

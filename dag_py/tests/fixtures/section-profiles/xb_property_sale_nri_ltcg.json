@@ -1,0 +1,96 @@
+{
+ "id": "xb_property_sale_nri_ltcg",
+ "form": "layer1_india.html",
+ "section": "Capital Gains — Property (NRI, long-term)",
+ "story": "Green-card holder living in Texas, non-resident of India (20 days). Sells a Pune flat bought 1 Jun 2015 for ₹60,00,000 (₹10,00,000 improvement on 1 Mar 2018) on 10 Nov 2025 for ₹1,50,00,000; stamp-duty value ₹1,70,00,000; ₹1,50,000 sale costs; buyer deducted ₹20,00,000 TDS.",
+ "router": {
+  "jurisdiction": "dual",
+  "base_tax_year": 2026,
+  "is_us_citizen": false,
+  "has_green_card": true,
+  "us_days": 340
+ },
+ "india": {
+  "profile": {
+   "entity_type": "individual",
+   "tax_regime": "NEW"
+  },
+  "residency_detail": {
+   "manual_days": 20,
+   "days_in_india_current_year": 20,
+   "final_india_residency_status": "NR"
+  },
+  "domestic_income": {},
+  "other_sources": {},
+  "property": {
+   "has_indian_property_transaction": true,
+   "properties": [
+    {
+     "property_type": "residential",
+     "status": "sold",
+     "address": "Flat 12B, Pune",
+     "acquisition_date": "2015-06-01",
+     "actual_cost": 6000000,
+     "actual_cost_currency": "INR",
+     "improvements": [
+      {
+       "improvement_date": "2018-03-01",
+       "improvement_cost_inr": 1000000
+      }
+     ],
+     "sale_date": "2025-11-10",
+     "sale_consideration": 15000000,
+     "sale_consideration_currency": "INR",
+     "stamp_duty_value": 17000000,
+     "transfer_expenses_inr": 150000,
+     "buyer_tan": "PNEB12345C",
+     "buyer_tds_deducted_inr": 2000000
+    }
+   ]
+  }
+ },
+ "us": {
+  "profile": {
+   "tax_entity_type": "individual",
+   "filing_status": "single",
+   "ssn_or_itin_type": "ssn"
+  },
+  "us_residency_detail": {
+   "is_us_citizen": false,
+   "has_green_card": true,
+   "us_days_current_year": 340,
+   "spt_test_met": true,
+   "final_us_residency_status": "RESIDENT_ALIEN"
+  },
+  "state_residency": {
+   "primary_state_of_residence": "TX"
+  }
+ },
+ "expect": [
+  {
+   "path": "model.income.india.ltcg197Inr",
+   "value": 9850000,
+   "why": "stamp-duty value 1,70,00,000 > 110% of 1,50,00,000, so it is the consideration: 1,70,00,000 - 1,50,000 - 60,00,000 - 10,00,000; held 113 months > 24 → long-term"
+  },
+  {
+   "path": "computed.indiaTax.totalTaxInr",
+   "value": 1408550,
+   "why": "12.5% x 98,50,000 = 12,31,250; surcharge 10% (income > 50L) 1,23,125; cess 4% of 13,54,375 = 54,175 (non-resident: no basic-exemption adjustment)"
+  },
+  {
+   "path": "findings[id=india_tds_refund_due].title",
+   "value": "Indian tax withheld exceeds the tax due — ₹5,91,450 refund to claim in India",
+   "why": "TDS 20,00,000 - tax 14,08,550"
+  },
+  {
+   "path": "model.income.us.foreignLtcg.usd",
+   "value": 62183.47,
+   "why": "US rules: 1,50,00,000/87.1468 (2025) - 1,50,000/87.1468 - 60,00,000/64.1073 (2015) - 10,00,000/68.3734 (2018) = 172,123.36 - 1,721.23 - 93,593.09 - 14,625.57; actual price, no stamp-duty rule; held > 12 months"
+  },
+  {
+   "path": "findings[id=india_property_gain_mismatch].severity",
+   "value": "warning",
+   "why": "India's gain at 87.1468 is $113,028 vs the US $62,183 (stamp-duty value, improvement and cost at older, lower rupee rates)"
+  }
+ ]
+}

@@ -32,6 +32,8 @@ off a crossborder-domain node, so this file has zero crossborder deps):
 """
 from __future__ import annotations
 
+from .property_sale import property_sales
+
 from .joint_interest import joint_account_tds_credit_inr
 from ..core.constants import LIMITS
 from ..core.findings import make_finding
@@ -420,7 +422,7 @@ NODES = {
     "advQ2Inr": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("india"), "tax_credits.advance_tax_q2_15sep_inr", 0)), layer1_fields=("india.tax_credits.advance_tax_q2_15sep_inr",)),
     "advQ3Inr": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("india"), "tax_credits.advance_tax_q3_15dec_inr", 0)), layer1_fields=("india.tax_credits.advance_tax_q3_15dec_inr",)),
     "advQ4Inr": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("india"), "tax_credits.advance_tax_q4_15mar_inr", 0)), layer1_fields=("india.tax_credits.advance_tax_q4_15mar_inr",)),
-    "tdsInrIn1": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("india"), "tax_credits.tds_already_deducted_inr", 0)) + num(safe(ctx.get("india"), "tax_credits.tds_inr", 0)) + joint_account_tds_credit_inr(ctx.get("india")) + tds_entries_total_inr(ctx.get("india")), layer1_fields=("india.tax_credits.tds_already_deducted_inr", "india.tax_credits.tds_inr", "india.tax_credits.joint_account_tds_inr", "india.tax_credits.joint_account_tds_37ba_declared", "india.tax_credits.joint_account_first_holder", "india.other_sources.joint_account_own_share_percent")),
+    "tdsInrIn1": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("india"), "tax_credits.tds_already_deducted_inr", 0)) + num(safe(ctx.get("india"), "tax_credits.tds_inr", 0)) + joint_account_tds_credit_inr(ctx.get("india")) + tds_entries_total_inr(ctx.get("india")) + property_sales(ctx.get("india"), ctx)["tdsInr"], layer1_fields=("india.tax_credits.tds_already_deducted_inr", "india.tax_credits.tds_inr", "india.tax_credits.joint_account_tds_inr", "india.tax_credits.joint_account_tds_37ba_declared", "india.tax_credits.joint_account_first_holder", "india.other_sources.joint_account_own_share_percent")),
     "tcsInrIn1": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("india"), "tax_credits.tcs_inr", 0)), layer1_fields=("india.tax_credits.tcs_inr",)),
     "baseYearIn1": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.meta.baseYear", None)),
 
