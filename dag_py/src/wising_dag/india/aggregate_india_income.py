@@ -17,6 +17,7 @@ from . import constants as C
 from .joint_interest import joint_account_interest_share_inr
 from .house_property import compute_house_property, house_property_opts
 from .form_rules import esop_perquisite_inr
+from .property_sale import property_sales
 from .business_expenses import branch_receipts_inr, branch_turnover_inr, business_expense_opts, disallowance_slices_inr, npa_provisions_inr, regular_books_expenses
 
 ASSET_CLASS_RATES_INDIA = C.INDIA["ASSET_CLASS_RATES_INDIA"]
@@ -560,10 +561,15 @@ def _capital_gains_computation(d, ctx):
         else:
             unlisted_equity_stcg_slab_inr += g4
 
+    # Indian immovable property sold (india/property_sale.py; mirrors
+    # aggregateindiaincome-nodes.js): long-term -> 12.5% no-exemption
+    # bucket, short-term -> slab. India-source, so taxable whatever the residency.
+    property_sales_res = property_sales(india, ctx)
+
     stcg_inr = num(safe(d["diAgg"], "capital_gains.short_term_15_pct", 0)) + num(safe(annual_cg, "stcg_111a_inr", 0)) + buyback_stcg_inr + other_stcg20_inr
     ltcg_inr = num(safe(annual_cg, "ltcg_112a_inr", 0)) + buyback_ltcg_inr + other_ltcg198_inr
-    ltcg197_inr = buyback_ltcg197_inr + foreign_equity_ltcg197_inr + other_ltcg197_inr + commodity_ltcg197_inr + unlisted_equity_ltcg197_inr
-    stcg_slab_inr = buyback_stcg_slab_inr + foreign_equity_stcg_slab_inr + other_stcg_slab_inr + commodity_stcg_slab_inr + unlisted_equity_stcg_slab_inr
+    ltcg197_inr = buyback_ltcg197_inr + foreign_equity_ltcg197_inr + other_ltcg197_inr + commodity_ltcg197_inr + unlisted_equity_ltcg197_inr + property_sales_res["ltcgInr"]
+    stcg_slab_inr = buyback_stcg_slab_inr + foreign_equity_stcg_slab_inr + other_stcg_slab_inr + commodity_stcg_slab_inr + unlisted_equity_stcg_slab_inr + property_sales_res["stcgInr"]
 
     return {
         "stcgInr": stcg_inr, "ltcgInr": ltcg_inr, "ltcg197Inr": ltcg197_inr, "stcgSlabInr": stcg_slab_inr,
@@ -572,6 +578,7 @@ def _capital_gains_computation(d, ctx):
         "chapterXiiaSfeaHoldingCount": chapter_xiia_sfea_holding_count,
         "deemedDividendInr": deemed_dividend_inr, "promoterBuybackLtcgInr": promoter_buyback_ltcg_inr,
         "promoterBuybackStcgInr": promoter_buyback_stcg_inr, "holdingPeriodMismatches": holding_period_mismatches,
+        "propertySales": property_sales_res,
     }
 
 
@@ -798,6 +805,10 @@ def _india_income_model_result(d, ctx):
         "total": m(total),
     }
     basket = india_income_basket_split(result)
+    # Only when the client sold Indian property, so every other profile's
+    # model is unchanged.
+    if cg["propertySales"]["rows"]:
+        result["propertySales"] = cg["propertySales"]
     result["passive"] = m(basket["passiveInr"])
     result["general"] = m(basket["generalInr"])
     return result

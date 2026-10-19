@@ -1,0 +1,74 @@
+{
+ "id": "in_property_sale_resident_54ec",
+ "form": "layer1_india.html",
+ "section": "Capital Gains — Property (54EC exemption)",
+ "story": "Resident (ROR) individual with ₹12,75,000 salary sells a shop in Indore bought 10 Apr 2019 for ₹40,00,000 on 20 May 2026 for ₹1,10,00,000 and puts ₹60,00,000 into NHAI bonds (54EC); buyer deducted ₹1,10,000 TDS.",
+ "router": {
+  "jurisdiction": "india_only",
+  "entity_type": "individual",
+  "base_tax_year": 2026
+ },
+ "india": {
+  "profile": {
+   "entity_type": "individual",
+   "tax_regime": "NEW"
+  },
+  "residency_detail": {
+   "manual_days": 365,
+   "days_in_india_current_year": 365,
+   "final_india_residency_status": "ROR",
+   "days_in_india_preceding_4_years_gte_365": true,
+   "nr_years_last_10_gte_9": false,
+   "days_in_india_last_7_years_lte_729": false
+  },
+  "domestic_income": {
+   "salary": {
+    "has_salary_income": true,
+    "gross_salary_inr": 1275000
+   }
+  },
+  "other_sources": {},
+  "property": {
+   "has_indian_property_transaction": true,
+   "properties": [
+    {
+     "property_type": "commercial",
+     "status": "sold",
+     "address": "Shop 4, Indore",
+     "acquisition_date": "2019-04-10",
+     "actual_cost": 4000000,
+     "actual_cost_currency": "INR",
+     "sale_date": "2026-05-20",
+     "sale_consideration": 11000000,
+     "sale_consideration_currency": "INR",
+     "cg_exemption_section": "Reinvestment (Invest in NHAI or REC Bonds - Max ₹50L)",
+     "cg_exempt_invest_amount": 6000000,
+     "buyer_tds_deducted_inr": 110000
+    }
+   ]
+  }
+ },
+ "us": {},
+ "expect": [
+  {
+   "path": "model.income.india.ltcg197Inr",
+   "value": 2000000,
+   "why": "gain 1,10,00,000 - 40,00,000 = 70,00,000; 54EC exempts the bonds bought, capped at 50,00,000 → 20,00,000 taxable"
+  },
+  {
+   "path": "computed.indiaTax.totalTaxInr",
+   "value": 322400,
+   "why": "salary 12,75,000 - 75,000 = 12,00,000 at slab: 20,000 + 40,000 = 60,000; LTCG 12.5% x 20,00,000 = 2,50,000; no rebate (income 32L); cess 4% of 3,10,000 = 12,400"
+  },
+  {
+   "path": "findings[id=india_property_sale].severity",
+   "value": "info",
+   "why": "the sale summary, with the 54EC exemption"
+  },
+  {
+   "path": "findings[id=india_property_gain_mismatch]",
+   "value": null,
+   "why": "India-only client: no US return"
+  }
+ ]
+}

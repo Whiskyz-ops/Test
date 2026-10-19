@@ -1,0 +1,89 @@
+{
+ "id": "xb_property_sale_inherited_pre2001",
+ "form": "layer1_india.html",
+ "section": "Capital Gains — Property (inherited, pre-2001)",
+ "story": "Green-card holder, non-resident of India, sells the family home in Kochi inherited from a parent who bought it 1 Aug 1995 for ₹5,00,000 (1 Apr 2001 value ₹12,00,000) on 15 Mar 2026 for ₹80,00,000; buyer deducted ₹10,00,000 TDS.",
+ "router": {
+  "jurisdiction": "dual",
+  "base_tax_year": 2026,
+  "is_us_citizen": false,
+  "has_green_card": true,
+  "us_days": 340
+ },
+ "india": {
+  "profile": {
+   "entity_type": "individual",
+   "tax_regime": "NEW"
+  },
+  "residency_detail": {
+   "manual_days": 10,
+   "days_in_india_current_year": 10,
+   "final_india_residency_status": "NR"
+  },
+  "domestic_income": {},
+  "other_sources": {},
+  "property": {
+   "has_indian_property_transaction": true,
+   "properties": [
+    {
+     "property_type": "residential",
+     "status": "sold",
+     "address": "Family home, Kochi",
+     "is_inherited": true,
+     "original_owner_acquisition_date": "1995-08-01",
+     "original_owner_cost": 500000,
+     "original_owner_cost_currency": "INR",
+     "pre_2001_fmv_inr": 1200000,
+     "sale_date": "2026-03-15",
+     "sale_consideration": 8000000,
+     "sale_consideration_currency": "INR",
+     "buyer_tds_deducted_inr": 1000000
+    }
+   ]
+  }
+ },
+ "us": {
+  "profile": {
+   "tax_entity_type": "individual",
+   "filing_status": "single",
+   "ssn_or_itin_type": "ssn"
+  },
+  "us_residency_detail": {
+   "is_us_citizen": false,
+   "has_green_card": true,
+   "us_days_current_year": 340,
+   "spt_test_met": true,
+   "final_us_residency_status": "RESIDENT_ALIEN"
+  },
+  "state_residency": {
+   "primary_state_of_residence": "TX"
+  }
+ },
+ "expect": [
+  {
+   "path": "model.income.india.ltcg197Inr",
+   "value": 6800000,
+   "why": "previous owner's holding period → long-term; cost = higher of 5,00,000 and the 2001 value 12,00,000; 80,00,000 - 12,00,000"
+  },
+  {
+   "path": "computed.indiaTax.totalTaxInr",
+   "value": 972400,
+   "why": "12.5% x 68,00,000 = 8,50,000; surcharge 10% 85,000; cess 4% of 9,35,000 = 37,400"
+  },
+  {
+   "path": "findings[id=india_tds_refund_due].title",
+   "value": "Indian tax withheld exceeds the tax due — ₹27,600 refund to claim in India",
+   "why": "TDS 10,00,000 - tax 9,72,400"
+  },
+  {
+   "path": "findings[id=india_property_sale_review].severity",
+   "value": "warning",
+   "why": "US basis of an inherited property is its value at the date of death (§1014) — not collected"
+  },
+  {
+   "path": "model.income.us.foreignLtcg.usd",
+   "value": 78029.26,
+   "why": "estimate until the date-of-death value is entered: India's gain 68,00,000 / 87.1468"
+  }
+ ]
+}

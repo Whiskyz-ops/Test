@@ -736,8 +736,25 @@ def _foreign_income_from_india(d, ctx):
     fill("dividendsUsd", "dividends", di["foreignDividendsUsd"] > 0, inr_of("dividend") + inr_of("deemedDividendBuyback"))
     # Rent under US rules when the India side hands it over (mirrors JS).
     fill("rentalUsd", "rental", di["foreignRentalUsd"] > 0, num(src["rentalUsRulesInr"]) if src.get("rentalUsRulesInr") is not None else inr_of("houseProperty"))
-    fill("stcgUsd", "stcg", di["foreignStcgUsd"] > 0, inr_of("stcg") + num(ii.get("stcgSlabInr")) + num(ii.get("vdaGainInr")))
-    fill("ltcgUsd", "ltcg", di["foreignLtcgUsd"] > 0, inr_of("ltcg") + num(ii.get("ltcg197Inr")))
+    # Indian property sold (india/property_sale.py; mirrors JS): India's
+    # property gains come out of India's figures and the gain under US rules
+    # goes in instead.
+    ps = ii.get("propertySales") or None
+    ps_india_st_inr = ps["stcgInr"] if ps else 0
+    ps_india_lt_inr = ps["ltcgInr"] if ps else 0
+    ps_us_st_usd = ps["usStcgUsd"] if ps else 0
+    ps_us_lt_usd = ps["usLtcgUsd"] if ps else 0
+
+    def fill_gain(key, flag, us_has, inr, extra_usd):
+        if us_has:
+            return
+        v = usd(inr) + extra_usd
+        if v > 0:
+            out[key] = v
+            out["filled"][flag] = True
+
+    fill_gain("stcgUsd", "stcg", di["foreignStcgUsd"] > 0, inr_of("stcg") + num(ii.get("stcgSlabInr")) + num(ii.get("vdaGainInr")) - ps_india_st_inr, ps_us_st_usd)
+    fill_gain("ltcgUsd", "ltcg", di["foreignLtcgUsd"] > 0, inr_of("ltcg") + num(ii.get("ltcg197Inr")) - ps_india_lt_inr, ps_us_lt_usd)
     # Family pension goes to foreign pension (gross — India's s.57(iia)
     # deduction has no US equivalent); taxable EPF interest / NPS withdrawal
     # already reach US income via epfNpsCrossBorder. None may also land in

@@ -22,6 +22,8 @@ wising_dag/ — 'now' only enters via ctx").
 """
 from __future__ import annotations
 
+from ..india.property_sale import property_sales
+
 import re
 from datetime import datetime, timezone
 
@@ -494,7 +496,7 @@ NODES = {
         deps=(), compute=lambda d, ctx: (lambda tc: {
             "q1": num(safe(tc, "advance_tax_q1_15jun_inr", 0)), "q2": num(safe(tc, "advance_tax_q2_15sep_inr", 0)),
             "q3": num(safe(tc, "advance_tax_q3_15dec_inr", 0)), "q4": num(safe(tc, "advance_tax_q4_15mar_inr", 0)),
-            "tdsAlreadyDeducted": num(safe(tc, "tds_already_deducted_inr", 0)), "tds": num(safe(tc, "tds_inr", 0)) + joint_account_tds_credit_inr(ctx.get("india")) + tds_entries_total_inr(ctx.get("india")), "tcs": num(safe(tc, "tcs_inr", 0)),
+            "tdsAlreadyDeducted": num(safe(tc, "tds_already_deducted_inr", 0)), "tds": num(safe(tc, "tds_inr", 0)) + joint_account_tds_credit_inr(ctx.get("india")) + tds_entries_total_inr(ctx.get("india")) + property_sales(ctx.get("india"), ctx)["tdsInr"], "tcs": num(safe(tc, "tcs_inr", 0)),
         })(safe(ctx.get("india"), "tax_credits", {})),
         layer1_fields=(
             "india.tax_credits.advance_tax_q1_15jun_inr", "india.tax_credits.advance_tax_q2_15sep_inr",
