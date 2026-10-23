@@ -1,0 +1,217 @@
+{
+ "form": "NJ Schedule NJ-COJ",
+ "status": "draft - not reviewed",
+ "lines": {},
+ "unmapped": [
+  {
+   "field": "Names as shown on Form NJ1040",
+   "page": 1,
+   "rect": [
+    39,
+    721,
+    298,
+    738
+   ]
+  },
+  {
+   "field": "Social Security Number",
+   "page": 1,
+   "rect": [
+    299,
+    721,
+    558,
+    738
+   ]
+  },
+  {
+   "field": "Income properly taxed by both New Jersey and other jurisdiction Instructions page 31",
+   "page": 1,
+   "rect": [
+    137,
+    630,
+    426,
+    639
+   ]
+  },
+  {
+   "field": "1",
+   "page": 1,
+   "rect": [
+    470,
+    599,
+    557,
+    629
+   ]
+  },
+  {
+   "field": "code1",
+   "page": 1,
+   "rect": [
+    394,
+    603,
+    412,
+    619
+   ]
+  },
+  {
+   "field": "code2",
+   "page": 1,
+   "rect": [
+    411,
+    603,
+    428,
+    619
+   ]
+  },
+  {
+   "field": "2",
+   "page": 1,
+   "rect": [
+    470,
+    572,
+    557,
+    596
+   ]
+  },
+  {
+   "field": "Max Allowable Credit",
+   "page": 1,
+   "rect": [
+    469,
+    548,
+    544,
+    572
+   ]
+  },
+  {
+   "field": "4",
+   "page": 1,
+   "rect": [
+    353,
+    479,
+    449,
+    501
+   ]
+  },
+  {
+   "field": "4_2",
+   "page": 1,
+   "rect": [
+    472,
+    479,
+    557,
+    501
+   ]
+  },
+  {
+   "field": "5a",
+   "page": 1,
+   "rect": [
+    279,
+    455,
+    329,
+    477
+   ]
+  },
+  {
+   "field": "5",
+   "page": 1,
+   "rect": [
+    353,
+    396,
+    448,
+    477
+   ]
+  },
+  {
+   "field": "6",
+   "page": 1,
+   "rect": [
+    353,
+    369,
+    449,
+    392
+   ]
+  },
+  {
+   "field": " 0 6",
+   "page": 1,
+   "rect": [
+    472,
+    369,
+    557,
+    392
+   ]
+  },
+  {
+   "field": "8",
+   "page": 1,
+   "rect": [
+    353,
+    346,
+    449,
+    369
+   ]
+  },
+  {
+   "field": " 0 7",
+   "page": 1,
+   "rect": [
+    473,
+    345,
+    557,
+    367
+   ]
+  },
+  {
+   "field": "7",
+   "page": 1,
+   "rect": [
+    353,
+    321,
+    449,
+    343
+   ]
+  },
+  {
+   "field": " 0 8",
+   "page": 1,
+   "rect": [
+    473,
+    321,
+    558,
+    343
+   ]
+  },
+  {
+   "field": "9a",
+   "page": 1,
+   "rect": [
+    279,
+    297,
+    329,
+    319
+   ]
+  },
+  {
+   "field": "9",
+   "page": 1,
+   "rect": [
+    353,
+    233,
+    448,
+    317
+   ]
+  },
+  {
+   "field": " 0 9",
+   "page": 1,
+   "rect": [
+    472,
+    233,
+    555,
+    319
+   ]
+  }
+ ]
+}

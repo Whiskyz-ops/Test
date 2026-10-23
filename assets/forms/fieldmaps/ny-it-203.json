@@ -1,0 +1,1403 @@
+{
+ "form": "NY IT-203",
+ "status": "draft - not reviewed",
+ "lines": {
+  "1": {
+   "field": "nys 1 dollars",
+   "page": 2,
+   "also": [
+    "federal 1 dollars"
+   ]
+  },
+  "2": {
+   "field": "nys 2 dollars",
+   "page": 2,
+   "also": [
+    "federal 2 dollars"
+   ]
+  },
+  "3": {
+   "field": "nys 3 dollars",
+   "page": 2,
+   "also": [
+    "federal 3 dollars"
+   ]
+  },
+  "4": {
+   "field": "nys 4 dollars",
+   "page": 2,
+   "also": [
+    "federal 4 dollars"
+   ]
+  },
+  "5": {
+   "field": "nys 5 dollars",
+   "page": 2,
+   "also": [
+    "federal 5 dollars"
+   ]
+  },
+  "6": {
+   "field": "nys 6 dollars",
+   "page": 2,
+   "also": [
+    "federal 6 dollars"
+   ]
+  },
+  "7": {
+   "field": "nys 7 dollars",
+   "page": 2,
+   "also": [
+    "federal 7 dollars"
+   ]
+  },
+  "8": {
+   "field": "nys 8 dollars",
+   "page": 2,
+   "also": [
+    "federal 8 dollars"
+   ]
+  },
+  "9": {
+   "field": "nys 9 dollars",
+   "page": 2,
+   "also": [
+    "federal 9 dollars"
+   ]
+  },
+  "10": {
+   "field": "nys 10 dollars",
+   "page": 2,
+   "also": [
+    "federal 10 dollars"
+   ]
+  },
+  "11": {
+   "field": "nys 11 dollars",
+   "page": 2,
+   "also": [
+    "federal 11 dollars"
+   ]
+  },
+  "12": {
+   "field": "federal 12 dollars",
+   "page": 2
+  },
+  "13": {
+   "field": "nys 13 dollars",
+   "page": 2,
+   "also": [
+    "federal 13 dollars"
+   ]
+  },
+  "14": {
+   "field": "nys 14 dollars",
+   "page": 2,
+   "also": [
+    "federal 14 dollars"
+   ]
+  },
+  "15": {
+   "field": "nys 15 dollars",
+   "page": 2,
+   "also": [
+    "federal 15 dollars"
+   ]
+  },
+  "16": {
+   "field": "nys 16 dollars",
+   "page": 2,
+   "also": [
+    "federal 16 dollars"
+   ]
+  },
+  "17": {
+   "field": "nys 17 dollars",
+   "page": 2,
+   "also": [
+    "federal 17 dollars"
+   ]
+  },
+  "18": {
+   "field": "nys 18 dollars",
+   "page": 2,
+   "also": [
+    "federal 18 dollars"
+   ]
+  },
+  "19": {
+   "field": "nys 19 dollars",
+   "page": 2,
+   "also": [
+    "federal 19 dollars"
+   ]
+  },
+  "20": {
+   "field": "federal 20 dollars",
+   "page": 2
+  },
+  "00": {
+   "field": "nys 20 dollars",
+   "page": 2,
+   "also": [
+    "nys 21 dollars",
+    "nys 22 dollars",
+    "nys 23 dollars",
+    "45 federal dollars"
+   ]
+  },
+  "21": {
+   "field": "federal 21 dollars",
+   "page": 2
+  },
+  "22": {
+   "field": "federal 22 dollars",
+   "page": 2
+  },
+  "23": {
+   "field": "federal 23 dollars",
+   "page": 2
+  },
+  "24": {
+   "field": "nys 24 dollars",
+   "page": 2,
+   "also": [
+    "federal 24 dollars"
+   ]
+  },
+  "25": {
+   "field": "nys 25 dollars",
+   "page": 2,
+   "also": [
+    "federal 25 dollars"
+   ]
+  },
+  "26": {
+   "field": "nys 26 dollars",
+   "page": 2,
+   "also": [
+    "federal 26 dollars"
+   ]
+  },
+  "27": {
+   "field": "nys 27 dollars",
+   "page": 2,
+   "also": [
+    "federal 27 dollars"
+   ]
+  },
+  "28": {
+   "field": "nys 28 dollars",
+   "page": 2,
+   "also": [
+    "federal 28 dollars"
+   ]
+  },
+  "29": {
+   "field": "nys 29 dollars",
+   "page": 2,
+   "also": [
+    "federal 29 dollars"
+   ]
+  },
+  "30": {
+   "field": "nys 30 dollars",
+   "page": 2,
+   "also": [
+    "federal 30 dollars"
+   ]
+  },
+  "31": {
+   "field": "nys 31 dollars",
+   "page": 2,
+   "also": [
+    "federal 31 dollars"
+   ]
+  },
+  "32": {
+   "field": "32 dollars",
+   "page": 2
+  },
+  "33": {
+   "field": "33 dollars",
+   "page": 3
+  },
+  "34": {
+   "field": "34 dollars",
+   "page": 3,
+   "also": [
+    "35 dollars"
+   ]
+  },
+  "36": {
+   "field": "36 dollars",
+   "page": 3
+  },
+  "37": {
+   "field": "37 dollars",
+   "page": 3
+  },
+  "38": {
+   "field": "38 dollars",
+   "page": 3
+  },
+  "39": {
+   "field": "39 dollars",
+   "page": 3
+  },
+  "40": {
+   "field": "40 dollars",
+   "page": 3
+  },
+  "41": {
+   "field": "41 dollars",
+   "page": 3
+  },
+  "42": {
+   "field": "42 dollars",
+   "page": 3
+  },
+  "43": {
+   "field": "43 dollars",
+   "page": 3
+  },
+  "44": {
+   "field": "44 dollars",
+   "page": 3
+  },
+  "45": {
+   "field": "45 dollars",
+   "page": 3
+  },
+  "46": {
+   "field": "46 dollars",
+   "page": 3
+  },
+  "47": {
+   "field": "47 dollars",
+   "page": 3
+  },
+  "48": {
+   "field": "48 dollars",
+   "page": 3
+  },
+  "49": {
+   "field": "49 dollars",
+   "page": 3
+  },
+  "50": {
+   "field": "50 dollars",
+   "page": 3
+  },
+  "51": {
+   "field": "51 dollars",
+   "page": 3
+  },
+  "52": {
+   "field": "52 dollars",
+   "page": 3
+  },
+  "52a": {
+   "field": "52a dollars",
+   "page": 3
+  },
+  "52b": {
+   "field": "52b dollars",
+   "page": 3
+  },
+  "52c": {
+   "field": "52c dollars",
+   "page": 3
+  },
+  "52d": {
+   "field": "53d dollars",
+   "page": 3
+  },
+  "52e": {
+   "field": "53e dollars",
+   "page": 3
+  },
+  "52f": {
+   "field": "53f dollars",
+   "page": 3
+  },
+  "53": {
+   "field": "53 dollars",
+   "page": 3
+  },
+  "54": {
+   "field": "54 dollars",
+   "page": 3
+  },
+  "55": {
+   "field": "55 dollars",
+   "page": 3
+  },
+  "56": {
+   "field": "56 dollars",
+   "page": 3
+  },
+  "57": {
+   "field": "57 dollars",
+   "page": 3
+  },
+  "58": {
+   "field": "58 dollars",
+   "page": 3
+  },
+  "59": {
+   "field": "59 dollars",
+   "page": 4
+  },
+  "60": {
+   "field": "60 dollars",
+   "page": 4
+  },
+  "60a": {
+   "field": "60a dollars",
+   "page": 4
+  },
+  "60b": {
+   "field": "60b dollars",
+   "page": 4
+  },
+  "61": {
+   "field": "61 dollars",
+   "page": 4
+  },
+  "62": {
+   "field": "62 dollars",
+   "page": 4
+  },
+  "63": {
+   "field": "63 dollars",
+   "page": 4
+  },
+  "64": {
+   "field": "64 dollars",
+   "page": 4
+  },
+  "65": {
+   "field": "65 dollars",
+   "page": 4
+  },
+  "66": {
+   "field": "66 dollars",
+   "page": 4
+  },
+  "67": {
+   "field": "67 dollars",
+   "page": 4
+  },
+  "68": {
+   "field": "68 dollars",
+   "page": 4
+  },
+  "68a": {
+   "field": "68a dollars",
+   "page": 4
+  },
+  "68b": {
+   "field": "68b dollars",
+   "page": 4
+  },
+  "69": {
+   "field": "69 dollars",
+   "page": 4
+  },
+  "70": {
+   "field": "70 dollars",
+   "page": 4
+  },
+  "71": {
+   "field": "71 dollars",
+   "page": 4
+  },
+  "72": {
+   "field": "72 dollars",
+   "page": 4
+  }
+ },
+ "unmapped": [
+  {
+   "field": "beginning date",
+   "page": 1,
+   "rect": [
+    504,
+    708,
+    560,
+    720
+   ]
+  },
+  {
+   "field": "ending date",
+   "page": 1,
+   "rect": [
+    504,
+    696,
+    576,
+    708
+   ]
+  },
+  {
+   "field": "Your first name",
+   "page": 1,
+   "rect": [
+    36,
+    664,
+    156,
+    676
+   ]
+  },
+  {
+   "field": "Your last name",
+   "page": 1,
+   "rect": [
+    156,
+    664,
+    354,
+    676
+   ]
+  },
+  {
+   "field": "Your DOB",
+   "page": 1,
+   "rect": [
+    354,
+    664,
+    450,
+    676
+   ]
+  },
+  {
+   "field": "Your SSN",
+   "page": 1,
+   "rect": [
+    450,
+    664,
+    576,
+    676
+   ]
+  },
+  {
+   "field": "Spouse's first name",
+   "page": 1,
+   "rect": [
+    36,
+    640,
+    156,
+    652
+   ]
+  },
+  {
+   "field": "Spouse's last name",
+   "page": 1,
+   "rect": [
+    156,
+    640,
+    354,
+    652
+   ]
+  },
+  {
+   "field": "Spouse DOB",
+   "page": 1,
+   "rect": [
+    354,
+    640,
+    450,
+    652
+   ]
+  },
+  {
+   "field": "Spouse's SSN",
+   "page": 1,
+   "rect": [
+    450,
+    640,
+    576,
+    652
+   ]
+  },
+  {
+   "field": "Mailing address",
+   "page": 1,
+   "rect": [
+    36,
+    616,
+    366,
+    628
+   ]
+  },
+  {
+   "field": "Apartment number 1",
+   "page": 1,
+   "rect": [
+    367,
+    616,
+    450,
+    628
+   ]
+  },
+  {
+   "field": "NY State county of residence",
+   "page": 1,
+   "rect": [
+    450,
+    616,
+    576,
+    628
+   ]
+  },
+  {
+   "field": "City, village or post office 1",
+   "page": 1,
+   "rect": [
+    36,
+    592,
+    216,
+    604
+   ]
+  },
+  {
+   "field": "State 1",
+   "page": 1,
+   "rect": [
+    216,
+    592,
+    240,
+    604
+   ]
+  },
+  {
+   "field": "ZIP code 1",
+   "page": 1,
+   "rect": [
+    240,
+    592,
+    312,
+    604
+   ]
+  },
+  {
+   "field": "Country",
+   "page": 1,
+   "rect": [
+    312,
+    592,
+    450,
+    604
+   ]
+  },
+  {
+   "field": "nys school district name",
+   "page": 1,
+   "rect": [
+    450,
+    592,
+    576,
+    604
+   ]
+  },
+  {
+   "field": "permanent home address",
+   "page": 1,
+   "rect": [
+    36,
+    568,
+    300,
+    580
+   ]
+  },
+  {
+   "field": "apartment number 2",
+   "page": 1,
+   "rect": [
+    309,
+    568,
+    372,
+    580
+   ]
+  },
+  {
+   "field": "city, village or post office 2",
+   "page": 1,
+   "rect": [
+    373,
+    568,
+    474,
+    580
+   ]
+  },
+  {
+   "field": "school district code number",
+   "page": 1,
+   "rect": [
+    531,
+    569,
+    575,
+    581
+   ]
+  },
+  {
+   "field": "State 2",
+   "page": 1,
+   "rect": [
+    36,
+    544,
+    64,
+    556
+   ]
+  },
+  {
+   "field": "zip code 2",
+   "page": 1,
+   "rect": [
+    78,
+    544,
+    144,
+    556
+   ]
+  },
+  {
+   "field": "Country 2",
+   "page": 1,
+   "rect": [
+    150,
+    544,
+    368,
+    556
+   ]
+  },
+  {
+   "field": "if taxpayer is deceased",
+   "page": 1,
+   "rect": [
+    423,
+    544,
+    494,
+    556
+   ]
+  },
+  {
+   "field": "date of death",
+   "page": 1,
+   "rect": [
+    504,
+    544,
+    576,
+    556
+   ]
+  },
+  {
+   "field": "D2_amount",
+   "page": 1,
+   "rect": [
+    545,
+    501,
+    575,
+    511
+   ]
+  },
+  {
+   "field": "D2_amount_spouse",
+   "page": 1,
+   "rect": [
+    545,
+    477,
+    575,
+    487
+   ]
+  },
+  {
+   "field": "E2.0",
+   "page": 1,
+   "rect": [
+    545,
+    401,
+    576,
+    417
+   ]
+  },
+  {
+   "field": "E2.1",
+   "page": 1,
+   "rect": [
+    545,
+    377,
+    576,
+    393
+   ]
+  },
+  {
+   "field": "F1",
+   "page": 1,
+   "rect": [
+    509,
+    353,
+    540,
+    369
+   ]
+  },
+  {
+   "field": "F2",
+   "page": 1,
+   "rect": [
+    545,
+    353,
+    576,
+    369
+   ]
+  },
+  {
+   "field": "G date",
+   "page": 1,
+   "rect": [
+    505,
+    318,
+    575,
+    330
+   ]
+  },
+  {
+   "field": "first and middle I.0",
+   "page": 1,
+   "rect": [
+    36,
+    174,
+    150,
+    186
+   ]
+  },
+  {
+   "field": "last name chart.0",
+   "page": 1,
+   "rect": [
+    150,
+    174,
+    264,
+    186
+   ]
+  },
+  {
+   "field": "relationship.0",
+   "page": 1,
+   "rect": [
+    264,
+    174,
+    354,
+    186
+   ]
+  },
+  {
+   "field": "dependent ssn.0",
+   "page": 1,
+   "rect": [
+    354,
+    174,
+    480,
+    186
+   ]
+  },
+  {
+   "field": "dependent dob.0",
+   "page": 1,
+   "rect": [
+    480,
+    174,
+    576,
+    186
+   ]
+  },
+  {
+   "field": "first and middle I.1",
+   "page": 1,
+   "rect": [
+    36,
+    156,
+    150,
+    168
+   ]
+  },
+  {
+   "field": "last name chart.1",
+   "page": 1,
+   "rect": [
+    150,
+    156,
+    264,
+    168
+   ]
+  },
+  {
+   "field": "relationship.1",
+   "page": 1,
+   "rect": [
+    264,
+    156,
+    354,
+    168
+   ]
+  },
+  {
+   "field": "dependent ssn.1",
+   "page": 1,
+   "rect": [
+    354,
+    156,
+    480,
+    168
+   ]
+  },
+  {
+   "field": "dependent dob.1",
+   "page": 1,
+   "rect": [
+    480,
+    156,
+    576,
+    168
+   ]
+  },
+  {
+   "field": "first and middle I.2",
+   "page": 1,
+   "rect": [
+    36,
+    138,
+    150,
+    150
+   ]
+  },
+  {
+   "field": "last name chart.2",
+   "page": 1,
+   "rect": [
+    150,
+    138,
+    264,
+    150
+   ]
+  },
+  {
+   "field": "relationship.2",
+   "page": 1,
+   "rect": [
+    264,
+    138,
+    354,
+    150
+   ]
+  },
+  {
+   "field": "dependent ssn.2",
+   "page": 1,
+   "rect": [
+    354,
+    138,
+    480,
+    150
+   ]
+  },
+  {
+   "field": "dependent dob.2",
+   "page": 1,
+   "rect": [
+    480,
+    138,
+    576,
+    150
+   ]
+  },
+  {
+   "field": "first and middle I.3",
+   "page": 1,
+   "rect": [
+    36,
+    120,
+    150,
+    132
+   ]
+  },
+  {
+   "field": "last name chart.3",
+   "page": 1,
+   "rect": [
+    150,
+    120,
+    264,
+    132
+   ]
+  },
+  {
+   "field": "relationship.3",
+   "page": 1,
+   "rect": [
+    264,
+    120,
+    354,
+    132
+   ]
+  },
+  {
+   "field": "dependent ssn.3",
+   "page": 1,
+   "rect": [
+    354,
+    120,
+    480,
+    132
+   ]
+  },
+  {
+   "field": "dependent dob.3",
+   "page": 1,
+   "rect": [
+    480,
+    120,
+    576,
+    132
+   ]
+  },
+  {
+   "field": "first and middle I.4",
+   "page": 1,
+   "rect": [
+    36,
+    102,
+    150,
+    114
+   ]
+  },
+  {
+   "field": "last name chart.4",
+   "page": 1,
+   "rect": [
+    150,
+    102,
+    264,
+    114
+   ]
+  },
+  {
+   "field": "relationship.4",
+   "page": 1,
+   "rect": [
+    264,
+    102,
+    354,
+    114
+   ]
+  },
+  {
+   "field": "dependent ssn.4",
+   "page": 1,
+   "rect": [
+    354,
+    102,
+    480,
+    114
+   ]
+  },
+  {
+   "field": "dependent dob.4",
+   "page": 1,
+   "rect": [
+    480,
+    102,
+    576,
+    114
+   ]
+  },
+  {
+   "field": "first and middle I.5",
+   "page": 1,
+   "rect": [
+    36,
+    84,
+    150,
+    96
+   ]
+  },
+  {
+   "field": "last name chart.5",
+   "page": 1,
+   "rect": [
+    150,
+    84,
+    264,
+    96
+   ]
+  },
+  {
+   "field": "relationship.5",
+   "page": 1,
+   "rect": [
+    264,
+    84,
+    354,
+    96
+   ]
+  },
+  {
+   "field": "dependent ssn.5",
+   "page": 1,
+   "rect": [
+    354,
+    84,
+    480,
+    96
+   ]
+  },
+  {
+   "field": "dependent dob.5",
+   "page": 1,
+   "rect": [
+    480,
+    84,
+    576,
+    96
+   ]
+  },
+  {
+   "field": "Your SSN",
+   "page": 2,
+   "rect": [
+    161,
+    732,
+    296,
+    744
+   ]
+  },
+  {
+   "field": "16 identify",
+   "page": 2,
+   "rect": [
+    177,
+    480,
+    282,
+    492
+   ]
+  },
+  {
+   "field": "18 identify",
+   "page": 2,
+   "rect": [
+    79,
+    444,
+    282,
+    456
+   ]
+  },
+  {
+   "field": "Name as shown on page 1",
+   "page": 3,
+   "rect": [
+    36,
+    732,
+    303,
+    744
+   ]
+  },
+  {
+   "field": "Your SSN",
+   "page": 3,
+   "rect": [
+    303,
+    732,
+    445,
+    744
+   ]
+  },
+  {
+   "field": "EIC",
+   "page": 3,
+   "rect": [
+    390,
+    534,
+    426,
+    546
+   ]
+  },
+  {
+   "field": "percent",
+   "page": 3,
+   "rect": [
+    104,
+    474,
+    140,
+    486
+   ]
+  },
+  {
+   "field": "45nys dollars",
+   "page": 3,
+   "rect": [
+    144,
+    474,
+    258,
+    484
+   ]
+  },
+  {
+   "field": "Your SSN",
+   "page": 4,
+   "rect": [
+    162,
+    732,
+    297,
+    744
+   ]
+  },
+  {
+   "field": "routing number",
+   "page": 4,
+   "rect": [
+    140,
+    300,
+    248,
+    312
+   ]
+  },
+  {
+   "field": "account number",
+   "page": 4,
+   "rect": [
+    358,
+    300,
+    566,
+    312
+   ]
+  },
+  {
+   "field": "electronic funds withdrawal",
+   "page": 4,
+   "rect": [
+    310,
+    276,
+    382,
+    288
+   ]
+  },
+  {
+   "field": "line 74",
+   "page": 4,
+   "rect": [
+    442,
+    276,
+    555,
+    286
+   ]
+  },
+  {
+   "field": "designee name",
+   "page": 4,
+   "rect": [
+    114,
+    235,
+    333,
+    247
+   ]
+  },
+  {
+   "field": "designee phone number",
+   "page": 4,
+   "rect": [
+    339,
+    235,
+    363,
+    247
+   ]
+  },
+  {
+   "field": "designees phone number",
+   "page": 4,
+   "rect": [
+    367,
+    235,
+    489,
+    247
+   ]
+  },
+  {
+   "field": "email1",
+   "page": 4,
+   "rect": [
+    142,
+    221,
+    489,
+    233
+   ]
+  },
+  {
+   "field": "designee pin",
+   "page": 4,
+   "rect": [
+    490,
+    221,
+    575,
+    233
+   ]
+  },
+  {
+   "field": "NYTPRIN",
+   "page": 4,
+   "rect": [
+    180,
+    198,
+    276,
+    210
+   ]
+  },
+  {
+   "field": "NYTPRIN excl code",
+   "page": 4,
+   "rect": [
+    314,
+    198,
+    347,
+    210
+   ]
+  },
+  {
+   "field": "preparer's printed name",
+   "page": 4,
+   "rect": [
+    192,
+    180,
+    347,
+    192
+   ]
+  },
+  {
+   "field": "preparersssno",
+   "page": 4,
+   "rect": [
+    240,
+    161,
+    347,
+    173
+   ]
+  },
+  {
+   "field": "firmsname",
+   "page": 4,
+   "rect": [
+    37,
+    161,
+    238,
+    173
+   ]
+  },
+  {
+   "field": "address",
+   "page": 4,
+   "rect": [
+    37,
+    141,
+    238,
+    153
+   ]
+  },
+  {
+   "field": "City",
+   "page": 4,
+   "rect": [
+    37,
+    126,
+    276,
+    138
+   ]
+  },
+  {
+   "field": "email2",
+   "page": 4,
+   "rect": [
+    62,
+    113,
+    348,
+    125
+   ]
+  },
+  {
+   "field": "employidnumber",
+   "page": 4,
+   "rect": [
+    240,
+    143,
+    347,
+    155
+   ]
+  },
+  {
+   "field": "date",
+   "page": 4,
+   "rect": [
+    276,
+    125,
+    347,
+    137
+   ]
+  },
+  {
+   "field": "Occupation",
+   "page": 4,
+   "rect": [
+    355,
+    162,
+    575,
+    174
+   ]
+  },
+  {
+   "field": "Occupation - Spouse",
+   "page": 4,
+   "rect": [
+    476,
+    144,
+    575,
+    156
+   ]
+  },
+  {
+   "field": "date2",
+   "page": 4,
+   "rect": [
+    355,
+    126,
+    455,
+    138
+   ]
+  },
+  {
+   "field": "day phone area code",
+   "page": 4,
+   "rect": [
+    460,
+    127,
+    484,
+    139
+   ]
+  },
+  {
+   "field": "daytimephoneno",
+   "page": 4,
+   "rect": [
+    488,
+    127,
+    575,
+    139
+   ]
+  },
+  {
+   "field": "email3",
+   "page": 4,
+   "rect": [
+    381,
+    114,
+    575,
+    126
+   ]
+  }
+ ]
+}

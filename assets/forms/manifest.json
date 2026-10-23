@@ -1,0 +1,1289 @@
+{
+ "note": "Blank forms for tax year 2025 (filed in 2026). Re-run each year: field names change between revisions.",
+ "forms": [
+  {
+   "form": "Form 1040",
+   "title": "U.S. Individual Income Tax Return",
+   "group": "us-federal",
+   "file": "us-federal/form-1040.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f1040.pdf",
+   "why": "US return for citizens / residents (usTaxResult)",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 126,
+    "checkbox_or_radio": 73,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-1040.json",
+   "mapped": 58
+  },
+  {
+   "form": "Form 1040-NR",
+   "title": "U.S. Nonresident Alien Income Tax Return",
+   "group": "us-federal",
+   "file": "us-federal/form-1040-nr.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f1040nr.pdf",
+   "why": "form_1040nr: US nonresident alien",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 127,
+    "checkbox_or_radio": 44,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-1040-nr.json",
+   "mapped": 66
+  },
+  {
+   "form": "Schedule 1 (Form 1040)",
+   "title": "Additional Income and Adjustments to Income",
+   "group": "us-federal",
+   "file": "us-federal/schedule-1-form-1040.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f1040s1.pdf",
+   "why": "Foreign income, FEIE exclusion, rental/business income",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 68,
+    "checkbox_or_radio": 5,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/schedule-1-form-1040.json",
+   "mapped": 59
+  },
+  {
+   "form": "Schedule 2 (Form 1040)",
+   "title": "Additional Taxes",
+   "group": "us-federal",
+   "file": "us-federal/schedule-2-form-1040.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f1040s2.pdf",
+   "why": "AMT, SE tax, NIIT, Additional Medicare Tax, §72(t)",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 51,
+    "checkbox_or_radio": 12,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/schedule-2-form-1040.json",
+   "mapped": 45
+  },
+  {
+   "form": "Schedule 3 (Form 1040)",
+   "title": "Additional Credits and Payments",
+   "group": "us-federal",
+   "file": "us-federal/schedule-3-form-1040.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f1040s3.pdf",
+   "why": "Foreign tax credit (line 1) flows here",
+   "pages": 1,
+   "fillable": true,
+   "fields": {
+    "text": 37,
+    "checkbox_or_radio": 0,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/schedule-3-form-1040.json",
+   "mapped": 33
+  },
+  {
+   "form": "Schedule A (Form 1040)",
+   "title": "Itemized Deductions",
+   "group": "us-federal",
+   "file": "us-federal/schedule-a-form-1040.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f1040sa.pdf",
+   "why": "Itemized vs standard deduction (dedUs)",
+   "pages": 1,
+   "fillable": true,
+   "fields": {
+    "text": 30,
+    "checkbox_or_radio": 3,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/schedule-a-form-1040.json",
+   "mapped": 25
+  },
+  {
+   "form": "Schedule B (Form 1040)",
+   "title": "Interest and Ordinary Dividends",
+   "group": "us-federal",
+   "file": "us-federal/schedule-b-form-1040.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f1040sb.pdf",
+   "why": "Part III foreign accounts question (FBAR link)",
+   "pages": 1,
+   "fillable": true,
+   "fields": {
+    "text": 66,
+    "checkbox_or_radio": 6,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/schedule-b-form-1040.json",
+   "mapped": 5
+  },
+  {
+   "form": "Schedule C (Form 1040)",
+   "title": "Profit or Loss From Business",
+   "group": "us-federal",
+   "file": "us-federal/schedule-c-form-1040.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f1040sc.pdf",
+   "why": "Self-employment / business income",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 79,
+    "checkbox_or_radio": 26,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/schedule-c-form-1040.json",
+   "mapped": 44
+  },
+  {
+   "form": "Schedule D (Form 1040)",
+   "title": "Capital Gains and Losses",
+   "group": "us-federal",
+   "file": "us-federal/schedule-d-form-1040.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f1040sd.pdf",
+   "why": "Capital gains incl. Indian property / securities",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 47,
+    "checkbox_or_radio": 8,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/schedule-d-form-1040.json",
+   "mapped": 13
+  },
+  {
+   "form": "Schedule E (Form 1040)",
+   "title": "Supplemental Income and Loss",
+   "group": "us-federal",
+   "file": "us-federal/schedule-e-form-1040.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f1040se.pdf",
+   "why": "Indian rental property income",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 164,
+    "checkbox_or_radio": 21,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/schedule-e-form-1040.json",
+   "mapped": 45
+  },
+  {
+   "form": "Schedule SE (Form 1040)",
+   "title": "Self-Employment Tax",
+   "group": "us-federal",
+   "file": "us-federal/schedule-se-form-1040.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f1040sse.pdf",
+   "why": "SE tax on business income",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 26,
+    "checkbox_or_radio": 1,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/schedule-se-form-1040.json",
+   "mapped": 22
+  },
+  {
+   "form": "Schedule 8812 (Form 1040)",
+   "title": "Credits for Qualifying Children and Other Dependents",
+   "group": "us-federal",
+   "file": "us-federal/schedule-8812-form-1040.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f1040s8.pdf",
+   "why": "Child tax credit",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 35,
+    "checkbox_or_radio": 6,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/schedule-8812-form-1040.json",
+   "mapped": 32
+  },
+  {
+   "form": "Form 8949",
+   "title": "Sales and Other Dispositions of Capital Assets",
+   "group": "us-federal",
+   "file": "us-federal/form-8949.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f8949.pdf",
+   "why": "Per-sale detail feeding Schedule D",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 190,
+    "checkbox_or_radio": 12,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-8949.json",
+   "mapped": 0
+  },
+  {
+   "form": "Schedule NEC (Form 1040-NR)",
+   "title": "Tax on Income Not Effectively Connected",
+   "group": "us-federal",
+   "file": "us-federal/schedule-nec-form-1040-nr.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f1040nrn.pdf",
+   "why": "NRA FDAP income at 30% / treaty rate (nra_fdap)",
+   "pages": 1,
+   "fillable": true,
+   "fields": {
+    "text": 137,
+    "checkbox_or_radio": 0,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/schedule-nec-form-1040-nr.json",
+   "mapped": 22
+  },
+  {
+   "form": "Schedule OI (Form 1040-NR)",
+   "title": "Other Information",
+   "group": "us-federal",
+   "file": "us-federal/schedule-oi-form-1040-nr.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f1040nro.pdf",
+   "why": "Treaty-exempt income, days in US",
+   "pages": 1,
+   "fillable": true,
+   "fields": {
+    "text": 39,
+    "checkbox_or_radio": 26,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/schedule-oi-form-1040-nr.json",
+   "mapped": 1
+  },
+  {
+   "form": "Schedule A (Form 1040-NR)",
+   "title": "Itemized Deductions (nonresident)",
+   "group": "us-federal",
+   "file": "us-federal/schedule-a-form-1040-nr.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f1040nra.pdf",
+   "why": "NRA itemized deductions",
+   "pages": 1,
+   "fillable": true,
+   "fields": {
+    "text": 12,
+    "checkbox_or_radio": 0,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/schedule-a-form-1040-nr.json",
+   "mapped": 9
+  },
+  {
+   "form": "Form 1116",
+   "title": "Foreign Tax Credit",
+   "group": "us-federal",
+   "file": "us-federal/form-1116.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f1116.pdf",
+   "why": "form_1116: Indian tax credited against US tax",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 107,
+    "checkbox_or_radio": 11,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-1116.json",
+   "mapped": 34
+  },
+  {
+   "form": "Form 2555",
+   "title": "Foreign Earned Income",
+   "group": "us-federal",
+   "file": "us-federal/form-2555.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f2555.pdf",
+   "why": "form_2555: FEIE elected",
+   "pages": 3,
+   "fillable": true,
+   "fields": {
+    "text": 134,
+    "checkbox_or_radio": 26,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-2555.json",
+   "mapped": 42
+  },
+  {
+   "form": "Form 8833",
+   "title": "Treaty-Based Return Position Disclosure",
+   "group": "us-federal",
+   "file": "us-federal/form-8833.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f8833.pdf",
+   "why": "form_8833: DTAA tie-breaker / treaty position",
+   "pages": 5,
+   "fillable": true,
+   "fields": {
+    "text": 36,
+    "checkbox_or_radio": 5,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-8833.json",
+   "mapped": 0
+  },
+  {
+   "form": "Form 8938",
+   "title": "Statement of Specified Foreign Financial Assets",
+   "group": "us-federal",
+   "file": "us-federal/form-8938.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f8938.pdf",
+   "why": "form_8938: FATCA threshold crossed",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 93,
+    "checkbox_or_radio": 38,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-8938.json",
+   "mapped": 1
+  },
+  {
+   "form": "Form 8621",
+   "title": "PFIC Information Return",
+   "group": "us-federal",
+   "file": "us-federal/form-8621.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f8621.pdf",
+   "why": "form_8621: Indian mutual funds / ETFs, one per fund",
+   "pages": 4,
+   "fillable": true,
+   "fields": {
+    "text": 127,
+    "checkbox_or_radio": 24,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-8621.json",
+   "mapped": 37
+  },
+  {
+   "form": "Form 5471",
+   "title": "Information Return re Certain Foreign Corporations",
+   "group": "us-federal",
+   "file": "us-federal/form-5471.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f5471.pdf",
+   "why": "form_5471: >=10% of an Indian company",
+   "pages": 6,
+   "fillable": true,
+   "fields": {
+    "text": 359,
+    "checkbox_or_radio": 78,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-5471.json",
+   "mapped": 57
+  },
+  {
+   "form": "Form 8865",
+   "title": "Return re Certain Foreign Partnerships",
+   "group": "us-federal",
+   "file": "us-federal/form-8865.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f8865.pdf",
+   "why": "form_8865: Indian partnership / LLP",
+   "pages": 6,
+   "fillable": true,
+   "fields": {
+    "text": 415,
+    "checkbox_or_radio": 46,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-8865.json",
+   "mapped": 71
+  },
+  {
+   "form": "Form 8858",
+   "title": "Information Return re Foreign Disregarded Entities and Branches",
+   "group": "us-federal",
+   "file": "us-federal/form-8858.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f8858.pdf",
+   "why": "Foreign branch / disregarded entity",
+   "pages": 4,
+   "fillable": true,
+   "fields": {
+    "text": 137,
+    "checkbox_or_radio": 53,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-8858.json",
+   "mapped": 15
+  },
+  {
+   "form": "Form 3520",
+   "title": "Transactions With Foreign Trusts and Receipt of Foreign Gifts",
+   "group": "us-federal",
+   "file": "us-federal/form-3520.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f3520.pdf",
+   "why": "form_3520: foreign gift > $100k / foreign trust",
+   "pages": 6,
+   "fillable": true,
+   "fields": {
+    "text": 337,
+    "checkbox_or_radio": 125,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-3520.json",
+   "mapped": 29
+  },
+  {
+   "form": "Form 3520-A",
+   "title": "Annual Return of Foreign Trust With a U.S. Owner",
+   "group": "us-federal",
+   "file": "us-federal/form-3520-a.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f3520a.pdf",
+   "why": "form_3520: foreign grantor trust",
+   "pages": 5,
+   "fillable": true,
+   "fields": {
+    "text": 353,
+    "checkbox_or_radio": 33,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-3520-a.json",
+   "mapped": 24
+  },
+  {
+   "form": "Form 8802",
+   "title": "Application for US Residency Certification",
+   "group": "us-federal",
+   "file": "us-federal/form-8802.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f8802.pdf",
+   "why": "form_8802: Form 6166 to claim DTAA benefits in India",
+   "pages": 3,
+   "fillable": true,
+   "fields": {
+    "text": 121,
+    "checkbox_or_radio": 77,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-8802.json",
+   "mapped": 0
+  },
+  {
+   "form": "Form 8854",
+   "title": "Initial and Annual Expatriation Statement",
+   "group": "us-federal",
+   "file": "us-federal/form-8854.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f8854.pdf",
+   "why": "Expatriation / covered expatriate",
+   "pages": 5,
+   "fillable": true,
+   "fields": {
+    "text": 175,
+    "checkbox_or_radio": 33,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-8854.json",
+   "mapped": 6
+  },
+  {
+   "form": "Form W-8BEN",
+   "title": "Certificate of Foreign Status of Beneficial Owner",
+   "group": "us-federal",
+   "file": "us-federal/form-w-8ben.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/fw8ben.pdf",
+   "why": "NRA treaty-rate withholding claim",
+   "pages": 1,
+   "fillable": true,
+   "fields": {
+    "text": 20,
+    "checkbox_or_radio": 2,
+    "choice": 0,
+    "signature": 1
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-w-8ben.json",
+   "mapped": 0
+  },
+  {
+   "form": "Form W-7",
+   "title": "Application for ITIN",
+   "group": "us-federal",
+   "file": "us-federal/form-w-7.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/fw7.pdf",
+   "why": "Spouse / dependent without SSN",
+   "pages": 1,
+   "fillable": true,
+   "fields": {
+    "text": 48,
+    "checkbox_or_radio": 21,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-w-7.json",
+   "mapped": 0
+  },
+  {
+   "form": "Form 8288",
+   "title": "FIRPTA Withholding Return",
+   "group": "us-federal",
+   "file": "us-federal/form-8288.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f8288.pdf",
+   "why": "form_8288: US real property sold by a foreign person",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 47,
+    "checkbox_or_radio": 9,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-8288.json",
+   "mapped": 25
+  },
+  {
+   "form": "Form 8288-A",
+   "title": "Statement of FIRPTA Withholding",
+   "group": "us-federal",
+   "file": "us-federal/form-8288-a.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f8288a.pdf",
+   "why": "form_8288",
+   "pages": 5,
+   "fillable": true,
+   "fields": {
+    "text": 42,
+    "checkbox_or_radio": 18,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-8288-a.json",
+   "mapped": 0
+  },
+  {
+   "form": "Form 8288-B",
+   "title": "Application for FIRPTA Withholding Certificate",
+   "group": "us-federal",
+   "file": "us-federal/form-8288-b.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f8288b.pdf",
+   "why": "form_8288",
+   "pages": 4,
+   "fillable": true,
+   "fields": {
+    "text": 25,
+    "checkbox_or_radio": 26,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-8288-b.json",
+   "mapped": 0
+  },
+  {
+   "form": "Form 8960",
+   "title": "Net Investment Income Tax",
+   "group": "us-federal",
+   "file": "us-federal/form-8960.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f8960.pdf",
+   "why": "form_8960: NIIT",
+   "pages": 1,
+   "fillable": true,
+   "fields": {
+    "text": 35,
+    "checkbox_or_radio": 3,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-8960.json",
+   "mapped": 33
+  },
+  {
+   "form": "Form 8959",
+   "title": "Additional Medicare Tax",
+   "group": "us-federal",
+   "file": "us-federal/form-8959.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f8959.pdf",
+   "why": "form_8959",
+   "pages": 1,
+   "fillable": true,
+   "fields": {
+    "text": 26,
+    "checkbox_or_radio": 0,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-8959.json",
+   "mapped": 24
+  },
+  {
+   "form": "Form 6251",
+   "title": "Alternative Minimum Tax - Individuals",
+   "group": "us-federal",
+   "file": "us-federal/form-6251.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f6251.pdf",
+   "why": "form_6251: AMT",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 62,
+    "checkbox_or_radio": 0,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-6251.json",
+   "mapped": 60
+  },
+  {
+   "form": "Form 8801",
+   "title": "Credit for Prior Year Minimum Tax",
+   "group": "us-federal",
+   "file": "us-federal/form-8801.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f8801.pdf",
+   "why": "AMT credit carryforward",
+   "pages": 4,
+   "fillable": true,
+   "fields": {
+    "text": 57,
+    "checkbox_or_radio": 0,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-8801.json",
+   "mapped": 55
+  },
+  {
+   "form": "Form 2210",
+   "title": "Underpayment of Estimated Tax",
+   "group": "us-federal",
+   "file": "us-federal/form-2210.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f2210.pdf",
+   "why": "us1_penalty_2210",
+   "pages": 3,
+   "fillable": true,
+   "fields": {
+    "text": 192,
+    "checkbox_or_radio": 7,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-2210.json",
+   "mapped": 32
+  },
+  {
+   "form": "Form 5329",
+   "title": "Additional Taxes on Qualified Plans and IRAs",
+   "group": "us-federal",
+   "file": "us-federal/form-5329.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f5329.pdf",
+   "why": "us5_penalty_72t: early distribution",
+   "pages": 3,
+   "fillable": true,
+   "fields": {
+    "text": 73,
+    "checkbox_or_radio": 2,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-5329.json",
+   "mapped": 58
+  },
+  {
+   "form": "Form 8880",
+   "title": "Saver's Credit",
+   "group": "us-federal",
+   "file": "us-federal/form-8880.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f8880.pdf",
+   "why": "Retirement savings contributions credit",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 23,
+    "checkbox_or_radio": 0,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-8880.json",
+   "mapped": 12
+  },
+  {
+   "form": "Form 8889",
+   "title": "Health Savings Accounts",
+   "group": "us-federal",
+   "file": "us-federal/form-8889.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f8889.pdf",
+   "why": "HSA",
+   "pages": 1,
+   "fillable": true,
+   "fields": {
+    "text": 24,
+    "checkbox_or_radio": 3,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-8889.json",
+   "mapped": 22
+  },
+  {
+   "form": "Form 4868",
+   "title": "Automatic Extension of Time to File",
+   "group": "us-federal",
+   "file": "us-federal/form-4868.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f4868.pdf",
+   "why": "form_4868",
+   "pages": 4,
+   "fillable": true,
+   "fields": {
+    "text": 15,
+    "checkbox_or_radio": 2,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-4868.json",
+   "mapped": 1
+  },
+  {
+   "form": "Form 1040-ES",
+   "title": "Estimated Tax for Individuals",
+   "group": "us-federal",
+   "file": "us-federal/form-1040-es.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f1040es.pdf",
+   "why": "Estimated tax due dates",
+   "pages": 16,
+   "fillable": true,
+   "fields": {
+    "text": 110,
+    "checkbox_or_radio": 8,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/form-1040-es.json",
+   "mapped": 23
+  },
+  {
+   "form": "Form 1040-X",
+   "title": "Amended U.S. Individual Income Tax Return",
+   "group": "us-federal",
+   "file": "us-federal/form-1040-x.pdf",
+   "source": "https://www.irs.gov/pub/irs-pdf/f1040x.pdf",
+   "why": "Correcting a filed return (e.g. late FTC claim)",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 123,
+    "checkbox_or_radio": 43,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": true,
+   "fieldmap": "fieldmaps/form-1040-x.json",
+   "mapped": 30
+  },
+  {
+   "form": "CA 540",
+   "title": "California Resident Income Tax Return",
+   "group": "us-state-ca",
+   "file": "us-state-ca/ca-540.pdf",
+   "source": "https://www.ftb.ca.gov/forms/2025/2025-540.pdf",
+   "why": "form_540: CA resident",
+   "pages": 6,
+   "fillable": true,
+   "fields": {
+    "text": 145,
+    "checkbox_or_radio": 24,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/ca-540.json",
+   "mapped": 46
+  },
+  {
+   "form": "CA Schedule CA (540)",
+   "title": "California Adjustments - Residents",
+   "group": "us-state-ca",
+   "file": "us-state-ca/ca-schedule-ca-540.pdf",
+   "source": "https://www.ftb.ca.gov/forms/2025/2025-540-ca.pdf",
+   "why": "CA conformity adjustments (no FEIE in CA)",
+   "pages": 6,
+   "fillable": true,
+   "fields": {
+    "text": 254,
+    "checkbox_or_radio": 1,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/ca-schedule-ca-540.json",
+   "mapped": 54
+  },
+  {
+   "form": "CA 540NR",
+   "title": "California Nonresident or Part-Year Resident Return",
+   "group": "us-state-ca",
+   "file": "us-state-ca/ca-540nr.pdf",
+   "source": "https://www.ftb.ca.gov/forms/2025/2025-540nr.pdf",
+   "why": "CA part-year / nonresident",
+   "pages": 6,
+   "fillable": true,
+   "fields": {
+    "text": 149,
+    "checkbox_or_radio": 20,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/ca-540nr.json",
+   "mapped": 50
+  },
+  {
+   "form": "CA Schedule CA (540NR)",
+   "title": "California Adjustments - Nonresidents or Part-Year Residents",
+   "group": "us-state-ca",
+   "file": "us-state-ca/ca-schedule-ca-540nr.pdf",
+   "source": "https://www.ftb.ca.gov/forms/2025/2025-540nr-ca.pdf",
+   "why": "CA part-year / nonresident",
+   "pages": 5,
+   "fillable": true,
+   "fields": {
+    "text": 414,
+    "checkbox_or_radio": 3,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/ca-schedule-ca-540nr.json",
+   "mapped": 87
+  },
+  {
+   "form": "CA Schedule S",
+   "title": "Other State Tax Credit",
+   "group": "us-state-ca",
+   "file": "us-state-ca/ca-schedule-s.pdf",
+   "source": "https://www.ftb.ca.gov/forms/2025/2025-540-s.pdf",
+   "why": "CA gives no credit for Indian tax; shown for completeness",
+   "pages": 1,
+   "fillable": true,
+   "fields": {
+    "text": 25,
+    "checkbox_or_radio": 0,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/ca-schedule-s.json",
+   "mapped": 11
+  },
+  {
+   "form": "CA FTB 3519",
+   "title": "Payment for Automatic Extension for Individuals",
+   "group": "us-state-ca",
+   "file": "us-state-ca/ca-ftb-3519.pdf",
+   "source": "https://www.ftb.ca.gov/forms/2025/2025-3519.pdf",
+   "why": "CA extension payment",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 22,
+    "checkbox_or_radio": 0,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/ca-ftb-3519.json",
+   "mapped": 6
+  },
+  {
+   "form": "CA 540-ES",
+   "title": "Estimated Tax for Individuals",
+   "group": "us-state-ca",
+   "file": "us-state-ca/ca-540-es.pdf",
+   "source": "https://www.ftb.ca.gov/forms/2026/2026-540-es.pdf",
+   "why": "CA estimated tax",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 60,
+    "checkbox_or_radio": 0,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/ca-540-es.json",
+   "mapped": 0
+  },
+  {
+   "form": "NY IT-201",
+   "title": "Resident Income Tax Return",
+   "group": "us-state-ny",
+   "file": "us-state-ny/ny-it-201.pdf",
+   "source": "https://www.tax.ny.gov/pdf/current_forms/it/it201_fill_in.pdf",
+   "why": "form_it201: NY resident",
+   "pages": 4,
+   "fillable": true,
+   "fields": {
+    "text": 198,
+    "checkbox_or_radio": 16,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/ny-it-201.json",
+   "mapped": 89
+  },
+  {
+   "form": "NY IT-203",
+   "title": "Nonresident and Part-Year Resident Return",
+   "group": "us-state-ny",
+   "file": "us-state-ny/ny-it-203.pdf",
+   "source": "https://www.tax.ny.gov/pdf/current_forms/it/it203_fill_in.pdf",
+   "why": "NY part-year / nonresident",
+   "pages": 4,
+   "fillable": true,
+   "fields": {
+    "text": 208,
+    "checkbox_or_radio": 17,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/ny-it-203.json",
+   "mapped": 82
+  },
+  {
+   "form": "NY IT-203-B",
+   "title": "Nonresident Income Allocation",
+   "group": "us-state-ny",
+   "file": "us-state-ny/ny-it-203-b.pdf",
+   "source": "https://www.tax.ny.gov/pdf/current_forms/it/it203b_fill_in.pdf",
+   "why": "NY part-year / nonresident",
+   "pages": 3,
+   "fillable": true,
+   "fields": {
+    "text": 95,
+    "checkbox_or_radio": 12,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/ny-it-203-b.json",
+   "mapped": 51
+  },
+  {
+   "form": "NY IT-196",
+   "title": "Itemized Deductions",
+   "group": "us-state-ny",
+   "file": "us-state-ny/ny-it-196.pdf",
+   "source": "https://www.tax.ny.gov/pdf/current_forms/it/it196_fill_in.pdf",
+   "why": "NY itemized deductions",
+   "pages": 3,
+   "fillable": true,
+   "fields": {
+    "text": 58,
+    "checkbox_or_radio": 2,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/ny-it-196.json",
+   "mapped": 50
+  },
+  {
+   "form": "NY IT-225",
+   "title": "New York State Modifications",
+   "group": "us-state-ny",
+   "file": "us-state-ny/ny-it-225.pdf",
+   "source": "https://www.tax.ny.gov/pdf/current_forms/it/it225_fill_in.pdf",
+   "why": "NY additions / subtractions",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 100,
+    "checkbox_or_radio": 1,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/ny-it-225.json",
+   "mapped": 31
+  },
+  {
+   "form": "NY IT-201-ATT",
+   "title": "Other Tax Credits and Taxes",
+   "group": "us-state-ny",
+   "file": "us-state-ny/ny-it-201-att.pdf",
+   "source": "https://www.tax.ny.gov/pdf/current_forms/it/it201att_fill_in.pdf",
+   "why": "NY credits schedule",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 119,
+    "checkbox_or_radio": 1,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/ny-it-201-att.json",
+   "mapped": 77
+  },
+  {
+   "form": "NY IT-112-R",
+   "title": "New York State Resident Credit",
+   "group": "us-state-ny",
+   "file": "us-state-ny/ny-it-112-r.pdf",
+   "source": "https://www.tax.ny.gov/pdf/current_forms/it/it112r_fill_in.pdf",
+   "why": "NY credit for tax paid elsewhere (not India)",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 64,
+    "checkbox_or_radio": 1,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/ny-it-112-r.json",
+   "mapped": 39
+  },
+  {
+   "form": "NY IT-370",
+   "title": "Automatic Six-Month Extension",
+   "group": "us-state-ny",
+   "file": "us-state-ny/ny-it-370.pdf",
+   "source": "https://www.tax.ny.gov/pdf/current_forms/it/it370_fill_in.pdf",
+   "why": "NY extension",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 24,
+    "checkbox_or_radio": 5,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/ny-it-370.json",
+   "mapped": 0
+  },
+  {
+   "form": "NY IT-2105",
+   "title": "Estimated Income Tax Payment Voucher",
+   "group": "us-state-ny",
+   "file": "us-state-ny/ny-it-2105.pdf",
+   "source": "https://www.tax.ny.gov/pdf/current_forms/it/it2105_fill_in.pdf",
+   "why": "NY estimated tax",
+   "pages": 1,
+   "fillable": true,
+   "fields": {
+    "text": 14,
+    "checkbox_or_radio": 0,
+    "choice": 1,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/ny-it-2105.json",
+   "mapped": 0
+  },
+  {
+   "form": "NJ-1040",
+   "title": "Resident Income Tax Return",
+   "group": "us-state-nj",
+   "file": "us-state-nj/nj-1040.pdf",
+   "source": "https://www.nj.gov/treasury/taxation/pdf/current/1040.pdf",
+   "why": "NJ resident",
+   "pages": 4,
+   "fillable": true,
+   "fields": {
+    "text": 773,
+    "checkbox_or_radio": 41,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/nj-1040.json",
+   "mapped": 3
+  },
+  {
+   "form": "NJ-1040NR",
+   "title": "Nonresident Income Tax Return",
+   "group": "us-state-nj",
+   "file": "us-state-nj/nj-1040nr.pdf",
+   "source": "https://www.nj.gov/treasury/taxation/pdf/current/1040nr.pdf",
+   "why": "NJ nonresident",
+   "pages": 4,
+   "fillable": true,
+   "fields": {
+    "text": 326,
+    "checkbox_or_radio": 27,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/nj-1040nr.json",
+   "mapped": 1
+  },
+  {
+   "form": "NJ Schedule NJ-COJ",
+   "title": "Credit for Taxes Paid to Other Jurisdiction",
+   "group": "us-state-nj",
+   "file": "us-state-nj/nj-schedule-nj-coj.pdf",
+   "source": "https://www.nj.gov/treasury/taxation/pdf/current/schedulenjcoj.pdf",
+   "why": "NJ credit for tax paid elsewhere",
+   "pages": 1,
+   "fillable": true,
+   "fields": {
+    "text": 21,
+    "checkbox_or_radio": 0,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/nj-schedule-nj-coj.json",
+   "mapped": 0
+  },
+  {
+   "form": "NJ Schedule NJ-BUS-1",
+   "title": "Business Income Summary",
+   "group": "us-state-nj",
+   "file": "us-state-nj/nj-schedule-nj-bus-1.pdf",
+   "source": "https://www.nj.gov/treasury/taxation/pdf/current/resbus1.pdf",
+   "why": "NJ business income",
+   "pages": 1,
+   "fillable": true,
+   "fields": {
+    "text": 77,
+    "checkbox_or_radio": 0,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/nj-schedule-nj-bus-1.json",
+   "mapped": 0
+  },
+  {
+   "form": "NJ-630",
+   "title": "Application for Extension of Time to File",
+   "group": "us-state-nj",
+   "file": "us-state-nj/nj-630.pdf",
+   "source": "https://www.nj.gov/treasury/taxation/pdf/current/630.pdf",
+   "why": "NJ extension",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 25,
+    "checkbox_or_radio": 1,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/nj-630.json",
+   "mapped": 0
+  },
+  {
+   "form": "NJ-1040-ES",
+   "title": "Estimated Income Tax Payment Voucher",
+   "group": "us-state-nj",
+   "file": "us-state-nj/nj-1040-es.pdf",
+   "source": "https://www.nj.gov/treasury/taxation/pdf/current/1040es.pdf",
+   "why": "NJ estimated tax",
+   "pages": 2,
+   "fillable": true,
+   "fields": {
+    "text": 128,
+    "checkbox_or_radio": 6,
+    "choice": 0,
+    "signature": 0
+   },
+   "xfa": false,
+   "fieldmap": "fieldmaps/nj-1040-es.json",
+   "mapped": 0
+  }
+ ],
+ "not_pdf": [
+  {
+   "form": "FinCEN 114 (FBAR)",
+   "reason": "Filed only online in the BSA E-Filing System; no paper or PDF return exists."
+  },
+  {
+   "form": "FinCEN 114a",
+   "reason": "Authorization kept on file, never filed; the spreadsheet's fincen.gov link returns 404 (checked 23 Oct 2026)."
+  },
+  {
+   "form": "Form 6166",
+   "reason": "Issued by the IRS in response to Form 8802; not completed by the taxpayer."
+  },
+  {
+   "form": "ITR-2 / ITR-3 and schedules FA, FSI, TR, AL",
+   "reason": "India: filed as JSON through the e-filing portal or offline utility; no PDF form."
+  },
+  {
+   "form": "Form 44 (was 67), Form 41 (was 10F), Form 145/146 (was 15CA/15CB), Form 3CB/3CD, Form 3CEB",
+   "reason": "India: online forms on the e-filing portal."
+  },
+  {
+   "form": "Form 16 / 16A, 26AS / AIS / TIS",
+   "reason": "India: statements the client receives, not forms they fill."
+  },
+  {
+   "form": "LRS Form A2",
+   "reason": "India: bank-specific remittance form."
+  }
+ ]
+}

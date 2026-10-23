@@ -1,0 +1,257 @@
+{
+ "form": "Form 8288-B",
+ "status": "draft - not reviewed",
+ "lines": {},
+ "unmapped": [
+  {
+   "field": "topmostSubform[0].Page1[0].f1_1[0]",
+   "page": 1,
+   "rect": [
+    65,
+    684,
+    438,
+    698
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_2[0]",
+   "page": 1,
+   "rect": [
+    439,
+    684,
+    576,
+    698
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_3[0]",
+   "page": 1,
+   "rect": [
+    65,
+    660,
+    576,
+    674
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_4[0]",
+   "page": 1,
+   "rect": [
+    65,
+    636,
+    576,
+    650
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_5[0]",
+   "page": 1,
+   "rect": [
+    65,
+    612,
+    438,
+    626
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_6[0]",
+   "page": 1,
+   "rect": [
+    439,
+    612,
+    576,
+    626
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_7[0]",
+   "page": 1,
+   "rect": [
+    65,
+    588,
+    576,
+    602
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_8[0]",
+   "page": 1,
+   "rect": [
+    65,
+    564,
+    576,
+    578
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_9[0]",
+   "page": 1,
+   "rect": [
+    65,
+    528,
+    438,
+    542
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_10[0]",
+   "page": 1,
+   "rect": [
+    439,
+    528,
+    576,
+    542
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_11[0]",
+   "page": 1,
+   "rect": [
+    65,
+    504,
+    438,
+    518
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_12[0]",
+   "page": 1,
+   "rect": [
+    439,
+    504,
+    576,
+    518
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_13[0]",
+   "page": 1,
+   "rect": [
+    65,
+    480,
+    438,
+    494
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_14[0]",
+   "page": 1,
+   "rect": [
+    439,
+    480,
+    576,
+    494
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_15[0]",
+   "page": 1,
+   "rect": [
+    65,
+    456,
+    576,
+    470
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_16[0]",
+   "page": 1,
+   "rect": [
+    245,
+    432,
+    331,
+    444
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_17[0]",
+   "page": 1,
+   "rect": [
+    425,
+    432,
+    511,
+    444
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_18[0]",
+   "page": 1,
+   "rect": [
+    137,
+    384,
+    295,
+    396
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Line6fField[0].f1_19[0]",
+   "page": 1,
+   "rect": [
+    65,
+    336,
+    576,
+    360
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_20[0]",
+   "page": 1,
+   "rect": [
+    295,
+    300,
+    576,
+    312
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_21[0]",
+   "page": 1,
+   "rect": [
+    86,
+    288,
+    576,
+    300
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_22[0]",
+   "page": 1,
+   "rect": [
+    295,
+    264,
+    576,
+    276
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_23[0]",
+   "page": 1,
+   "rect": [
+    86,
+    252,
+    576,
+    264
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_24[0]",
+   "page": 1,
+   "rect": [
+    497,
+    120,
+    576,
+    132
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_25[0]",
+   "page": 1,
+   "rect": [
+    266,
+    60,
+    482,
+    72
+   ]
+  }
+ ]
+}

@@ -1,0 +1,267 @@
+{
+ "form": "NY IT-112-R",
+ "status": "draft - not reviewed",
+ "lines": {
+  "1": {
+   "field": "1b dollarsR",
+   "page": 1,
+   "also": [
+    "1a dollarsR"
+   ]
+  },
+  "2": {
+   "field": "2b dollarsR",
+   "page": 1,
+   "also": [
+    "2a dollarsR"
+   ]
+  },
+  "3": {
+   "field": "3b dollarsR",
+   "page": 1,
+   "also": [
+    "3a dollarsR"
+   ]
+  },
+  "4": {
+   "field": "4b dollarsR",
+   "page": 1,
+   "also": [
+    "4a dollarsR"
+   ]
+  },
+  "5": {
+   "field": "5b dollarsR",
+   "page": 1,
+   "also": [
+    "5a dollarsR"
+   ]
+  },
+  "6": {
+   "field": "6b dollarsR",
+   "page": 1,
+   "also": [
+    "6a dollarsR"
+   ]
+  },
+  "7": {
+   "field": "7b dollarsR",
+   "page": 1,
+   "also": [
+    "7a dollarsR"
+   ]
+  },
+  "8": {
+   "field": "8b dollarsR",
+   "page": 1,
+   "also": [
+    "8a dollarsR"
+   ]
+  },
+  "9": {
+   "field": "9b dollarsR",
+   "page": 1,
+   "also": [
+    "9a dollarsR"
+   ]
+  },
+  "10": {
+   "field": "10b dollarsR",
+   "page": 1,
+   "also": [
+    "10a dollarsR"
+   ]
+  },
+  "11": {
+   "field": "11b dollarsR",
+   "page": 1,
+   "also": [
+    "11a dollarsR"
+   ]
+  },
+  "12": {
+   "field": "12b dollarsR",
+   "page": 1,
+   "also": [
+    "12a dollarsR"
+   ]
+  },
+  "13": {
+   "field": "13b dollarsR",
+   "page": 1,
+   "also": [
+    "13a dollarsR"
+   ]
+  },
+  "14": {
+   "field": "14b dollarsR",
+   "page": 1,
+   "also": [
+    "14a dollarsR"
+   ]
+  },
+  "15": {
+   "field": "15b dollarsR",
+   "page": 1,
+   "also": [
+    "15a dollarsR"
+   ]
+  },
+  "16": {
+   "field": "16b dollarsR",
+   "page": 1,
+   "also": [
+    "16a dollarsR"
+   ]
+  },
+  "17": {
+   "field": "17b dollarsR",
+   "page": 1,
+   "also": [
+    "17a dollarsR"
+   ]
+  },
+  "18": {
+   "field": "18b dollarsR",
+   "page": 1,
+   "also": [
+    "18a dollarsR"
+   ]
+  },
+  "19": {
+   "field": "19a dollarsR",
+   "page": 1
+  },
+  "20": {
+   "field": "20b dollarsR",
+   "page": 1,
+   "also": [
+    "20a dollarsR"
+   ]
+  },
+  "21": {
+   "field": "21b dollarsR",
+   "page": 1,
+   "also": [
+    "21a dollarsR"
+   ]
+  },
+  "22": {
+   "field": "22b dollarsR",
+   "page": 1,
+   "also": [
+    "22a dollarsR"
+   ]
+  },
+  "23": {
+   "field": "line 23R",
+   "page": 2
+  },
+  "24a": {
+   "field": "24a dollarsR",
+   "page": 2
+  },
+  "24b": {
+   "field": "24b dollarsR",
+   "page": 2
+  },
+  "24": {
+   "field": "24 dollarsR",
+   "page": 2
+  },
+  "25": {
+   "field": "25 dollarsR",
+   "page": 2
+  },
+  "26": {
+   "field": "26R left",
+   "page": 2
+  },
+  "27": {
+   "field": "27 dollarsR",
+   "page": 2
+  },
+  "28": {
+   "field": "28 dollarsR",
+   "page": 2
+  },
+  "29": {
+   "field": "29 dollarsR",
+   "page": 2
+  },
+  "30": {
+   "field": "30 dollarsR",
+   "page": 2
+  },
+  "31": {
+   "field": "31 dollarsR",
+   "page": 2
+  },
+  "32": {
+   "field": "32 dollarsR",
+   "page": 2
+  },
+  "33": {
+   "field": "33 dollarsR",
+   "page": 2
+  },
+  "34": {
+   "field": "34 dollarsR",
+   "page": 2
+  },
+  "35": {
+   "field": "35 dollarsR",
+   "page": 2
+  },
+  "36": {
+   "field": "36 dollarsR",
+   "page": 2
+  },
+  "37": {
+   "field": "37 dollarsR",
+   "page": 2
+  }
+ },
+ "unmapped": [
+  {
+   "field": "firstname",
+   "page": 1,
+   "rect": [
+    36,
+    660,
+    435,
+    672
+   ]
+  },
+  {
+   "field": "ss",
+   "page": 1,
+   "rect": [
+    436,
+    660,
+    576,
+    672
+   ]
+  },
+  {
+   "field": "locality",
+   "page": 2,
+   "rect": [
+    283,
+    678,
+    432,
+    690
+   ]
+  },
+  {
+   "field": "group EIN",
+   "page": 2,
+   "rect": [
+    154,
+    583,
+    289,
+    595
+   ]
+  }
+ ]
+}

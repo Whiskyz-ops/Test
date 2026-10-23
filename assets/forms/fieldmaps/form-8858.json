@@ -1,0 +1,1124 @@
+{
+ "form": "Form 8858",
+ "status": "draft - not reviewed",
+ "lines": {
+  "20": {
+   "field": "IRS8858[0].Page1[0].f1_12[0]",
+   "page": 1,
+   "also": [
+    "IRS8858[0].Page1[0].PgHeader[0].f1_4[0]",
+    "IRS8858[0].Page1[0].f1_10[0]",
+    "IRS8858[0].Page1[0].PgHeader[0].f1_2[0]"
+   ]
+  },
+  "1": {
+   "field": "IRS8858[0].Page4[0].f4_1[0]",
+   "page": 4,
+   "also": [
+    "IRS8858[0].Page2[0].Table_SchC[0].BodyRow1[0].f2_1[0]",
+    "IRS8858[0].Page2[0].Table_SchC-1[0].Row1[0].f2_29[0]",
+    "IRS8858[0].Page2[0].Table_SchF[0].BodyRow1[0].f2_35[0]"
+   ]
+  },
+  "2": {
+   "field": "IRS8858[0].Page4[0].f4_2[0]",
+   "page": 4,
+   "also": [
+    "IRS8858[0].Page2[0].Table_SchC[0].BodyRow2[0].f2_3[0]",
+    "IRS8858[0].Page2[0].Table_SchC-1[0].Row2[0].f2_31[0]",
+    "IRS8858[0].Page2[0].Table_SchF[0].BodyRow2[0].f2_37[0]"
+   ]
+  },
+  "3": {
+   "field": "IRS8858[0].Page4[0].f4_3[0]",
+   "page": 4,
+   "also": [
+    "IRS8858[0].Page2[0].Table_SchC[0].BodyRow3[0].f2_5[0]",
+    "IRS8858[0].Page2[0].Table_SchC-1[0].Row3[0].ColA[0].f2_33[0]",
+    "IRS8858[0].Page2[0].Table_SchF[0].BodyRow3[0].f2_39[0]"
+   ]
+  },
+  "4": {
+   "field": "IRS8858[0].Page4[0].f4_4[0]",
+   "page": 4,
+   "also": [
+    "IRS8858[0].Page4[0].f4_9[0]",
+    "IRS8858[0].Page2[0].Table_SchC[0].BodyRow4[0].f2_7[0]",
+    "IRS8858[0].Page2[0].Table_SchF[0].BodyRow5[0].f2_41[0]"
+   ]
+  },
+  "5": {
+   "field": "IRS8858[0].Page4[0].f4_5[0]",
+   "page": 4,
+   "also": [
+    "IRS8858[0].Page2[0].Table_SchC[0].BodyRow5[0].f2_9[0]",
+    "IRS8858[0].Page2[0].Table_SchF[0].BodyRow6[0].f2_43[0]"
+   ]
+  },
+  "6": {
+   "field": "IRS8858[0].Page4[0].f4_6[0]",
+   "page": 4,
+   "also": [
+    "IRS8858[0].Page2[0].Table_SchC[0].BodyRow6[0].f2_11[0]",
+    "IRS8858[0].Page2[0].Table_SchF[0].BodyRow7[0].f2_45[0]"
+   ]
+  },
+  "7": {
+   "field": "IRS8858[0].Page4[0].f4_7[0]",
+   "page": 4,
+   "also": [
+    "IRS8858[0].Page2[0].Table_SchC[0].BodyRow7[0].f2_13[0]"
+   ]
+  },
+  "8": {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow8[0].f2_15[0]",
+   "page": 2
+  },
+  "9": {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow9[0].f2_17[0]",
+   "page": 2
+  },
+  "10": {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow10[0].f2_19[0]",
+   "page": 2
+  },
+  "11": {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow11[0].f2_21[0]",
+   "page": 2
+  },
+  "12": {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow12[0].f2_23[0]",
+   "page": 2
+  },
+  "13": {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow13[0].f2_25[0]",
+   "page": 2
+  },
+  "14": {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow14[0].f2_27[0]",
+   "page": 2
+  }
+ },
+ "unmapped": [
+  {
+   "field": "IRS8858[0].Page1[0].PgHeader[0].f1_1[0]",
+   "page": 1,
+   "rect": [
+    202,
+    697,
+    266,
+    708
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].PgHeader[0].f1_3[0]",
+   "page": 1,
+   "rect": [
+    353,
+    697,
+    432,
+    708
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_5[0]",
+   "page": 1,
+   "rect": [
+    36,
+    672,
+    467,
+    686
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_6[0]",
+   "page": 1,
+   "rect": [
+    468,
+    672,
+    576,
+    686
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_7[0]",
+   "page": 1,
+   "rect": [
+    36,
+    648,
+    576,
+    662
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_8[0]",
+   "page": 1,
+   "rect": [
+    36,
+    624,
+    576,
+    638
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_9[0]",
+   "page": 1,
+   "rect": [
+    115,
+    612,
+    274,
+    624
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_11[0]",
+   "page": 1,
+   "rect": [
+    367,
+    612,
+    526,
+    624
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_13[0]",
+   "page": 1,
+   "rect": [
+    36,
+    504,
+    316,
+    542
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_14[0]",
+   "page": 1,
+   "rect": [
+    317,
+    528,
+    576,
+    542
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_15[0]",
+   "page": 1,
+   "rect": [
+    317,
+    504,
+    576,
+    518
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_16[0]",
+   "page": 1,
+   "rect": [
+    36,
+    468,
+    381,
+    494
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_17[0]",
+   "page": 1,
+   "rect": [
+    382,
+    468,
+    468,
+    494
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_18[0]",
+   "page": 1,
+   "rect": [
+    468,
+    468,
+    576,
+    494
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_19[0]",
+   "page": 1,
+   "rect": [
+    36,
+    432,
+    382,
+    450
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_20[0]",
+   "page": 1,
+   "rect": [
+    383,
+    432,
+    576,
+    450
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_21[0]",
+   "page": 1,
+   "rect": [
+    36,
+    396,
+    180,
+    422
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_22[0]",
+   "page": 1,
+   "rect": [
+    181,
+    396,
+    467,
+    422
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_23[0]",
+   "page": 1,
+   "rect": [
+    469,
+    396,
+    576,
+    422
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_24[0]",
+   "page": 1,
+   "rect": [
+    36,
+    300,
+    316,
+    366
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_25[0]",
+   "page": 1,
+   "rect": [
+    318,
+    300,
+    576,
+    358
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_26[0]",
+   "page": 1,
+   "rect": [
+    36,
+    180,
+    316,
+    278
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_27[0]",
+   "page": 1,
+   "rect": [
+    318,
+    264,
+    576,
+    278
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_28[0]",
+   "page": 1,
+   "rect": [
+    317,
+    240,
+    576,
+    254
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_29[0]",
+   "page": 1,
+   "rect": [
+    317,
+    216,
+    576,
+    230
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_30[0]",
+   "page": 1,
+   "rect": [
+    318,
+    180,
+    467,
+    206
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_31[0]",
+   "page": 1,
+   "rect": [
+    469,
+    180,
+    576,
+    206
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_32[0]",
+   "page": 1,
+   "rect": [
+    36,
+    96,
+    316,
+    158
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_33[0]",
+   "page": 1,
+   "rect": [
+    318,
+    120,
+    576,
+    158
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_34[0]",
+   "page": 1,
+   "rect": [
+    317,
+    96,
+    468,
+    110
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page1[0].f1_35[0]",
+   "page": 1,
+   "rect": [
+    469,
+    96,
+    576,
+    110
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow1[0].f2_2[0]",
+   "page": 2,
+   "rect": [
+    504,
+    648,
+    576,
+    660
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow2[0].f2_4[0]",
+   "page": 2,
+   "rect": [
+    504,
+    636,
+    576,
+    648
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow3[0].f2_6[0]",
+   "page": 2,
+   "rect": [
+    504,
+    624,
+    576,
+    636
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow4[0].f2_8[0]",
+   "page": 2,
+   "rect": [
+    504,
+    612,
+    576,
+    624
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow5[0].f2_10[0]",
+   "page": 2,
+   "rect": [
+    504,
+    600,
+    576,
+    612
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow6[0].f2_12[0]",
+   "page": 2,
+   "rect": [
+    504,
+    588,
+    576,
+    600
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow7[0].f2_14[0]",
+   "page": 2,
+   "rect": [
+    504,
+    576,
+    576,
+    588
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow8[0].f2_16[0]",
+   "page": 2,
+   "rect": [
+    504,
+    564,
+    576,
+    576
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow9[0].f2_18[0]",
+   "page": 2,
+   "rect": [
+    504,
+    552,
+    576,
+    564
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow10[0].f2_20[0]",
+   "page": 2,
+   "rect": [
+    504,
+    540,
+    576,
+    552
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow11[0].f2_22[0]",
+   "page": 2,
+   "rect": [
+    504,
+    528,
+    576,
+    540
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow12[0].f2_24[0]",
+   "page": 2,
+   "rect": [
+    504,
+    516,
+    576,
+    528
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow13[0].f2_26[0]",
+   "page": 2,
+   "rect": [
+    504,
+    504,
+    576,
+    516
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchC[0].BodyRow14[0].f2_28[0]",
+   "page": 2,
+   "rect": [
+    504,
+    492,
+    576,
+    504
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchC-1[0].Row1[0].f2_30[0]",
+   "page": 2,
+   "rect": [
+    504,
+    432,
+    576,
+    444
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchC-1[0].Row2[0].f2_32[0]",
+   "page": 2,
+   "rect": [
+    504,
+    420,
+    576,
+    432
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchC-1[0].Row3[0].ColB[0].f2_34[0]",
+   "page": 2,
+   "rect": [
+    504,
+    396,
+    576,
+    408
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchF[0].BodyRow1[0].f2_36[0]",
+   "page": 2,
+   "rect": [
+    504,
+    264,
+    576,
+    276
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchF[0].BodyRow2[0].f2_38[0]",
+   "page": 2,
+   "rect": [
+    504,
+    252,
+    576,
+    264
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchF[0].BodyRow3[0].f2_40[0]",
+   "page": 2,
+   "rect": [
+    504,
+    240,
+    576,
+    252
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchF[0].BodyRow5[0].f2_42[0]",
+   "page": 2,
+   "rect": [
+    504,
+    204,
+    576,
+    216
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchF[0].BodyRow6[0].f2_44[0]",
+   "page": 2,
+   "rect": [
+    504,
+    192,
+    576,
+    204
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page2[0].Table_SchF[0].BodyRow7[0].f2_46[0]",
+   "page": 2,
+   "rect": [
+    504,
+    180,
+    576,
+    192
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page3[0].f3_1[0]",
+   "page": 3,
+   "rect": [
+    295,
+    612,
+    367,
+    624
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page3[0].f3_2[0]",
+   "page": 3,
+   "rect": [
+    295,
+    600,
+    367,
+    612
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page3[0].f3_3[0]",
+   "page": 3,
+   "rect": [
+    295,
+    552,
+    367,
+    564
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page3[0].f3_4[0]",
+   "page": 3,
+   "rect": [
+    295,
+    540,
+    367,
+    552
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page3[0].f3_5[0]",
+   "page": 3,
+   "rect": [
+    429,
+    420,
+    493,
+    432
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page3[0].f3_6[0]",
+   "page": 3,
+   "rect": [
+    429,
+    372,
+    493,
+    384
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page3[0].f3_7[0]",
+   "page": 3,
+   "rect": [
+    425,
+    348,
+    497,
+    360
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page3[0].f3_8[0]",
+   "page": 3,
+   "rect": [
+    338,
+    228,
+    410,
+    240
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page3[0].f3_9[0]",
+   "page": 3,
+   "rect": [
+    338,
+    180,
+    410,
+    192
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page3[0].f3_10[0]",
+   "page": 3,
+   "rect": [
+    425,
+    144,
+    497,
+    156
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page3[0].f3_11[0]",
+   "page": 3,
+   "rect": [
+    425,
+    132,
+    497,
+    144
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page3[0].f3_12[0]",
+   "page": 3,
+   "rect": [
+    425,
+    120,
+    497,
+    132
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].f4_8[0]",
+   "page": 4,
+   "rect": [
+    403,
+    612,
+    475,
+    624
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow1[0].f4_10[0]",
+   "page": 4,
+   "rect": [
+    36,
+    408,
+    72,
+    420
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow1[0].f4_11[0]",
+   "page": 4,
+   "rect": [
+    72,
+    408,
+    130,
+    420
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow1[0].f4_12[0]",
+   "page": 4,
+   "rect": [
+    130,
+    408,
+    201,
+    420
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow1[0].f4_13[0]",
+   "page": 4,
+   "rect": [
+    202,
+    408,
+    259,
+    420
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow1[0].f4_14[0]",
+   "page": 4,
+   "rect": [
+    259,
+    408,
+    330,
+    420
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow1[0].f4_15[0]",
+   "page": 4,
+   "rect": [
+    331,
+    408,
+    388,
+    420
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow1[0].f4_16[0]",
+   "page": 4,
+   "rect": [
+    389,
+    408,
+    453,
+    420
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow1[0].f4_17[0]",
+   "page": 4,
+   "rect": [
+    454,
+    408,
+    518,
+    420
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow1[0].f4_18[0]",
+   "page": 4,
+   "rect": [
+    518,
+    408,
+    576,
+    420
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow2[0].f4_19[0]",
+   "page": 4,
+   "rect": [
+    36,
+    396,
+    72,
+    408
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow2[0].f4_20[0]",
+   "page": 4,
+   "rect": [
+    72,
+    396,
+    130,
+    408
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow2[0].f4_21[0]",
+   "page": 4,
+   "rect": [
+    130,
+    396,
+    201,
+    408
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow2[0].f4_22[0]",
+   "page": 4,
+   "rect": [
+    202,
+    396,
+    259,
+    408
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow2[0].f4_23[0]",
+   "page": 4,
+   "rect": [
+    259,
+    396,
+    330,
+    408
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow2[0].f4_24[0]",
+   "page": 4,
+   "rect": [
+    331,
+    396,
+    388,
+    408
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow2[0].f4_25[0]",
+   "page": 4,
+   "rect": [
+    389,
+    396,
+    453,
+    408
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow2[0].f4_26[0]",
+   "page": 4,
+   "rect": [
+    454,
+    396,
+    518,
+    408
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow2[0].f4_27[0]",
+   "page": 4,
+   "rect": [
+    518,
+    396,
+    576,
+    408
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow3[0].f4_28[0]",
+   "page": 4,
+   "rect": [
+    36,
+    384,
+    72,
+    396
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow3[0].f4_29[0]",
+   "page": 4,
+   "rect": [
+    72,
+    384,
+    130,
+    396
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow3[0].f4_30[0]",
+   "page": 4,
+   "rect": [
+    130,
+    384,
+    201,
+    396
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow3[0].f4_31[0]",
+   "page": 4,
+   "rect": [
+    202,
+    384,
+    259,
+    396
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow3[0].f4_32[0]",
+   "page": 4,
+   "rect": [
+    259,
+    384,
+    330,
+    396
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow3[0].f4_33[0]",
+   "page": 4,
+   "rect": [
+    331,
+    384,
+    388,
+    396
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow3[0].f4_34[0]",
+   "page": 4,
+   "rect": [
+    389,
+    384,
+    453,
+    396
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow3[0].f4_35[0]",
+   "page": 4,
+   "rect": [
+    454,
+    384,
+    518,
+    396
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow3[0].f4_36[0]",
+   "page": 4,
+   "rect": [
+    518,
+    384,
+    576,
+    396
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow4[0].f4_37[0]",
+   "page": 4,
+   "rect": [
+    72,
+    372,
+    130,
+    384
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow4[0].f4_38[0]",
+   "page": 4,
+   "rect": [
+    130,
+    372,
+    201,
+    384
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow4[0].f4_39[0]",
+   "page": 4,
+   "rect": [
+    202,
+    372,
+    259,
+    384
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow4[0].f4_40[0]",
+   "page": 4,
+   "rect": [
+    259,
+    372,
+    330,
+    384
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow4[0].f4_41[0]",
+   "page": 4,
+   "rect": [
+    331,
+    372,
+    388,
+    384
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow4[0].f4_42[0]",
+   "page": 4,
+   "rect": [
+    389,
+    372,
+    453,
+    384
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow4[0].f4_43[0]",
+   "page": 4,
+   "rect": [
+    454,
+    372,
+    518,
+    384
+   ]
+  },
+  {
+   "field": "IRS8858[0].Page4[0].Table_SchJ[0].BodyRow4[0].f4_44[0]",
+   "page": 4,
+   "rect": [
+    518,
+    372,
+    576,
+    384
+   ]
+  }
+ ]
+}

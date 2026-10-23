@@ -1,0 +1,427 @@
+{
+ "form": "Form 8288-A",
+ "status": "draft - not reviewed",
+ "lines": {},
+ "unmapped": [
+  {
+   "field": "topmostSubform[0].CopyA[0].LeftCol[0].f1_01[0]",
+   "page": 1,
+   "rect": [
+    38,
+    696,
+    280,
+    738
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyA[0].LeftCol[0].f1_02[0]",
+   "page": 1,
+   "rect": [
+    38,
+    666,
+    157,
+    678
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyA[0].LeftCol[0].f1_03[0]",
+   "page": 1,
+   "rect": [
+    159,
+    666,
+    280,
+    678
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyA[0].LeftCol[0].f1_04[0]",
+   "page": 1,
+   "rect": [
+    38,
+    642,
+    280,
+    654
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyA[0].LeftCol[0].f1_05[0]",
+   "page": 1,
+   "rect": [
+    38,
+    618,
+    280,
+    630
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyA[0].LeftCol[0].f1_06[0]",
+   "page": 1,
+   "rect": [
+    38,
+    588,
+    280,
+    608
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyA[0].LeftCol[0].f1_07[0]",
+   "page": 1,
+   "rect": [
+    38,
+    552,
+    280,
+    577
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyA[0].f1_08[0]",
+   "page": 1,
+   "rect": [
+    295,
+    726,
+    360,
+    738
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyA[0].f1_09[0]",
+   "page": 1,
+   "rect": [
+    288,
+    696,
+    381,
+    708
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyA[0].Box3_ReadOrder[0].f1_10[0]",
+   "page": 1,
+   "rect": [
+    288,
+    666,
+    381,
+    678
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyA[0].f1_11[0]",
+   "page": 1,
+   "rect": [
+    389,
+    666,
+    481,
+    678
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyA[0].Box6_ReadOrder[0].f1_12[0]",
+   "page": 1,
+   "rect": [
+    429,
+    590,
+    480,
+    600
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyA[0].f1_13[0]",
+   "page": 1,
+   "rect": [
+    282,
+    588,
+    381,
+    600
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyA[0].f1_14[0]",
+   "page": 1,
+   "rect": [
+    282,
+    552,
+    481,
+    577
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyB[0].LeftCol[0].f1_01[0]",
+   "page": 2,
+   "rect": [
+    38,
+    696,
+    280,
+    738
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyB[0].LeftCol[0].f1_02[0]",
+   "page": 2,
+   "rect": [
+    38,
+    666,
+    157,
+    678
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyB[0].LeftCol[0].f1_03[0]",
+   "page": 2,
+   "rect": [
+    159,
+    666,
+    280,
+    678
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyB[0].LeftCol[0].f1_04[0]",
+   "page": 2,
+   "rect": [
+    38,
+    642,
+    280,
+    654
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyB[0].LeftCol[0].f1_05[0]",
+   "page": 2,
+   "rect": [
+    38,
+    618,
+    280,
+    630
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyB[0].LeftCol[0].f1_06[0]",
+   "page": 2,
+   "rect": [
+    38,
+    588,
+    280,
+    608
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyB[0].LeftCol[0].f1_07[0]",
+   "page": 2,
+   "rect": [
+    38,
+    552,
+    280,
+    577
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyB[0].f1_08[0]",
+   "page": 2,
+   "rect": [
+    295,
+    726,
+    360,
+    738
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyB[0].f1_09[0]",
+   "page": 2,
+   "rect": [
+    288,
+    696,
+    381,
+    708
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyB[0].Box3_ReadOrder[0].f1_10[0]",
+   "page": 2,
+   "rect": [
+    288,
+    666,
+    381,
+    678
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyB[0].f1_11[0]",
+   "page": 2,
+   "rect": [
+    389,
+    666,
+    481,
+    678
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyB[0].Box6_ReadOrder[0].f1_12[0]",
+   "page": 2,
+   "rect": [
+    429,
+    590,
+    480,
+    600
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyB[0].f1_13[0]",
+   "page": 2,
+   "rect": [
+    282,
+    588,
+    381,
+    600
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyB[0].f1_14[0]",
+   "page": 2,
+   "rect": [
+    282,
+    552,
+    481,
+    577
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyC[0].LeftCol[0].f1_01[0]",
+   "page": 4,
+   "rect": [
+    38,
+    696,
+    280,
+    738
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyC[0].LeftCol[0].f1_02[0]",
+   "page": 4,
+   "rect": [
+    38,
+    666,
+    157,
+    678
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyC[0].LeftCol[0].f1_03[0]",
+   "page": 4,
+   "rect": [
+    159,
+    666,
+    280,
+    678
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyC[0].LeftCol[0].f1_04[0]",
+   "page": 4,
+   "rect": [
+    38,
+    642,
+    280,
+    654
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyC[0].LeftCol[0].f1_05[0]",
+   "page": 4,
+   "rect": [
+    38,
+    618,
+    280,
+    630
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyC[0].LeftCol[0].f1_06[0]",
+   "page": 4,
+   "rect": [
+    38,
+    588,
+    280,
+    608
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyC[0].LeftCol[0].f1_07[0]",
+   "page": 4,
+   "rect": [
+    38,
+    552,
+    280,
+    577
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyC[0].f1_08[0]",
+   "page": 4,
+   "rect": [
+    295,
+    726,
+    360,
+    738
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyC[0].f1_09[0]",
+   "page": 4,
+   "rect": [
+    288,
+    696,
+    381,
+    708
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyC[0].Box3_ReadOrder[0].f1_10[0]",
+   "page": 4,
+   "rect": [
+    288,
+    666,
+    381,
+    678
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyC[0].f1_11[0]",
+   "page": 4,
+   "rect": [
+    389,
+    666,
+    481,
+    678
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyC[0].Box6_ReadOrder[0].f1_12[0]",
+   "page": 4,
+   "rect": [
+    429,
+    590,
+    480,
+    600
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyC[0].f1_13[0]",
+   "page": 4,
+   "rect": [
+    282,
+    588,
+    381,
+    600
+   ]
+  },
+  {
+   "field": "topmostSubform[0].CopyC[0].f1_14[0]",
+   "page": 4,
+   "rect": [
+    282,
+    552,
+    481,
+    577
+   ]
+  }
+ ]
+}

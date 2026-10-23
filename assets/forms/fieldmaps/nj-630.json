@@ -1,0 +1,257 @@
+{
+ "form": "NJ-630",
+ "status": "draft - not reviewed",
+ "lines": {},
+ "unmapped": [
+  {
+   "field": "Text2",
+   "page": 1,
+   "rect": [
+    278,
+    208,
+    295,
+    224
+   ]
+  },
+  {
+   "field": "Text21",
+   "page": 1,
+   "rect": [
+    296,
+    208,
+    314,
+    224
+   ]
+  },
+  {
+   "field": "Text211",
+   "page": 1,
+   "rect": [
+    315,
+    208,
+    332,
+    224
+   ]
+  },
+  {
+   "field": "Text21111",
+   "page": 1,
+   "rect": [
+    335,
+    208,
+    352,
+    224
+   ]
+  },
+  {
+   "field": "Text211114",
+   "page": 1,
+   "rect": [
+    353,
+    207,
+    370,
+    224
+   ]
+  },
+  {
+   "field": "Text21111412",
+   "page": 1,
+   "rect": [
+    373,
+    207,
+    390,
+    224
+   ]
+  },
+  {
+   "field": "Text2111141245",
+   "page": 1,
+   "rect": [
+    391,
+    207,
+    408,
+    224
+   ]
+  },
+  {
+   "field": "Text211114124575",
+   "page": 1,
+   "rect": [
+    409,
+    207,
+    426,
+    224
+   ]
+  },
+  {
+   "field": "Text2111141245751465",
+   "page": 1,
+   "rect": [
+    426,
+    207,
+    443,
+    224
+   ]
+  },
+  {
+   "field": "Text2!E@Eq",
+   "page": 1,
+   "rect": [
+    142,
+    184,
+    159,
+    199
+   ]
+  },
+  {
+   "field": "DATE",
+   "page": 1,
+   "rect": [
+    36,
+    177,
+    115,
+    188
+   ]
+  },
+  {
+   "field": "Last Name First Name Initial",
+   "page": 1,
+   "rect": [
+    276,
+    174,
+    593,
+    195
+   ]
+  },
+  {
+   "field": "Home Address Number and Street including apartment number",
+   "page": 1,
+   "rect": [
+    276,
+    142,
+    593,
+    164
+   ]
+  },
+  {
+   "field": "City Town Post Office",
+   "page": 1,
+   "rect": [
+    276,
+    112,
+    472,
+    134
+   ]
+  },
+  {
+   "field": "State",
+   "page": 1,
+   "rect": [
+    474,
+    112,
+    519,
+    134
+   ]
+  },
+  {
+   "field": "ZIP Code",
+   "page": 1,
+   "rect": [
+    521,
+    112,
+    593,
+    134
+   ]
+  },
+  {
+   "field": "Text2a",
+   "page": 1,
+   "rect": [
+    375,
+    47,
+    392,
+    63
+   ]
+  },
+  {
+   "field": "Text21a",
+   "page": 1,
+   "rect": [
+    394,
+    47,
+    411,
+    63
+   ]
+  },
+  {
+   "field": "Text211343wsgx",
+   "page": 1,
+   "rect": [
+    412,
+    47,
+    429,
+    63
+   ]
+  },
+  {
+   "field": "Text21111a",
+   "page": 1,
+   "rect": [
+    432,
+    47,
+    449,
+    63
+   ]
+  },
+  {
+   "field": "Text211114a",
+   "page": 1,
+   "rect": [
+    450,
+    47,
+    467,
+    63
+   ]
+  },
+  {
+   "field": "Text21111412a",
+   "page": 1,
+   "rect": [
+    470,
+    47,
+    487,
+    63
+   ]
+  },
+  {
+   "field": "Text2111141245a",
+   "page": 1,
+   "rect": [
+    488,
+    47,
+    505,
+    63
+   ]
+  },
+  {
+   "field": "Text211114124575a",
+   "page": 1,
+   "rect": [
+    506,
+    47,
+    523,
+    63
+   ]
+  },
+  {
+   "field": "Text2111141245751465a",
+   "page": 1,
+   "rect": [
+    523,
+    47,
+    541,
+    63
+   ]
+  }
+ ]
+}

@@ -1,0 +1,192 @@
+{
+ "form": "CA Schedule S",
+ "status": "draft - not reviewed",
+ "lines": {
+  "2": {
+   "field": "540 Shedule S Form 1014",
+   "page": 1
+  },
+  "3": {
+   "field": "540 Shedule S Form 1015",
+   "page": 1
+  },
+  "4": {
+   "field": "540 Shedule S Form 1016",
+   "page": 1
+  },
+  "5": {
+   "field": "540 Shedule S Form 1017",
+   "page": 1
+  },
+  "6": {
+   "field": "540 Shedule S Form 1018",
+   "page": 1
+  },
+  "7": {
+   "field": "540 Shedule S Form 1020",
+   "page": 1
+  },
+  "8": {
+   "field": "540 Shedule S Form 1021",
+   "page": 1
+  },
+  "9": {
+   "field": "540 Shedule S Form 1022",
+   "page": 1
+  },
+  "10": {
+   "field": "540 Shedule S Form 1023",
+   "page": 1
+  },
+  "11": {
+   "field": "540 Shedule S Form 1024",
+   "page": 1
+  },
+  "12": {
+   "field": "540 Shedule S Form 1025",
+   "page": 1
+  }
+ },
+ "unmapped": [
+  {
+   "field": "540 Shedule S Form 1001",
+   "page": 1,
+   "rect": [
+    36,
+    682,
+    408,
+    696
+   ]
+  },
+  {
+   "field": "540 Shedule S Form 1002",
+   "page": 1,
+   "rect": [
+    413,
+    682,
+    576,
+    696
+   ]
+  },
+  {
+   "field": "540 Shedule S Form 1003",
+   "page": 1,
+   "rect": [
+    47,
+    634,
+    205,
+    648
+   ]
+  },
+  {
+   "field": "540 Shedule S Form 1004",
+   "page": 1,
+   "rect": [
+    232,
+    634,
+    390,
+    648
+   ]
+  },
+  {
+   "field": "540 Shedule S Form 1005",
+   "page": 1,
+   "rect": [
+    421,
+    634,
+    576,
+    648
+   ]
+  },
+  {
+   "field": "540 Shedule S Form 1006",
+   "page": 1,
+   "rect": [
+    47,
+    610,
+    205,
+    624
+   ]
+  },
+  {
+   "field": "540 Shedule S Form 1007",
+   "page": 1,
+   "rect": [
+    232,
+    610,
+    390,
+    624
+   ]
+  },
+  {
+   "field": "540 Shedule S Form 1008",
+   "page": 1,
+   "rect": [
+    421,
+    610,
+    576,
+    624
+   ]
+  },
+  {
+   "field": "540 Shedule S Form 1009",
+   "page": 1,
+   "rect": [
+    47,
+    586,
+    205,
+    600
+   ]
+  },
+  {
+   "field": "540 Shedule S Form 1010",
+   "page": 1,
+   "rect": [
+    232,
+    586,
+    390,
+    600
+   ]
+  },
+  {
+   "field": "540 Shedule S Form 1011",
+   "page": 1,
+   "rect": [
+    421,
+    586,
+    576,
+    600
+   ]
+  },
+  {
+   "field": "540 Shedule S Form 1012",
+   "page": 1,
+   "rect": [
+    232,
+    562,
+    390,
+    576
+   ]
+  },
+  {
+   "field": "540 Shedule S Form 1013",
+   "page": 1,
+   "rect": [
+    421,
+    562,
+    576,
+    576
+   ]
+  },
+  {
+   "field": "540 Shedule S Form 1019",
+   "page": 1,
+   "rect": [
+    287,
+    393,
+    314,
+    408
+   ]
+  }
+ ]
+}

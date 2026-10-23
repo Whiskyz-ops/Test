@@ -1,0 +1,136 @@
+{
+ "form": "Schedule SE (Form 1040)",
+ "status": "draft - not reviewed",
+ "lines": {
+  "1a": {
+   "field": "topmostSubform[0].Page1[0].f1_3[0]",
+   "page": 1
+  },
+  "1b": {
+   "field": "topmostSubform[0].Page1[0].f1_4[0]",
+   "page": 1
+  },
+  "2": {
+   "field": "topmostSubform[0].Page1[0].f1_5[0]",
+   "page": 1
+  },
+  "3": {
+   "field": "topmostSubform[0].Page1[0].f1_6[0]",
+   "page": 1
+  },
+  "4a": {
+   "field": "topmostSubform[0].Page1[0].f1_7[0]",
+   "page": 1
+  },
+  "4b": {
+   "field": "topmostSubform[0].Page1[0].f1_8[0]",
+   "page": 1
+  },
+  "4c": {
+   "field": "topmostSubform[0].Page1[0].f1_9[0]",
+   "page": 1
+  },
+  "5a": {
+   "field": "topmostSubform[0].Page1[0].Line5a_ReadOrder[0].f1_10[0]",
+   "page": 1
+  },
+  "5b": {
+   "field": "topmostSubform[0].Page1[0].f1_11[0]",
+   "page": 1
+  },
+  "6": {
+   "field": "topmostSubform[0].Page1[0].f1_12[0]",
+   "page": 1
+  },
+  "8a": {
+   "field": "topmostSubform[0].Page1[0].Line8a_ReadOrder[0].f1_14[0]",
+   "page": 1
+  },
+  "8b": {
+   "field": "topmostSubform[0].Page1[0].f1_15[0]",
+   "page": 1
+  },
+  "8c": {
+   "field": "topmostSubform[0].Page1[0].f1_16[0]",
+   "page": 1
+  },
+  "8d": {
+   "field": "topmostSubform[0].Page1[0].f1_17[0]",
+   "page": 1
+  },
+  "9": {
+   "field": "topmostSubform[0].Page1[0].f1_18[0]",
+   "page": 1
+  },
+  "10": {
+   "field": "topmostSubform[0].Page1[0].f1_19[0]",
+   "page": 1
+  },
+  "11": {
+   "field": "topmostSubform[0].Page1[0].f1_20[0]",
+   "page": 1
+  },
+  "12": {
+   "field": "topmostSubform[0].Page1[0].f1_21[0]",
+   "page": 1
+  },
+  "13": {
+   "field": "topmostSubform[0].Page1[0].f1_22[0]",
+   "page": 1
+  },
+  "15": {
+   "field": "topmostSubform[0].Page2[0].f2_2[0]",
+   "page": 2
+  },
+  "16": {
+   "field": "topmostSubform[0].Page2[0].f2_3[0]",
+   "page": 2
+  },
+  "17": {
+   "field": "topmostSubform[0].Page2[0].f2_4[0]",
+   "page": 2
+  }
+ },
+ "unmapped": [
+  {
+   "field": "topmostSubform[0].Page1[0].f1_1[0]",
+   "page": 1,
+   "rect": [
+    36,
+    684,
+    359,
+    698
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_2[0]",
+   "page": 1,
+   "rect": [
+    490,
+    684,
+    576,
+    707
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_13[0]",
+   "page": 1,
+   "rect": [
+    575,
+    384,
+    576,
+    396
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page2[0].f2_1[0]",
+   "page": 2,
+   "rect": [
+    575,
+    696,
+    576,
+    708
+   ]
+  }
+ ]
+}

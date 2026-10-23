@@ -1,0 +1,1477 @@
+{
+ "form": "NY IT-201",
+ "status": "draft - not reviewed",
+ "lines": {
+  "1": {
+   "field": "Line1",
+   "page": 2
+  },
+  "2": {
+   "field": "Line2",
+   "page": 2
+  },
+  "3": {
+   "field": "Line3",
+   "page": 2
+  },
+  "4": {
+   "field": "Line4",
+   "page": 2
+  },
+  "5": {
+   "field": "Line5",
+   "page": 2
+  },
+  "6": {
+   "field": "Line6",
+   "page": 2
+  },
+  "7": {
+   "field": "Line7",
+   "page": 2
+  },
+  "8": {
+   "field": "Line8",
+   "page": 2
+  },
+  "9": {
+   "field": "Line9",
+   "page": 2
+  },
+  "10": {
+   "field": "Line10",
+   "page": 2
+  },
+  "11": {
+   "field": "Line11",
+   "page": 2
+  },
+  "12": {
+   "field": "Line12",
+   "page": 2
+  },
+  "13": {
+   "field": "Line13",
+   "page": 2
+  },
+  "14": {
+   "field": "Line14",
+   "page": 2
+  },
+  "15": {
+   "field": "Line15",
+   "page": 2
+  },
+  "16": {
+   "field": "Line16",
+   "page": 2
+  },
+  "17": {
+   "field": "Line17",
+   "page": 2
+  },
+  "18": {
+   "field": "Line18",
+   "page": 2
+  },
+  "19": {
+   "field": "Line19",
+   "page": 2
+  },
+  "20": {
+   "field": "Line20",
+   "page": 2
+  },
+  "21": {
+   "field": "Line21",
+   "page": 2
+  },
+  "22": {
+   "field": "Line22",
+   "page": 2
+  },
+  "23": {
+   "field": "Line23",
+   "page": 2
+  },
+  "24": {
+   "field": "Line24",
+   "page": 2
+  },
+  "25": {
+   "field": "Line25",
+   "page": 2
+  },
+  "26": {
+   "field": "Line26",
+   "page": 2
+  },
+  "27": {
+   "field": "Line27",
+   "page": 2
+  },
+  "28": {
+   "field": "Line28",
+   "page": 2
+  },
+  "29": {
+   "field": "Line29",
+   "page": 2
+  },
+  "30": {
+   "field": "Line30",
+   "page": 2
+  },
+  "31": {
+   "field": "Line31",
+   "page": 2
+  },
+  "32": {
+   "field": "Line32",
+   "page": 2
+  },
+  "33": {
+   "field": "Line33",
+   "page": 2
+  },
+  "34": {
+   "field": "Line34",
+   "page": 2
+  },
+  "35": {
+   "field": "Line35",
+   "page": 2,
+   "also": [
+    "Line36"
+   ]
+  },
+  "38": {
+   "field": "Line38",
+   "page": 3
+  },
+  "39": {
+   "field": "Line39",
+   "page": 3
+  },
+  "40": {
+   "field": "Line40",
+   "page": 3
+  },
+  "41": {
+   "field": "Line41",
+   "page": 3
+  },
+  "42": {
+   "field": "Line42",
+   "page": 3
+  },
+  "43": {
+   "field": "Line43",
+   "page": 3
+  },
+  "44": {
+   "field": "Line44",
+   "page": 3
+  },
+  "45": {
+   "field": "Line45",
+   "page": 3
+  },
+  "46": {
+   "field": "Line46",
+   "page": 3
+  },
+  "47": {
+   "field": "Line47",
+   "page": 3
+  },
+  "47a": {
+   "field": "Line47a",
+   "page": 3
+  },
+  "48": {
+   "field": "Line48",
+   "page": 3
+  },
+  "49": {
+   "field": "Line49",
+   "page": 3
+  },
+  "50": {
+   "field": "Line50",
+   "page": 3
+  },
+  "51": {
+   "field": "Line51",
+   "page": 3
+  },
+  "52": {
+   "field": "Line52",
+   "page": 3
+  },
+  "53": {
+   "field": "Line53",
+   "page": 3
+  },
+  "54": {
+   "field": "Line54",
+   "page": 3
+  },
+  "54a": {
+   "field": "Line54a",
+   "page": 3
+  },
+  "54b": {
+   "field": "Line54b",
+   "page": 3
+  },
+  "54c": {
+   "field": "Line54c",
+   "page": 3
+  },
+  "54d": {
+   "field": "Line54d",
+   "page": 3
+  },
+  "54e": {
+   "field": "Line54e",
+   "page": 3
+  },
+  "55": {
+   "field": "Line55",
+   "page": 3
+  },
+  "56": {
+   "field": "Line56",
+   "page": 3
+  },
+  "57": {
+   "field": "Line57",
+   "page": 3
+  },
+  "58": {
+   "field": "Line58",
+   "page": 3
+  },
+  "59": {
+   "field": "Line59",
+   "page": 3
+  },
+  "60": {
+   "field": "Line60",
+   "page": 3
+  },
+  "61": {
+   "field": "Line61",
+   "page": 3
+  },
+  "62": {
+   "field": "Line62",
+   "page": 4
+  },
+  "63": {
+   "field": "Line63",
+   "page": 4
+  },
+  "64": {
+   "field": "Line64",
+   "page": 4
+  },
+  "65": {
+   "field": "Line65",
+   "page": 4
+  },
+  "66": {
+   "field": "Line66",
+   "page": 4
+  },
+  "67": {
+   "field": "Line67",
+   "page": 4
+  },
+  "68": {
+   "field": "Line68",
+   "page": 4
+  },
+  "69": {
+   "field": "Line69",
+   "page": 4
+  },
+  "69a": {
+   "field": "Line69a",
+   "page": 4
+  },
+  "70": {
+   "field": "Line70",
+   "page": 4
+  },
+  "70a": {
+   "field": "Line70a",
+   "page": 4
+  },
+  "71": {
+   "field": "Line71",
+   "page": 4
+  },
+  "72": {
+   "field": "Line72",
+   "page": 4
+  },
+  "73": {
+   "field": "Line73",
+   "page": 4
+  },
+  "74": {
+   "field": "Line74",
+   "page": 4
+  },
+  "75": {
+   "field": "Line75",
+   "page": 4
+  },
+  "76": {
+   "field": "Line76",
+   "page": 4
+  },
+  "77": {
+   "field": "Line77",
+   "page": 4
+  },
+  "78": {
+   "field": "Line78",
+   "page": 4
+  },
+  "78a": {
+   "field": "Line78a",
+   "page": 4
+  },
+  "78b": {
+   "field": "Line78b",
+   "page": 4
+  },
+  "79": {
+   "field": "Line79",
+   "page": 4
+  },
+  "81": {
+   "field": "Line81",
+   "page": 4
+  },
+  "82": {
+   "field": "Line82",
+   "page": 4
+  }
+ },
+ "unmapped": [
+  {
+   "field": "Fiscal_year_start",
+   "page": 1,
+   "rect": [
+    504,
+    705,
+    561,
+    717
+   ]
+  },
+  {
+   "field": "Fiscal_year_end",
+   "page": 1,
+   "rect": [
+    504,
+    690,
+    576,
+    702
+   ]
+  },
+  {
+   "field": "TP_first_name",
+   "page": 1,
+   "rect": [
+    36,
+    660,
+    138,
+    672
+   ]
+  },
+  {
+   "field": "TP_MI",
+   "page": 1,
+   "rect": [
+    138,
+    660,
+    156,
+    672
+   ]
+  },
+  {
+   "field": "TP_last_name",
+   "page": 1,
+   "rect": [
+    156,
+    660,
+    354,
+    672
+   ]
+  },
+  {
+   "field": "TP_DOB",
+   "page": 1,
+   "rect": [
+    354,
+    660,
+    450,
+    672
+   ]
+  },
+  {
+   "field": "TP_SSN",
+   "page": 1,
+   "rect": [
+    450,
+    660,
+    576,
+    672
+   ]
+  },
+  {
+   "field": "Spouse_first_name",
+   "page": 1,
+   "rect": [
+    36,
+    636,
+    138,
+    648
+   ]
+  },
+  {
+   "field": "Spouse_MI",
+   "page": 1,
+   "rect": [
+    138,
+    636,
+    156,
+    648
+   ]
+  },
+  {
+   "field": "Spouse_last_name",
+   "page": 1,
+   "rect": [
+    156,
+    636,
+    354,
+    648
+   ]
+  },
+  {
+   "field": "Spouse_DOB",
+   "page": 1,
+   "rect": [
+    354,
+    636,
+    450,
+    648
+   ]
+  },
+  {
+   "field": "Spouse_SSN",
+   "page": 1,
+   "rect": [
+    450,
+    636,
+    576,
+    648
+   ]
+  },
+  {
+   "field": "TP_mail_address",
+   "page": 1,
+   "rect": [
+    36,
+    612,
+    366,
+    624
+   ]
+  },
+  {
+   "field": "TP_mail_apt",
+   "page": 1,
+   "rect": [
+    366,
+    612,
+    450,
+    624
+   ]
+  },
+  {
+   "field": "NYS_county_residence",
+   "page": 1,
+   "rect": [
+    450,
+    612,
+    576,
+    624
+   ]
+  },
+  {
+   "field": "TP_mail_city",
+   "page": 1,
+   "rect": [
+    36,
+    588,
+    216,
+    600
+   ]
+  },
+  {
+   "field": "TP_mail_state",
+   "page": 1,
+   "rect": [
+    216,
+    588,
+    240,
+    600
+   ]
+  },
+  {
+   "field": "TP_mail_zip",
+   "page": 1,
+   "rect": [
+    240,
+    588,
+    312,
+    600
+   ]
+  },
+  {
+   "field": "TP_mail_country",
+   "page": 1,
+   "rect": [
+    312,
+    588,
+    450,
+    600
+   ]
+  },
+  {
+   "field": "SD_name",
+   "page": 1,
+   "rect": [
+    450,
+    588,
+    576,
+    600
+   ]
+  },
+  {
+   "field": "TP_home_address",
+   "page": 1,
+   "rect": [
+    36,
+    564,
+    348,
+    576
+   ]
+  },
+  {
+   "field": "TP_home_apt",
+   "page": 1,
+   "rect": [
+    348,
+    564,
+    450,
+    576
+   ]
+  },
+  {
+   "field": "SD_code",
+   "page": 1,
+   "rect": [
+    532,
+    564,
+    576,
+    576
+   ]
+  },
+  {
+   "field": "TP_home_city",
+   "page": 1,
+   "rect": [
+    36,
+    540,
+    216,
+    552
+   ]
+  },
+  {
+   "field": "TP_home_zip",
+   "page": 1,
+   "rect": [
+    240,
+    540,
+    312,
+    552
+   ]
+  },
+  {
+   "field": "TP_date_death",
+   "page": 1,
+   "rect": [
+    354,
+    540,
+    450,
+    552
+   ]
+  },
+  {
+   "field": "Spouse_date_death",
+   "page": 1,
+   "rect": [
+    472,
+    540,
+    567,
+    552
+   ]
+  },
+  {
+   "field": "D1_Yonkers",
+   "page": 1,
+   "rect": [
+    545,
+    468,
+    576,
+    485
+   ]
+  },
+  {
+   "field": "D3_Yonkers",
+   "page": 1,
+   "rect": [
+    545,
+    444,
+    576,
+    461
+   ]
+  },
+  {
+   "field": "E2",
+   "page": 1,
+   "rect": [
+    531,
+    348,
+    576,
+    364
+   ]
+  },
+  {
+   "field": "F1_NYC",
+   "page": 1,
+   "rect": [
+    545,
+    324,
+    576,
+    340
+   ]
+  },
+  {
+   "field": "F2_NYC",
+   "page": 1,
+   "rect": [
+    545,
+    300,
+    576,
+    316
+   ]
+  },
+  {
+   "field": "G1_con_code",
+   "page": 1,
+   "rect": [
+    509,
+    276,
+    540,
+    292
+   ]
+  },
+  {
+   "field": "G2_con_code",
+   "page": 1,
+   "rect": [
+    545,
+    276,
+    576,
+    292
+   ]
+  },
+  {
+   "field": "H_first1",
+   "page": 1,
+   "rect": [
+    36,
+    235,
+    144,
+    247
+   ]
+  },
+  {
+   "field": "H_middle1",
+   "page": 1,
+   "rect": [
+    144,
+    235,
+    162,
+    247
+   ]
+  },
+  {
+   "field": "H_last1",
+   "page": 1,
+   "rect": [
+    162,
+    235,
+    270,
+    247
+   ]
+  },
+  {
+   "field": "H_relationship1",
+   "page": 1,
+   "rect": [
+    270,
+    235,
+    354,
+    247
+   ]
+  },
+  {
+   "field": "H_dependent_ssn1",
+   "page": 1,
+   "rect": [
+    354,
+    235,
+    480,
+    247
+   ]
+  },
+  {
+   "field": "H_dependent_dob1",
+   "page": 1,
+   "rect": [
+    480,
+    235,
+    576,
+    247
+   ]
+  },
+  {
+   "field": "H_first2",
+   "page": 1,
+   "rect": [
+    36,
+    211,
+    144,
+    223
+   ]
+  },
+  {
+   "field": "H_middle2",
+   "page": 1,
+   "rect": [
+    144,
+    211,
+    162,
+    223
+   ]
+  },
+  {
+   "field": "H_last2",
+   "page": 1,
+   "rect": [
+    162,
+    211,
+    270,
+    223
+   ]
+  },
+  {
+   "field": "H_relationship2",
+   "page": 1,
+   "rect": [
+    270,
+    211,
+    354,
+    223
+   ]
+  },
+  {
+   "field": "H_dependent_ssn2",
+   "page": 1,
+   "rect": [
+    354,
+    211,
+    480,
+    223
+   ]
+  },
+  {
+   "field": "H_dependent_dob2",
+   "page": 1,
+   "rect": [
+    481,
+    211,
+    576,
+    223
+   ]
+  },
+  {
+   "field": "H_first3",
+   "page": 1,
+   "rect": [
+    36,
+    187,
+    144,
+    199
+   ]
+  },
+  {
+   "field": "H_middle3",
+   "page": 1,
+   "rect": [
+    144,
+    187,
+    162,
+    199
+   ]
+  },
+  {
+   "field": "H_last3",
+   "page": 1,
+   "rect": [
+    162,
+    187,
+    270,
+    199
+   ]
+  },
+  {
+   "field": "H_relationship3",
+   "page": 1,
+   "rect": [
+    270,
+    187,
+    354,
+    199
+   ]
+  },
+  {
+   "field": "H_dependent_ssn3",
+   "page": 1,
+   "rect": [
+    354,
+    187,
+    480,
+    199
+   ]
+  },
+  {
+   "field": "H_dependent_dob3",
+   "page": 1,
+   "rect": [
+    481,
+    187,
+    576,
+    199
+   ]
+  },
+  {
+   "field": "H_first4",
+   "page": 1,
+   "rect": [
+    36,
+    163,
+    144,
+    175
+   ]
+  },
+  {
+   "field": "H_middle4",
+   "page": 1,
+   "rect": [
+    144,
+    163,
+    162,
+    175
+   ]
+  },
+  {
+   "field": "H_last4",
+   "page": 1,
+   "rect": [
+    162,
+    163,
+    270,
+    175
+   ]
+  },
+  {
+   "field": "H_relationship4",
+   "page": 1,
+   "rect": [
+    270,
+    163,
+    354,
+    175
+   ]
+  },
+  {
+   "field": "H_dependent_ssn4",
+   "page": 1,
+   "rect": [
+    354,
+    163,
+    480,
+    175
+   ]
+  },
+  {
+   "field": "H_dependent_dob4",
+   "page": 1,
+   "rect": [
+    481,
+    163,
+    576,
+    175
+   ]
+  },
+  {
+   "field": "H_first5",
+   "page": 1,
+   "rect": [
+    36,
+    139,
+    144,
+    151
+   ]
+  },
+  {
+   "field": "H_middle5",
+   "page": 1,
+   "rect": [
+    144,
+    139,
+    162,
+    151
+   ]
+  },
+  {
+   "field": "H_last5",
+   "page": 1,
+   "rect": [
+    162,
+    139,
+    270,
+    151
+   ]
+  },
+  {
+   "field": "H_relationship5",
+   "page": 1,
+   "rect": [
+    270,
+    139,
+    354,
+    151
+   ]
+  },
+  {
+   "field": "H_dependent_ssn5",
+   "page": 1,
+   "rect": [
+    354,
+    139,
+    480,
+    151
+   ]
+  },
+  {
+   "field": "H_dependent_dob5",
+   "page": 1,
+   "rect": [
+    481,
+    139,
+    576,
+    151
+   ]
+  },
+  {
+   "field": "H_first6",
+   "page": 1,
+   "rect": [
+    36,
+    115,
+    144,
+    127
+   ]
+  },
+  {
+   "field": "H_middle6",
+   "page": 1,
+   "rect": [
+    144,
+    115,
+    162,
+    127
+   ]
+  },
+  {
+   "field": "H_last6",
+   "page": 1,
+   "rect": [
+    162,
+    115,
+    270,
+    127
+   ]
+  },
+  {
+   "field": "H_relationship6",
+   "page": 1,
+   "rect": [
+    270,
+    115,
+    354,
+    127
+   ]
+  },
+  {
+   "field": "H_dependent_ssn6",
+   "page": 1,
+   "rect": [
+    354,
+    115,
+    480,
+    127
+   ]
+  },
+  {
+   "field": "H_dependent_dob6",
+   "page": 1,
+   "rect": [
+    481,
+    115,
+    576,
+    127
+   ]
+  },
+  {
+   "field": "H_first7",
+   "page": 1,
+   "rect": [
+    36,
+    91,
+    144,
+    103
+   ]
+  },
+  {
+   "field": "H_middle7",
+   "page": 1,
+   "rect": [
+    144,
+    91,
+    162,
+    103
+   ]
+  },
+  {
+   "field": "H_last7",
+   "page": 1,
+   "rect": [
+    162,
+    91,
+    270,
+    103
+   ]
+  },
+  {
+   "field": "H_relationship7",
+   "page": 1,
+   "rect": [
+    270,
+    91,
+    354,
+    103
+   ]
+  },
+  {
+   "field": "H_dependent_ssn7",
+   "page": 1,
+   "rect": [
+    354,
+    91,
+    480,
+    103
+   ]
+  },
+  {
+   "field": "H_dependent_dob7",
+   "page": 1,
+   "rect": [
+    481,
+    91,
+    576,
+    103
+   ]
+  },
+  {
+   "field": "TP_SSN",
+   "page": 2,
+   "rect": [
+    180,
+    732,
+    306,
+    742
+   ]
+  },
+  {
+   "field": "15_identify",
+   "page": 2,
+   "rect": [
+    176,
+    492,
+    430,
+    504
+   ]
+  },
+  {
+   "field": "18_identify",
+   "page": 2,
+   "rect": [
+    254,
+    462,
+    430,
+    474
+   ]
+  },
+  {
+   "field": "Line37",
+   "page": 2,
+   "rect": [
+    450,
+    94,
+    564,
+    84
+   ]
+  },
+  {
+   "field": "Name_as_page1",
+   "page": 3,
+   "rect": [
+    36,
+    732,
+    302,
+    744
+   ]
+  },
+  {
+   "field": "TP_SSN",
+   "page": 3,
+   "rect": [
+    310,
+    732,
+    434,
+    742
+   ]
+  },
+  {
+   "field": "TP_SSN",
+   "page": 4,
+   "rect": [
+    238,
+    732,
+    364,
+    744
+   ]
+  },
+  {
+   "field": "65_EIC",
+   "page": 4,
+   "rect": [
+    269,
+    672,
+    289,
+    684
+   ]
+  },
+  {
+   "field": "70_EIC",
+   "page": 4,
+   "rect": [
+    269,
+    600,
+    289,
+    612
+   ]
+  },
+  {
+   "field": "Line80",
+   "page": 4,
+   "rect": [
+    450,
+    336,
+    564,
+    346
+   ]
+  },
+  {
+   "field": "Line83b_routing",
+   "page": 4,
+   "rect": [
+    138,
+    240,
+    246,
+    252
+   ]
+  },
+  {
+   "field": "Line83c_account_num",
+   "page": 4,
+   "rect": [
+    363,
+    240,
+    566,
+    252
+   ]
+  },
+  {
+   "field": "Line84_withdrawal_Date",
+   "page": 4,
+   "rect": [
+    290,
+    222,
+    384,
+    234
+   ]
+  },
+  {
+   "field": "Line84_withdrawal_amount",
+   "page": 4,
+   "rect": [
+    442,
+    222,
+    554,
+    232
+   ]
+  },
+  {
+   "field": "designee_name",
+   "page": 4,
+   "rect": [
+    114,
+    192,
+    333,
+    204
+   ]
+  },
+  {
+   "field": "designee_ac",
+   "page": 4,
+   "rect": [
+    339,
+    192,
+    363,
+    204
+   ]
+  },
+  {
+   "field": "designees_phone",
+   "page": 4,
+   "rect": [
+    367,
+    192,
+    489,
+    204
+   ]
+  },
+  {
+   "field": "designee_email",
+   "page": 4,
+   "rect": [
+    142,
+    178,
+    489,
+    190
+   ]
+  },
+  {
+   "field": "designee_pin",
+   "page": 4,
+   "rect": [
+    490,
+    178,
+    575,
+    190
+   ]
+  },
+  {
+   "field": "Prep_NYTPRIN",
+   "page": 4,
+   "rect": [
+    180,
+    156,
+    276,
+    168
+   ]
+  },
+  {
+   "field": "NYTPRIN_excl_code",
+   "page": 4,
+   "rect": [
+    314,
+    156,
+    347,
+    168
+   ]
+  },
+  {
+   "field": "Prep_name",
+   "page": 4,
+   "rect": [
+    192,
+    138,
+    347,
+    150
+   ]
+  },
+  {
+   "field": "firm_name",
+   "page": 4,
+   "rect": [
+    37,
+    120,
+    238,
+    132
+   ]
+  },
+  {
+   "field": "Prep_PTIN_SSN",
+   "page": 4,
+   "rect": [
+    240,
+    120,
+    347,
+    132
+   ]
+  },
+  {
+   "field": "TP_occupation",
+   "page": 4,
+   "rect": [
+    355,
+    119,
+    575,
+    131
+   ]
+  },
+  {
+   "field": "Firm_address1",
+   "page": 4,
+   "rect": [
+    37,
+    100,
+    239,
+    112
+   ]
+  },
+  {
+   "field": "Prep_EIN",
+   "page": 4,
+   "rect": [
+    240,
+    102,
+    347,
+    114
+   ]
+  },
+  {
+   "field": "Spouse_occupation",
+   "page": 4,
+   "rect": [
+    476,
+    102,
+    575,
+    114
+   ]
+  },
+  {
+   "field": "Firm_address2",
+   "page": 4,
+   "rect": [
+    37,
+    85,
+    276,
+    97
+   ]
+  },
+  {
+   "field": "Prep_date",
+   "page": 4,
+   "rect": [
+    276,
+    83,
+    347,
+    95
+   ]
+  },
+  {
+   "field": "signed_date",
+   "page": 4,
+   "rect": [
+    355,
+    84,
+    455,
+    96
+   ]
+  },
+  {
+   "field": "day_ac",
+   "page": 4,
+   "rect": [
+    460,
+    84,
+    484,
+    96
+   ]
+  },
+  {
+   "field": "day_phone",
+   "page": 4,
+   "rect": [
+    488,
+    84,
+    575,
+    96
+   ]
+  },
+  {
+   "field": "Firm_email",
+   "page": 4,
+   "rect": [
+    62,
+    72,
+    348,
+    84
+   ]
+  },
+  {
+   "field": "sign_email",
+   "page": 4,
+   "rect": [
+    381,
+    72,
+    575,
+    84
+   ]
+  }
+ ]
+}

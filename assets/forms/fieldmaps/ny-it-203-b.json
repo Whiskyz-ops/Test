@@ -1,0 +1,665 @@
+{
+ "form": "NY IT-203-B",
+ "status": "draft - not reviewed",
+ "lines": {
+  "1a": {
+   "field": "aA",
+   "page": 1
+  },
+  "1b": {
+   "field": "bA",
+   "page": 1
+  },
+  "1c": {
+   "field": "cA",
+   "page": 1
+  },
+  "1d": {
+   "field": "DA",
+   "page": 1
+  },
+  "1e": {
+   "field": "eA",
+   "page": 1
+  },
+  "1f": {
+   "field": "fA",
+   "page": 1
+  },
+  "1g": {
+   "field": "gA",
+   "page": 1
+  },
+  "1h": {
+   "field": "hA",
+   "page": 1
+  },
+  "1i": {
+   "field": "iA",
+   "page": 1
+  },
+  "1j": {
+   "field": "jA",
+   "page": 1
+  },
+  "1k": {
+   "field": "kA",
+   "page": 1
+  },
+  "1l": {
+   "field": "lA",
+   "page": 1
+  },
+  "1m": {
+   "field": "mA",
+   "page": 1
+  },
+  "1n": {
+   "field": "1n2A",
+   "page": 1
+  },
+  "1o": {
+   "field": "o dollarsA",
+   "page": 1
+  },
+  "1p": {
+   "field": "p dollarsA",
+   "page": 1
+  },
+  "1": {
+   "field": "S1_first_name",
+   "page": 2
+  },
+  "2": {
+   "field": "Line2_amount",
+   "page": 2,
+   "also": [
+    "S2_first_name"
+   ]
+  },
+  "3": {
+   "field": "S3_first_name",
+   "page": 2
+  },
+  "2a": {
+   "field": "2a",
+   "page": 3
+  },
+  "2b": {
+   "field": "2b",
+   "page": 3
+  },
+  "2c": {
+   "field": "2c",
+   "page": 3
+  },
+  "2d": {
+   "field": "2d",
+   "page": 3
+  },
+  "2e": {
+   "field": "2e",
+   "page": 3
+  },
+  "2f": {
+   "field": "2f",
+   "page": 3
+  },
+  "2g": {
+   "field": "2g",
+   "page": 3
+  },
+  "2h": {
+   "field": "2h",
+   "page": 3
+  },
+  "2i": {
+   "field": "2i",
+   "page": 3
+  },
+  "2j": {
+   "field": "2j",
+   "page": 3
+  },
+  "2k": {
+   "field": "2k",
+   "page": 3
+  },
+  "2l": {
+   "field": "2l",
+   "page": 3
+  },
+  "2m": {
+   "field": "2m",
+   "page": 3
+  },
+  "2n": {
+   "field": "2m2",
+   "page": 3
+  },
+  "2o": {
+   "field": "2n dollars",
+   "page": 3
+  },
+  "2p": {
+   "field": "2o dollars",
+   "page": 3
+  },
+  "3a": {
+   "field": "3a",
+   "page": 3
+  },
+  "3b": {
+   "field": "3b",
+   "page": 3
+  },
+  "3c": {
+   "field": "3c",
+   "page": 3
+  },
+  "3d": {
+   "field": "3d",
+   "page": 3
+  },
+  "3e": {
+   "field": "3e",
+   "page": 3
+  },
+  "3f": {
+   "field": "3f",
+   "page": 3
+  },
+  "3g": {
+   "field": "3g",
+   "page": 3
+  },
+  "3h": {
+   "field": "3h",
+   "page": 3
+  },
+  "3i": {
+   "field": "3i",
+   "page": 3
+  },
+  "3j": {
+   "field": "3j",
+   "page": 3
+  },
+  "3k": {
+   "field": "3k",
+   "page": 3
+  },
+  "3l": {
+   "field": "3l",
+   "page": 3
+  },
+  "3m": {
+   "field": "3m",
+   "page": 3
+  },
+  "3n": {
+   "field": "3m2",
+   "page": 3
+  },
+  "3o": {
+   "field": "3n dollars",
+   "page": 3
+  },
+  "3p": {
+   "field": "3o dollars",
+   "page": 3
+  }
+ },
+ "unmapped": [
+  {
+   "field": "name(s)",
+   "page": 1,
+   "rect": [
+    36,
+    684,
+    258,
+    696
+   ]
+  },
+  {
+   "field": "occupation",
+   "page": 1,
+   "rect": [
+    258,
+    684,
+    432,
+    696
+   ]
+  },
+  {
+   "field": "your ssn",
+   "page": 1,
+   "rect": [
+    432,
+    684,
+    576,
+    696
+   ]
+  },
+  {
+   "field": "Col A1 - address",
+   "page": 1,
+   "rect": [
+    36,
+    204,
+    264,
+    216
+   ]
+  },
+  {
+   "field": "Col B1 - City",
+   "page": 1,
+   "rect": [
+    264,
+    204,
+    456,
+    216
+   ]
+  },
+  {
+   "field": "ZIP1",
+   "page": 1,
+   "rect": [
+    480,
+    204,
+    555,
+    216
+   ]
+  },
+  {
+   "field": "Col A2 - address",
+   "page": 1,
+   "rect": [
+    36,
+    180,
+    264,
+    192
+   ]
+  },
+  {
+   "field": "Col B2 - City",
+   "page": 1,
+   "rect": [
+    264,
+    180,
+    456,
+    192
+   ]
+  },
+  {
+   "field": "ZIP2",
+   "page": 1,
+   "rect": [
+    480,
+    180,
+    555,
+    192
+   ]
+  },
+  {
+   "field": "Col A3 - address",
+   "page": 1,
+   "rect": [
+    36,
+    156,
+    264,
+    168
+   ]
+  },
+  {
+   "field": "Col B3 - City",
+   "page": 1,
+   "rect": [
+    264,
+    156,
+    456,
+    168
+   ]
+  },
+  {
+   "field": "ZIP3",
+   "page": 1,
+   "rect": [
+    480,
+    156,
+    555,
+    168
+   ]
+  },
+  {
+   "field": "Col A4 - address",
+   "page": 1,
+   "rect": [
+    36,
+    132,
+    264,
+    144
+   ]
+  },
+  {
+   "field": "Col B4 - City",
+   "page": 1,
+   "rect": [
+    264,
+    132,
+    456,
+    144
+   ]
+  },
+  {
+   "field": "ZIP4",
+   "page": 1,
+   "rect": [
+    480,
+    132,
+    555,
+    144
+   ]
+  },
+  {
+   "field": "days",
+   "page": 1,
+   "rect": [
+    317,
+    108,
+    362,
+    120
+   ]
+  },
+  {
+   "field": "your ssn",
+   "page": 2,
+   "rect": [
+    163,
+    735,
+    299,
+    747
+   ]
+  },
+  {
+   "field": "S1_MI",
+   "page": 2,
+   "rect": [
+    174,
+    612,
+    192,
+    624
+   ]
+  },
+  {
+   "field": "S1_last_name",
+   "page": 2,
+   "rect": [
+    192,
+    612,
+    403,
+    624
+   ]
+  },
+  {
+   "field": "S1_suffix",
+   "page": 2,
+   "rect": [
+    402,
+    612,
+    426,
+    624
+   ]
+  },
+  {
+   "field": "S1_SSN",
+   "page": 2,
+   "rect": [
+    426,
+    612,
+    510,
+    624
+   ]
+  },
+  {
+   "field": "S1_DOB",
+   "page": 2,
+   "rect": [
+    510,
+    612,
+    575,
+    624
+   ]
+  },
+  {
+   "field": "S1_EIN",
+   "page": 2,
+   "rect": [
+    54,
+    558,
+    198,
+    570
+   ]
+  },
+  {
+   "field": "S1_Uni name",
+   "page": 2,
+   "rect": [
+    222,
+    558,
+    570,
+    570
+   ]
+  },
+  {
+   "field": "S1_expenses",
+   "page": 2,
+   "rect": [
+    198,
+    516,
+    305,
+    528
+   ]
+  },
+  {
+   "field": "S1_lesser",
+   "page": 2,
+   "rect": [
+    450,
+    516,
+    557,
+    528
+   ]
+  },
+  {
+   "field": "S2_MI",
+   "page": 2,
+   "rect": [
+    174,
+    480,
+    192,
+    492
+   ]
+  },
+  {
+   "field": "S2_last_name",
+   "page": 2,
+   "rect": [
+    192,
+    480,
+    403,
+    492
+   ]
+  },
+  {
+   "field": "S2_suffix",
+   "page": 2,
+   "rect": [
+    403,
+    480,
+    426,
+    492
+   ]
+  },
+  {
+   "field": "S2_SSN",
+   "page": 2,
+   "rect": [
+    426,
+    480,
+    510,
+    492
+   ]
+  },
+  {
+   "field": "S2_DOB",
+   "page": 2,
+   "rect": [
+    510,
+    480,
+    575,
+    492
+   ]
+  },
+  {
+   "field": "S2_EIN",
+   "page": 2,
+   "rect": [
+    54,
+    426,
+    198,
+    438
+   ]
+  },
+  {
+   "field": "S2_Uni name",
+   "page": 2,
+   "rect": [
+    222,
+    426,
+    570,
+    438
+   ]
+  },
+  {
+   "field": "S2_expenses",
+   "page": 2,
+   "rect": [
+    198,
+    385,
+    305,
+    397
+   ]
+  },
+  {
+   "field": "S2_lesser",
+   "page": 2,
+   "rect": [
+    450,
+    385,
+    557,
+    397
+   ]
+  },
+  {
+   "field": "S3_MI",
+   "page": 2,
+   "rect": [
+    174,
+    348,
+    192,
+    360
+   ]
+  },
+  {
+   "field": "S3_last_name",
+   "page": 2,
+   "rect": [
+    192,
+    348,
+    403,
+    360
+   ]
+  },
+  {
+   "field": "S3_suffix",
+   "page": 2,
+   "rect": [
+    403,
+    348,
+    426,
+    360
+   ]
+  },
+  {
+   "field": "S3_SSN",
+   "page": 2,
+   "rect": [
+    426,
+    348,
+    510,
+    360
+   ]
+  },
+  {
+   "field": "S3_DOB",
+   "page": 2,
+   "rect": [
+    510,
+    348,
+    575,
+    360
+   ]
+  },
+  {
+   "field": "S3_EIN",
+   "page": 2,
+   "rect": [
+    54,
+    294,
+    198,
+    306
+   ]
+  },
+  {
+   "field": "S3_Uni name",
+   "page": 2,
+   "rect": [
+    222,
+    294,
+    570,
+    306
+   ]
+  },
+  {
+   "field": "S3_expenses",
+   "page": 2,
+   "rect": [
+    198,
+    252,
+    305,
+    264
+   ]
+  },
+  {
+   "field": "S3_lesser",
+   "page": 2,
+   "rect": [
+    450,
+    252,
+    557,
+    264
+   ]
+  },
+  {
+   "field": "your ssn",
+   "page": 3,
+   "rect": [
+    315,
+    735,
+    451,
+    747
+   ]
+  }
+ ]
+}

@@ -1,0 +1,247 @@
+{
+ "form": "NY IT-370",
+ "status": "draft - not reviewed",
+ "lines": {},
+ "unmapped": [
+  {
+   "field": "ss170",
+   "page": 1,
+   "rect": [
+    36,
+    171,
+    192,
+    183
+   ]
+  },
+  {
+   "field": "ss270",
+   "page": 1,
+   "rect": [
+    192,
+    171,
+    336,
+    183
+   ]
+  },
+  {
+   "field": "first170",
+   "page": 1,
+   "rect": [
+    36,
+    147,
+    192,
+    159
+   ]
+  },
+  {
+   "field": "last170",
+   "page": 1,
+   "rect": [
+    192,
+    147,
+    336,
+    159
+   ]
+  },
+  {
+   "field": "first270",
+   "page": 1,
+   "rect": [
+    36,
+    123,
+    192,
+    135
+   ]
+  },
+  {
+   "field": "last270",
+   "page": 1,
+   "rect": [
+    192,
+    123,
+    336,
+    135
+   ]
+  },
+  {
+   "field": "Address71",
+   "page": 1,
+   "rect": [
+    36,
+    99,
+    264,
+    111
+   ]
+  },
+  {
+   "field": "Apt #",
+   "page": 1,
+   "rect": [
+    267,
+    99,
+    336,
+    111
+   ]
+  },
+  {
+   "field": "city, village or post office71",
+   "page": 1,
+   "rect": [
+    36,
+    75,
+    210,
+    87
+   ]
+  },
+  {
+   "field": "state71",
+   "page": 1,
+   "rect": [
+    210,
+    75,
+    240,
+    87
+   ]
+  },
+  {
+   "field": "ZIP code71",
+   "page": 1,
+   "rect": [
+    240,
+    75,
+    336,
+    87
+   ]
+  },
+  {
+   "field": "email1",
+   "page": 1,
+   "rect": [
+    60,
+    63,
+    336,
+    75
+   ]
+  },
+  {
+   "field": "sc code",
+   "page": 1,
+   "rect": [
+    545,
+    181,
+    576,
+    198
+   ]
+  },
+  {
+   "field": "6 dollars71",
+   "page": 1,
+   "rect": [
+    450,
+    111,
+    546,
+    121
+   ]
+  },
+  {
+   "field": "7 dollars71",
+   "page": 1,
+   "rect": [
+    450,
+    87,
+    546,
+    97
+   ]
+  },
+  {
+   "field": "datepaid",
+   "page": 2,
+   "rect": [
+    267,
+    141,
+    346,
+    151
+   ]
+  },
+  {
+   "field": "nytprin",
+   "page": 2,
+   "rect": [
+    240,
+    123,
+    336,
+    132
+   ]
+  },
+  {
+   "field": "firms name",
+   "page": 2,
+   "rect": [
+    38,
+    105,
+    238,
+    117
+   ]
+  },
+  {
+   "field": "paid addr 1",
+   "page": 2,
+   "rect": [
+    38,
+    82,
+    239,
+    94
+   ]
+  },
+  {
+   "field": "Paid addr 2",
+   "page": 2,
+   "rect": [
+    38,
+    68,
+    239,
+    80
+   ]
+  },
+  {
+   "field": "email2",
+   "page": 2,
+   "rect": [
+    70,
+    56,
+    346,
+    68
+   ]
+  },
+  {
+   "field": "preparers ssn",
+   "page": 2,
+   "rect": [
+    240,
+    105,
+    346,
+    114
+   ]
+  },
+  {
+   "field": "ein",
+   "page": 2,
+   "rect": [
+    240,
+    85,
+    346,
+    94
+   ]
+  },
+  {
+   "field": "NYTPRIN excl code",
+   "page": 2,
+   "rect": [
+    313,
+    68,
+    346,
+    78
+   ]
+  }
+ ]
+}

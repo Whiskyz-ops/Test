@@ -1,0 +1,746 @@
+{
+ "form": "NY IT-201-ATT",
+ "status": "draft - not reviewed",
+ "lines": {
+  "1": {
+   "field": "1 dollars",
+   "page": 1
+  },
+  "2a": {
+   "field": "line 2a code",
+   "page": 1
+  },
+  "2b": {
+   "field": "line 2b code",
+   "page": 1
+  },
+  "2": {
+   "field": "2 dollars",
+   "page": 1
+  },
+  "3": {
+   "field": "3 dollars",
+   "page": 1
+  },
+  "4": {
+   "field": "4 dollars",
+   "page": 1
+  },
+  "5": {
+   "field": "5 dollars",
+   "page": 1
+  },
+  "6a": {
+   "field": "line 6a",
+   "page": 1
+  },
+  "6b": {
+   "field": "line 6b",
+   "page": 1
+  },
+  "6c": {
+   "field": "line 6c",
+   "page": 1
+  },
+  "6d": {
+   "field": "line 6d",
+   "page": 1
+  },
+  "6e": {
+   "field": "amount 6e",
+   "page": 1
+  },
+  "6f": {
+   "field": "amount 6f",
+   "page": 1
+  },
+  "6g": {
+   "field": "amount 6g",
+   "page": 1
+  },
+  "6h": {
+   "field": "line 6h",
+   "page": 1
+  },
+  "6i": {
+   "field": "line 6i",
+   "page": 1
+  },
+  "6j": {
+   "field": "line 6j",
+   "page": 1
+  },
+  "6k": {
+   "field": "line 6k",
+   "page": 1
+  },
+  "6l": {
+   "field": "line 6l",
+   "page": 1
+  },
+  "6m": {
+   "field": "line 6m",
+   "page": 1
+  },
+  "6n": {
+   "field": "line 6n",
+   "page": 1
+  },
+  "6": {
+   "field": "6 dollars",
+   "page": 1
+  },
+  "7": {
+   "field": "7 dollars",
+   "page": 1
+  },
+  "8": {
+   "field": "8 dollars",
+   "page": 1
+  },
+  "8a": {
+   "field": "8a dollars",
+   "page": 1
+  },
+  "9": {
+   "field": "9 dollars",
+   "page": 1
+  },
+  "9a": {
+   "field": "9a dollars",
+   "page": 1
+  },
+  "10": {
+   "field": "10 dollars",
+   "page": 1
+  },
+  "11": {
+   "field": "11 dollars",
+   "page": 1
+  },
+  "12a": {
+   "field": "line 12a",
+   "page": 1
+  },
+  "12b": {
+   "field": "line 12b",
+   "page": 1
+  },
+  "12c": {
+   "field": "line 12c",
+   "page": 1
+  },
+  "12d": {
+   "field": "line 12d",
+   "page": 1
+  },
+  "12e": {
+   "field": "amount 12e",
+   "page": 1
+  },
+  "12f": {
+   "field": "amount 12f",
+   "page": 1
+  },
+  "12g": {
+   "field": "line 12g",
+   "page": 1
+  },
+  "12h": {
+   "field": "line 12h",
+   "page": 1
+  },
+  "12i": {
+   "field": "line 12i",
+   "page": 1
+  },
+  "12j": {
+   "field": "line 12j",
+   "page": 1
+  },
+  "12k": {
+   "field": "line 12k",
+   "page": 1
+  },
+  "12l": {
+   "field": "line 12l",
+   "page": 1
+  },
+  "12": {
+   "field": "12 dollars",
+   "page": 1
+  },
+  "13": {
+   "field": "13 dollars",
+   "page": 1
+  },
+  "14": {
+   "field": "14 dollarsA",
+   "page": 2
+  },
+  "15": {
+   "field": "15 dollarsA",
+   "page": 2
+  },
+  "16": {
+   "field": "16 dollarsA",
+   "page": 2
+  },
+  "17": {
+   "field": "17 dollarsA",
+   "page": 2
+  },
+  "17a": {
+   "field": "17a dollarsA",
+   "page": 2
+  },
+  "18": {
+   "field": "18 dollarsA",
+   "page": 2
+  },
+  "19": {
+   "field": "19 dollarsA",
+   "page": 2
+  },
+  "20a": {
+   "field": "line 20a code",
+   "page": 2
+  },
+  "20b": {
+   "field": "line 20b code",
+   "page": 2
+  },
+  "20c": {
+   "field": "line 20c code",
+   "page": 2
+  },
+  "20d": {
+   "field": "line 20d code",
+   "page": 2
+  },
+  "20e": {
+   "field": "line 20e amount",
+   "page": 2
+  },
+  "20f": {
+   "field": "line 20f amount",
+   "page": 2
+  },
+  "20g": {
+   "field": "line 20g code",
+   "page": 2
+  },
+  "20h": {
+   "field": "line 20h code",
+   "page": 2
+  },
+  "20i": {
+   "field": "line 20i code",
+   "page": 2
+  },
+  "20j": {
+   "field": "line 20j code",
+   "page": 2
+  },
+  "20k": {
+   "field": "line 20k code",
+   "page": 2
+  },
+  "20l": {
+   "field": "line 20l code",
+   "page": 2
+  },
+  "20": {
+   "field": "20 dollarsA",
+   "page": 2
+  },
+  "21": {
+   "field": "21 dollarsA",
+   "page": 2
+  },
+  "22": {
+   "field": "22 dollarsA",
+   "page": 2
+  },
+  "23": {
+   "field": "23 dollarsA",
+   "page": 2
+  },
+  "24": {
+   "field": "24 dollarsA",
+   "page": 2
+  },
+  "25": {
+   "field": "25 dollarsA",
+   "page": 2
+  },
+  "26": {
+   "field": "26 dollarsA",
+   "page": 2
+  },
+  "27": {
+   "field": "27 dollarsA",
+   "page": 2
+  },
+  "28": {
+   "field": "28 dollarsA",
+   "page": 2
+  },
+  "29": {
+   "field": "29 dollarsA",
+   "page": 2
+  },
+  "30": {
+   "field": "30 dollarsA",
+   "page": 2
+  },
+  "31": {
+   "field": "31 dollarsA",
+   "page": 2
+  },
+  "32": {
+   "field": "32 dollarsA",
+   "page": 2
+  },
+  "33": {
+   "field": "33 dollarsA",
+   "page": 2
+  },
+  "34": {
+   "field": "34 dollarsA",
+   "page": 2
+  }
+ },
+ "unmapped": [
+  {
+   "field": "name",
+   "page": 1,
+   "rect": [
+    36,
+    666,
+    440,
+    678
+   ]
+  },
+  {
+   "field": "ssn",
+   "page": 1,
+   "rect": [
+    440,
+    666,
+    576,
+    678
+   ]
+  },
+  {
+   "field": "line 2a amount.0",
+   "page": 1,
+   "rect": [
+    102,
+    545,
+    216,
+    557
+   ]
+  },
+  {
+   "field": "line 2b amount.0",
+   "page": 1,
+   "rect": [
+    306,
+    545,
+    420,
+    557
+   ]
+  },
+  {
+   "field": "amount 6a",
+   "page": 1,
+   "rect": [
+    102,
+    437,
+    216,
+    449
+   ]
+  },
+  {
+   "field": "amount 6b",
+   "page": 1,
+   "rect": [
+    102,
+    425,
+    216,
+    437
+   ]
+  },
+  {
+   "field": "amount 6c",
+   "page": 1,
+   "rect": [
+    102,
+    413,
+    216,
+    425
+   ]
+  },
+  {
+   "field": "amount 6d",
+   "page": 1,
+   "rect": [
+    102,
+    401,
+    216,
+    413
+   ]
+  },
+  {
+   "field": "line 6e",
+   "page": 1,
+   "rect": [
+    60,
+    389,
+    96,
+    401
+   ]
+  },
+  {
+   "field": "line 6f",
+   "page": 1,
+   "rect": [
+    60,
+    377,
+    96,
+    389
+   ]
+  },
+  {
+   "field": "line 6g",
+   "page": 1,
+   "rect": [
+    60,
+    365,
+    96,
+    377
+   ]
+  },
+  {
+   "field": "amount 6h",
+   "page": 1,
+   "rect": [
+    306,
+    437,
+    420,
+    449
+   ]
+  },
+  {
+   "field": "amount 6i",
+   "page": 1,
+   "rect": [
+    306,
+    425,
+    420,
+    437
+   ]
+  },
+  {
+   "field": "amount 6j",
+   "page": 1,
+   "rect": [
+    306,
+    413,
+    420,
+    425
+   ]
+  },
+  {
+   "field": "amount 6k",
+   "page": 1,
+   "rect": [
+    306,
+    401,
+    420,
+    413
+   ]
+  },
+  {
+   "field": "amount 6l",
+   "page": 1,
+   "rect": [
+    306,
+    389,
+    420,
+    401
+   ]
+  },
+  {
+   "field": "amount 6m",
+   "page": 1,
+   "rect": [
+    306,
+    377,
+    420,
+    389
+   ]
+  },
+  {
+   "field": "amount 6n",
+   "page": 1,
+   "rect": [
+    306,
+    365,
+    420,
+    377
+   ]
+  },
+  {
+   "field": "amount 12a",
+   "page": 1,
+   "rect": [
+    102,
+    161,
+    216,
+    173
+   ]
+  },
+  {
+   "field": "amount 12b",
+   "page": 1,
+   "rect": [
+    102,
+    149,
+    216,
+    161
+   ]
+  },
+  {
+   "field": "amount 12c",
+   "page": 1,
+   "rect": [
+    102,
+    137,
+    216,
+    149
+   ]
+  },
+  {
+   "field": "amount 12d",
+   "page": 1,
+   "rect": [
+    102,
+    125,
+    216,
+    137
+   ]
+  },
+  {
+   "field": "line 12e",
+   "page": 1,
+   "rect": [
+    60,
+    113,
+    96,
+    125
+   ]
+  },
+  {
+   "field": "line 12f",
+   "page": 1,
+   "rect": [
+    60,
+    101,
+    96,
+    113
+   ]
+  },
+  {
+   "field": "amount 12g",
+   "page": 1,
+   "rect": [
+    306,
+    161,
+    420,
+    173
+   ]
+  },
+  {
+   "field": "amount 12h",
+   "page": 1,
+   "rect": [
+    306,
+    149,
+    420,
+    161
+   ]
+  },
+  {
+   "field": "amount 12i",
+   "page": 1,
+   "rect": [
+    306,
+    137,
+    420,
+    149
+   ]
+  },
+  {
+   "field": "amount 12j",
+   "page": 1,
+   "rect": [
+    306,
+    125,
+    420,
+    137
+   ]
+  },
+  {
+   "field": "amount 12k",
+   "page": 1,
+   "rect": [
+    306,
+    113,
+    420,
+    125
+   ]
+  },
+  {
+   "field": "amount 12l",
+   "page": 1,
+   "rect": [
+    306,
+    101,
+    420,
+    113
+   ]
+  },
+  {
+   "field": "ssn",
+   "page": 2,
+   "rect": [
+    450,
+    732,
+    576,
+    744
+   ]
+  },
+  {
+   "field": "line 20a amount",
+   "page": 2,
+   "rect": [
+    102,
+    503,
+    216,
+    515
+   ]
+  },
+  {
+   "field": "line 20b amount",
+   "page": 2,
+   "rect": [
+    102,
+    491,
+    216,
+    503
+   ]
+  },
+  {
+   "field": "line 20c amount",
+   "page": 2,
+   "rect": [
+    102,
+    479,
+    216,
+    491
+   ]
+  },
+  {
+   "field": "line 20d amount",
+   "page": 2,
+   "rect": [
+    102,
+    467,
+    216,
+    479
+   ]
+  },
+  {
+   "field": "line 20e code",
+   "page": 2,
+   "rect": [
+    60,
+    455,
+    96,
+    467
+   ]
+  },
+  {
+   "field": "line 20f code",
+   "page": 2,
+   "rect": [
+    60,
+    443,
+    96,
+    455
+   ]
+  },
+  {
+   "field": "line 20g amount",
+   "page": 2,
+   "rect": [
+    306,
+    503,
+    420,
+    515
+   ]
+  },
+  {
+   "field": "line 20h amount",
+   "page": 2,
+   "rect": [
+    306,
+    491,
+    420,
+    503
+   ]
+  },
+  {
+   "field": "line 20i amount",
+   "page": 2,
+   "rect": [
+    306,
+    479,
+    420,
+    491
+   ]
+  },
+  {
+   "field": "line 20j amount",
+   "page": 2,
+   "rect": [
+    306,
+    467,
+    420,
+    479
+   ]
+  },
+  {
+   "field": "line 20k amount",
+   "page": 2,
+   "rect": [
+    306,
+    455,
+    420,
+    467
+   ]
+  },
+  {
+   "field": "line 20l amount",
+   "page": 2,
+   "rect": [
+    306,
+    443,
+    420,
+    455
+   ]
+  }
+ ]
+}

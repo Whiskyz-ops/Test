@@ -1,0 +1,147 @@
+{
+ "form": "NY IT-2105",
+ "status": "draft - not reviewed",
+ "lines": {},
+ "unmapped": [
+  {
+   "field": "SSN or ID",
+   "page": 1,
+   "rect": [
+    36,
+    168,
+    192,
+    180
+   ]
+  },
+  {
+   "field": "First name",
+   "page": 1,
+   "rect": [
+    36,
+    144,
+    192,
+    156
+   ]
+  },
+  {
+   "field": "Last name",
+   "page": 1,
+   "rect": [
+    192,
+    144,
+    336,
+    156
+   ]
+  },
+  {
+   "field": "Mailing address",
+   "page": 1,
+   "rect": [
+    36,
+    120,
+    264,
+    132
+   ]
+  },
+  {
+   "field": "Apt. num",
+   "page": 1,
+   "rect": [
+    267,
+    120,
+    336,
+    132
+   ]
+  },
+  {
+   "field": "City",
+   "page": 1,
+   "rect": [
+    36,
+    96,
+    231,
+    108
+   ]
+  },
+  {
+   "field": "State",
+   "page": 1,
+   "rect": [
+    232,
+    96,
+    263,
+    108
+   ]
+  },
+  {
+   "field": "ZIP",
+   "page": 1,
+   "rect": [
+    264,
+    96,
+    336,
+    108
+   ]
+  },
+  {
+   "field": "Taxpayer email",
+   "page": 1,
+   "rect": [
+    36,
+    72,
+    336,
+    84
+   ]
+  },
+  {
+   "field": "NYS dollar",
+   "page": 1,
+   "rect": [
+    450,
+    182,
+    546,
+    192
+   ]
+  },
+  {
+   "field": "NYC dollar",
+   "page": 1,
+   "rect": [
+    450,
+    158,
+    546,
+    168
+   ]
+  },
+  {
+   "field": "Yonkers dollar",
+   "page": 1,
+   "rect": [
+    450,
+    134,
+    546,
+    144
+   ]
+  },
+  {
+   "field": "MCTMT dollar",
+   "page": 1,
+   "rect": [
+    450,
+    110,
+    546,
+    120
+   ]
+  },
+  {
+   "field": "Total dollar",
+   "page": 1,
+   "rect": [
+    450,
+    86,
+    546,
+    96
+   ]
+  }
+ ]
+}

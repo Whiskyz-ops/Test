@@ -1,0 +1,477 @@
+{
+ "form": "NY IT-225",
+ "status": "draft - not reviewed",
+ "lines": {
+  "A": {
+   "field": "1a_num",
+   "page": 1,
+   "also": [
+    "1b_num",
+    "1c_num",
+    "1d_num",
+    "1e_num",
+    "1f_num",
+    "1g_num"
+   ]
+  },
+  "00": {
+   "field": "1a_nys",
+   "page": 1,
+   "also": [
+    "1b_nys",
+    "1c_nys",
+    "1d_nys",
+    "1e_nys",
+    "1f_nys",
+    "1g_nys",
+    "5a_nys",
+    "5b_nys",
+    "5c_nys",
+    "5d_nys",
+    "5e_nys",
+    "5f_nys",
+    "5g_nys",
+    "10a_nys",
+    "10b_nys",
+    "10c_nys",
+    "10d_nys",
+    "10e_nys",
+    "10f_nys",
+    "10g_nys",
+    "14a_nys",
+    "14b_nys",
+    "14c_nys",
+    "14d_nys",
+    "14e_nys",
+    "14f_nys",
+    "14g_nys"
+   ]
+  },
+  "2": {
+   "field": "Line 2",
+   "page": 1
+  },
+  "3": {
+   "field": "Line 3",
+   "page": 1
+  },
+  "4": {
+   "field": "Line 4",
+   "page": 1
+  },
+  "5a": {
+   "field": "5a_num",
+   "page": 1
+  },
+  "5b": {
+   "field": "5b_num",
+   "page": 1
+  },
+  "5c": {
+   "field": "5c_num",
+   "page": 1
+  },
+  "5d": {
+   "field": "d_num",
+   "page": 1
+  },
+  "5e": {
+   "field": "5e_num",
+   "page": 1
+  },
+  "5f": {
+   "field": "5f_num",
+   "page": 1
+  },
+  "5g": {
+   "field": "5g_num",
+   "page": 1
+  },
+  "6": {
+   "field": "Line 6",
+   "page": 1
+  },
+  "7": {
+   "field": "Line 7",
+   "page": 1
+  },
+  "8": {
+   "field": "Line 8",
+   "page": 1
+  },
+  "9": {
+   "field": "Line 9",
+   "page": 1
+  },
+  "S": {
+   "field": "10a_num",
+   "page": 2,
+   "also": [
+    "10b_num",
+    "10c_num",
+    "10d_num",
+    "10e_num",
+    "10f_num",
+    "10g_num"
+   ]
+  },
+  "11": {
+   "field": "Line 11",
+   "page": 2
+  },
+  "12": {
+   "field": "Line 12",
+   "page": 2
+  },
+  "13": {
+   "field": "Line 13",
+   "page": 2
+  },
+  "14a": {
+   "field": "14a_num",
+   "page": 2
+  },
+  "14b": {
+   "field": "14b_num",
+   "page": 2
+  },
+  "14c": {
+   "field": "14c_num",
+   "page": 2
+  },
+  "14d": {
+   "field": "14d_num",
+   "page": 2
+  },
+  "14e": {
+   "field": "14e_num",
+   "page": 2
+  },
+  "14f": {
+   "field": "14f_num",
+   "page": 2
+  },
+  "14g": {
+   "field": "14g_num",
+   "page": 2
+  },
+  "15": {
+   "field": "Line 15",
+   "page": 2
+  },
+  "16": {
+   "field": "Line 16",
+   "page": 2
+  },
+  "17": {
+   "field": "Line 17",
+   "page": 2
+  },
+  "18": {
+   "field": "Line 18",
+   "page": 2
+  }
+ },
+ "unmapped": [
+  {
+   "field": "Name on return",
+   "page": 1,
+   "rect": [
+    36,
+    660,
+    440,
+    672
+   ]
+  },
+  {
+   "field": "ID on return",
+   "page": 1,
+   "rect": [
+    440,
+    660,
+    576,
+    672
+   ]
+  },
+  {
+   "field": "1a_total",
+   "page": 1,
+   "rect": [
+    136,
+    528,
+    266,
+    538
+   ]
+  },
+  {
+   "field": "1b_total",
+   "page": 1,
+   "rect": [
+    136,
+    516,
+    266,
+    526
+   ]
+  },
+  {
+   "field": "1c_total",
+   "page": 1,
+   "rect": [
+    136,
+    504,
+    266,
+    514
+   ]
+  },
+  {
+   "field": "1d_total",
+   "page": 1,
+   "rect": [
+    136,
+    492,
+    266,
+    502
+   ]
+  },
+  {
+   "field": "1e_total",
+   "page": 1,
+   "rect": [
+    136,
+    480,
+    266,
+    490
+   ]
+  },
+  {
+   "field": "1f_total",
+   "page": 1,
+   "rect": [
+    136,
+    468,
+    266,
+    478
+   ]
+  },
+  {
+   "field": "1g_total",
+   "page": 1,
+   "rect": [
+    136,
+    456,
+    266,
+    466
+   ]
+  },
+  {
+   "field": "5a_total",
+   "page": 1,
+   "rect": [
+    136,
+    276,
+    266,
+    286
+   ]
+  },
+  {
+   "field": "5b_total",
+   "page": 1,
+   "rect": [
+    136,
+    264,
+    266,
+    274
+   ]
+  },
+  {
+   "field": "5c_total",
+   "page": 1,
+   "rect": [
+    136,
+    252,
+    266,
+    262
+   ]
+  },
+  {
+   "field": "5d_total",
+   "page": 1,
+   "rect": [
+    136,
+    240,
+    266,
+    250
+   ]
+  },
+  {
+   "field": "5e_total",
+   "page": 1,
+   "rect": [
+    136,
+    228,
+    266,
+    238
+   ]
+  },
+  {
+   "field": "5f_total",
+   "page": 1,
+   "rect": [
+    136,
+    216,
+    266,
+    226
+   ]
+  },
+  {
+   "field": "5g_total",
+   "page": 1,
+   "rect": [
+    136,
+    204,
+    266,
+    214
+   ]
+  },
+  {
+   "field": "10a_total",
+   "page": 2,
+   "rect": [
+    136,
+    648,
+    266,
+    658
+   ]
+  },
+  {
+   "field": "10b_total",
+   "page": 2,
+   "rect": [
+    136,
+    636,
+    266,
+    646
+   ]
+  },
+  {
+   "field": "10c_total",
+   "page": 2,
+   "rect": [
+    136,
+    624,
+    266,
+    634
+   ]
+  },
+  {
+   "field": "10d_total",
+   "page": 2,
+   "rect": [
+    136,
+    612,
+    266,
+    622
+   ]
+  },
+  {
+   "field": "10e_total",
+   "page": 2,
+   "rect": [
+    136,
+    600,
+    266,
+    610
+   ]
+  },
+  {
+   "field": "10f_total",
+   "page": 2,
+   "rect": [
+    136,
+    588,
+    266,
+    598
+   ]
+  },
+  {
+   "field": "10g_total",
+   "page": 2,
+   "rect": [
+    136,
+    576,
+    266,
+    586
+   ]
+  },
+  {
+   "field": "14a_total",
+   "page": 2,
+   "rect": [
+    136,
+    396,
+    266,
+    406
+   ]
+  },
+  {
+   "field": "14b_total",
+   "page": 2,
+   "rect": [
+    136,
+    384,
+    266,
+    394
+   ]
+  },
+  {
+   "field": "14c_total",
+   "page": 2,
+   "rect": [
+    136,
+    372,
+    266,
+    382
+   ]
+  },
+  {
+   "field": "14d_total",
+   "page": 2,
+   "rect": [
+    136,
+    360,
+    266,
+    370
+   ]
+  },
+  {
+   "field": "14e_total",
+   "page": 2,
+   "rect": [
+    136,
+    348,
+    266,
+    358
+   ]
+  },
+  {
+   "field": "14f_total",
+   "page": 2,
+   "rect": [
+    136,
+    336,
+    266,
+    346
+   ]
+  },
+  {
+   "field": "14g_total",
+   "page": 2,
+   "rect": [
+    136,
+    324,
+    266,
+    334
+   ]
+  }
+ ]
+}

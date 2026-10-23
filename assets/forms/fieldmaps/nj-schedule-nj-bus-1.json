@@ -1,0 +1,777 @@
+{
+ "form": "NJ Schedule NJ-BUS-1",
+ "status": "draft - not reviewed",
+ "lines": {},
+ "unmapped": [
+  {
+   "field": "Names as shown on Form NJ1040",
+   "page": 1,
+   "rect": [
+    37,
+    721,
+    296,
+    735
+   ]
+  },
+  {
+   "field": "Social Security Number",
+   "page": 1,
+   "rect": [
+    297,
+    721,
+    556,
+    735
+   ]
+  },
+  {
+   "field": "Business Name1",
+   "page": 1,
+   "rect": [
+    57,
+    609,
+    253,
+    625
+   ]
+  },
+  {
+   "field": "Social Security Number Federal EIN1",
+   "page": 1,
+   "rect": [
+    254,
+    609,
+    377,
+    625
+   ]
+  },
+  {
+   "field": "Text1",
+   "page": 1,
+   "rect": [
+    378,
+    609,
+    538,
+    625
+   ]
+  },
+  {
+   "field": "Paty111ada",
+   "page": 1,
+   "rect": [
+    540,
+    609,
+    559,
+    625
+   ]
+  },
+  {
+   "field": "Business Name2",
+   "page": 1,
+   "rect": [
+    57,
+    592,
+    253,
+    608
+   ]
+  },
+  {
+   "field": "Social Security Number Federal EIN2",
+   "page": 1,
+   "rect": [
+    254,
+    592,
+    377,
+    608
+   ]
+  },
+  {
+   "field": "Text2",
+   "page": 1,
+   "rect": [
+    378,
+    592,
+    539,
+    608
+   ]
+  },
+  {
+   "field": "Paty111ada22",
+   "page": 1,
+   "rect": [
+    540,
+    592,
+    558,
+    608
+   ]
+  },
+  {
+   "field": "Business Name3",
+   "page": 1,
+   "rect": [
+    57,
+    575,
+    253,
+    591
+   ]
+  },
+  {
+   "field": "Social Security Number Federal EIN3",
+   "page": 1,
+   "rect": [
+    254,
+    575,
+    377,
+    591
+   ]
+  },
+  {
+   "field": "Text3",
+   "page": 1,
+   "rect": [
+    378,
+    575,
+    540,
+    591
+   ]
+  },
+  {
+   "field": "Paty111ada33",
+   "page": 1,
+   "rect": [
+    541,
+    575,
+    559,
+    591
+   ]
+  },
+  {
+   "field": "4_2",
+   "page": 1,
+   "rect": [
+    378,
+    550,
+    540,
+    575
+   ]
+  },
+  {
+   "field": "Paty111ada44",
+   "page": 1,
+   "rect": [
+    540,
+    550,
+    558,
+    575
+   ]
+  },
+  {
+   "field": "Partnership Name1",
+   "page": 1,
+   "rect": [
+    56,
+    471,
+    236,
+    488
+   ]
+  },
+  {
+   "field": "Federal EIN1",
+   "page": 1,
+   "rect": [
+    236,
+    471,
+    347,
+    488
+   ]
+  },
+  {
+   "field": "Text4",
+   "page": 1,
+   "rect": [
+    348,
+    471,
+    435,
+    488
+   ]
+  },
+  {
+   "field": "Paty111ada55",
+   "page": 1,
+   "rect": [
+    437,
+    471,
+    456,
+    488
+   ]
+  },
+  {
+   "field": "Text4!~!3wq",
+   "page": 1,
+   "rect": [
+    458,
+    471,
+    536,
+    488
+   ]
+  },
+  {
+   "field": "Paty111ada55Text4!~!3wq",
+   "page": 1,
+   "rect": [
+    538,
+    471,
+    556,
+    488
+   ]
+  },
+  {
+   "field": "Partnership Name2",
+   "page": 1,
+   "rect": [
+    56,
+    454,
+    236,
+    471
+   ]
+  },
+  {
+   "field": "Federal EIN2",
+   "page": 1,
+   "rect": [
+    236,
+    454,
+    347,
+    471
+   ]
+  },
+  {
+   "field": "Text5",
+   "page": 1,
+   "rect": [
+    348,
+    454,
+    435,
+    471
+   ]
+  },
+  {
+   "field": "Paty111ada2255",
+   "page": 1,
+   "rect": [
+    437,
+    454,
+    456,
+    471
+   ]
+  },
+  {
+   "field": "Text5Text4!~!3wq",
+   "page": 1,
+   "rect": [
+    458,
+    454,
+    536,
+    471
+   ]
+  },
+  {
+   "field": "Paty111ada2255Text4!~!3wq",
+   "page": 1,
+   "rect": [
+    538,
+    454,
+    556,
+    471
+   ]
+  },
+  {
+   "field": "Partnership Name3",
+   "page": 1,
+   "rect": [
+    56,
+    437,
+    236,
+    454
+   ]
+  },
+  {
+   "field": "Federal EIN3",
+   "page": 1,
+   "rect": [
+    236,
+    437,
+    347,
+    454
+   ]
+  },
+  {
+   "field": "Text6",
+   "page": 1,
+   "rect": [
+    348,
+    437,
+    435,
+    454
+   ]
+  },
+  {
+   "field": "Paty111ada3355",
+   "page": 1,
+   "rect": [
+    437,
+    437,
+    456,
+    454
+   ]
+  },
+  {
+   "field": "Text6Text4!~!3wq",
+   "page": 1,
+   "rect": [
+    458,
+    437,
+    536,
+    454
+   ]
+  },
+  {
+   "field": "Paty111ada3355Text4!~!3wq",
+   "page": 1,
+   "rect": [
+    538,
+    437,
+    556,
+    454
+   ]
+  },
+  {
+   "field": "Text7",
+   "page": 1,
+   "rect": [
+    348,
+    401,
+    435,
+    436
+   ]
+  },
+  {
+   "field": "Paty111ada4455",
+   "page": 1,
+   "rect": [
+    437,
+    401,
+    456,
+    436
+   ]
+  },
+  {
+   "field": "Text7Text4!~!3wq",
+   "page": 1,
+   "rect": [
+    458,
+    375,
+    536,
+    399
+   ]
+  },
+  {
+   "field": "Paty111ada4455Text4!~!3wq",
+   "page": 1,
+   "rect": [
+    538,
+    375,
+    556,
+    399
+   ]
+  },
+  {
+   "field": "S Corporation Name1",
+   "page": 1,
+   "rect": [
+    57,
+    308,
+    250,
+    324
+   ]
+  },
+  {
+   "field": "Federal EIN1_2",
+   "page": 1,
+   "rect": [
+    251,
+    308,
+    311,
+    324
+   ]
+  },
+  {
+   "field": "Text8",
+   "page": 1,
+   "rect": [
+    311,
+    308,
+    406,
+    324
+   ]
+  },
+  {
+   "field": "Paty111ada5566",
+   "page": 1,
+   "rect": [
+    407,
+    308,
+    429,
+    324
+   ]
+  },
+  {
+   "field": "Text834erhdfb@3",
+   "page": 1,
+   "rect": [
+    431,
+    308,
+    531,
+    324
+   ]
+  },
+  {
+   "field": "Paty111ada5566Text834erhdfb@3",
+   "page": 1,
+   "rect": [
+    534,
+    308,
+    557,
+    324
+   ]
+  },
+  {
+   "field": "S Corporation Name2",
+   "page": 1,
+   "rect": [
+    57,
+    291,
+    250,
+    307
+   ]
+  },
+  {
+   "field": "Federal EIN2_2",
+   "page": 1,
+   "rect": [
+    251,
+    291,
+    311,
+    307
+   ]
+  },
+  {
+   "field": "Text9",
+   "page": 1,
+   "rect": [
+    311,
+    291,
+    406,
+    307
+   ]
+  },
+  {
+   "field": "Paty111ada225566",
+   "page": 1,
+   "rect": [
+    407,
+    291,
+    429,
+    307
+   ]
+  },
+  {
+   "field": "Text9Text834erhdfb@3",
+   "page": 1,
+   "rect": [
+    431,
+    291,
+    531,
+    307
+   ]
+  },
+  {
+   "field": "Paty111ada225566Text834erhdfb@3",
+   "page": 1,
+   "rect": [
+    534,
+    291,
+    557,
+    307
+   ]
+  },
+  {
+   "field": "S Corporation Name3",
+   "page": 1,
+   "rect": [
+    57,
+    274,
+    250,
+    290
+   ]
+  },
+  {
+   "field": "Federal EIN3_2",
+   "page": 1,
+   "rect": [
+    251,
+    274,
+    311,
+    290
+   ]
+  },
+  {
+   "field": "Text10",
+   "page": 1,
+   "rect": [
+    311,
+    274,
+    406,
+    290
+   ]
+  },
+  {
+   "field": "Paty111ada335566",
+   "page": 1,
+   "rect": [
+    407,
+    274,
+    429,
+    290
+   ]
+  },
+  {
+   "field": "Text10Text834erhdfb@3",
+   "page": 1,
+   "rect": [
+    431,
+    274,
+    531,
+    290
+   ]
+  },
+  {
+   "field": "Paty111ada335566Text834erhdfb@3",
+   "page": 1,
+   "rect": [
+    534,
+    274,
+    557,
+    290
+   ]
+  },
+  {
+   "field": "4_5",
+   "page": 1,
+   "rect": [
+    311,
+    241,
+    407,
+    273
+   ]
+  },
+  {
+   "field": "Paty111ada445566",
+   "page": 1,
+   "rect": [
+    407,
+    273,
+    429,
+    241
+   ]
+  },
+  {
+   "field": "4_5Text834erhdfb@3",
+   "page": 1,
+   "rect": [
+    431,
+    217,
+    531,
+    241
+   ]
+  },
+  {
+   "field": "Paty111ada445566Text834erhdfb@3",
+   "page": 1,
+   "rect": [
+    534,
+    217,
+    557,
+    241
+   ]
+  },
+  {
+   "field": "Source of Income or Loss If rental real estate enter physical address of property1",
+   "page": 1,
+   "rect": [
+    57,
+    113,
+    253,
+    129
+   ]
+  },
+  {
+   "field": "Social Security Number Federal EIN1_2",
+   "page": 1,
+   "rect": [
+    254,
+    113,
+    367,
+    129
+   ]
+  },
+  {
+   "field": "Type  Enter number from list above1",
+   "page": 1,
+   "rect": [
+    368,
+    113,
+    426,
+    129
+   ]
+  },
+  {
+   "field": "Text11",
+   "page": 1,
+   "rect": [
+    426,
+    113,
+    534,
+    129
+   ]
+  },
+  {
+   "field": "Paty111ada5577",
+   "page": 1,
+   "rect": [
+    538,
+    113,
+    556,
+    129
+   ]
+  },
+  {
+   "field": "Source of Income or Loss If rental real estate enter physical address of property2",
+   "page": 1,
+   "rect": [
+    57,
+    96,
+    253,
+    112
+   ]
+  },
+  {
+   "field": "Social Security Number Federal EIN2_2",
+   "page": 1,
+   "rect": [
+    254,
+    96,
+    367,
+    112
+   ]
+  },
+  {
+   "field": "Type  Enter number from list above2",
+   "page": 1,
+   "rect": [
+    368,
+    96,
+    426,
+    112
+   ]
+  },
+  {
+   "field": "Text12",
+   "page": 1,
+   "rect": [
+    426,
+    96,
+    534,
+    112
+   ]
+  },
+  {
+   "field": "Paty111ada225577",
+   "page": 1,
+   "rect": [
+    538,
+    96,
+    556,
+    112
+   ]
+  },
+  {
+   "field": "Source of Income or Loss If rental real estate enter physical address of property3",
+   "page": 1,
+   "rect": [
+    57,
+    79,
+    253,
+    95
+   ]
+  },
+  {
+   "field": "Social Security Number Federal EIN3_2",
+   "page": 1,
+   "rect": [
+    254,
+    79,
+    367,
+    95
+   ]
+  },
+  {
+   "field": "Type  Enter number from list above3",
+   "page": 1,
+   "rect": [
+    368,
+    79,
+    426,
+    95
+   ]
+  },
+  {
+   "field": "Text13",
+   "page": 1,
+   "rect": [
+    426,
+    79,
+    534,
+    95
+   ]
+  },
+  {
+   "field": "Paty111ada335577",
+   "page": 1,
+   "rect": [
+    538,
+    78,
+    556,
+    94
+   ]
+  },
+  {
+   "field": "Text14",
+   "page": 1,
+   "rect": [
+    426,
+    53,
+    534,
+    78
+   ]
+  },
+  {
+   "field": "Paty111ada445577",
+   "page": 1,
+   "rect": [
+    538,
+    53,
+    556,
+    78
+   ]
+  }
+ ]
+}

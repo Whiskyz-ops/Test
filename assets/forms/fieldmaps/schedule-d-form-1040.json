@@ -1,0 +1,400 @@
+{
+ "form": "Schedule D (Form 1040)",
+ "status": "draft - not reviewed",
+ "lines": {
+  "4": {
+   "field": "topmostSubform[0].Page1[0].f1_19[0]",
+   "page": 1
+  },
+  "5": {
+   "field": "topmostSubform[0].Page1[0].f1_20[0]",
+   "page": 1
+  },
+  "6": {
+   "field": "topmostSubform[0].Page1[0].f1_21[0]",
+   "page": 1
+  },
+  "7": {
+   "field": "topmostSubform[0].Page1[0].f1_22[0]",
+   "page": 1
+  },
+  "11": {
+   "field": "topmostSubform[0].Page1[0].f1_39[0]",
+   "page": 1
+  },
+  "12": {
+   "field": "topmostSubform[0].Page1[0].f1_40[0]",
+   "page": 1
+  },
+  "13": {
+   "field": "topmostSubform[0].Page1[0].f1_41[0]",
+   "page": 1
+  },
+  "14": {
+   "field": "topmostSubform[0].Page1[0].f1_42[0]",
+   "page": 1
+  },
+  "15": {
+   "field": "topmostSubform[0].Page1[0].f1_43[0]",
+   "page": 1
+  },
+  "16": {
+   "field": "topmostSubform[0].Page2[0].f2_1[0]",
+   "page": 2
+  },
+  "18": {
+   "field": "topmostSubform[0].Page2[0].f2_2[0]",
+   "page": 2
+  },
+  "19": {
+   "field": "topmostSubform[0].Page2[0].f2_3[0]",
+   "page": 2
+  },
+  "21": {
+   "field": "topmostSubform[0].Page2[0].f2_4[0]",
+   "page": 2
+  }
+ },
+ "unmapped": [
+  {
+   "field": "topmostSubform[0].Page1[0].f1_1[0]",
+   "page": 1,
+   "rect": [
+    36,
+    672,
+    453,
+    686
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].f1_2[0]",
+   "page": 1,
+   "rect": [
+    454,
+    672,
+    576,
+    686
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartI[0].Row1a[0].f1_3[0]",
+   "page": 1,
+   "rect": [
+    288,
+    504,
+    359,
+    516
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartI[0].Row1a[0].f1_4[0]",
+   "page": 1,
+   "rect": [
+    360,
+    504,
+    431,
+    516
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartI[0].Row1a[0].f1_5[0]",
+   "page": 1,
+   "rect": [
+    432,
+    504,
+    503,
+    516
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartI[0].Row1a[0].f1_6[0]",
+   "page": 1,
+   "rect": [
+    504,
+    504,
+    576,
+    516
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartI[0].Row1b[0].f1_7[0]",
+   "page": 1,
+   "rect": [
+    288,
+    480,
+    359,
+    492
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartI[0].Row1b[0].f1_8[0]",
+   "page": 1,
+   "rect": [
+    360,
+    480,
+    431,
+    492
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartI[0].Row1b[0].f1_9[0]",
+   "page": 1,
+   "rect": [
+    432,
+    480,
+    503,
+    492
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartI[0].Row1b[0].f1_10[0]",
+   "page": 1,
+   "rect": [
+    504,
+    480,
+    576,
+    492
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartI[0].Row2[0].f1_11[0]",
+   "page": 1,
+   "rect": [
+    288,
+    456,
+    359,
+    468
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartI[0].Row2[0].f1_12[0]",
+   "page": 1,
+   "rect": [
+    360,
+    456,
+    431,
+    468
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartI[0].Row2[0].f1_13[0]",
+   "page": 1,
+   "rect": [
+    432,
+    456,
+    503,
+    468
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartI[0].Row2[0].f1_14[0]",
+   "page": 1,
+   "rect": [
+    504,
+    456,
+    576,
+    468
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartI[0].Row3[0].f1_15[0]",
+   "page": 1,
+   "rect": [
+    288,
+    432,
+    359,
+    444
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartI[0].Row3[0].f1_16[0]",
+   "page": 1,
+   "rect": [
+    360,
+    432,
+    431,
+    444
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartI[0].Row3[0].f1_17[0]",
+   "page": 1,
+   "rect": [
+    432,
+    432,
+    503,
+    444
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartI[0].Row3[0].f1_18[0]",
+   "page": 1,
+   "rect": [
+    504,
+    432,
+    576,
+    444
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartII[0].Row8a[0].f1_23[0]",
+   "page": 1,
+   "rect": [
+    288,
+    216,
+    359,
+    228
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartII[0].Row8a[0].f1_24[0]",
+   "page": 1,
+   "rect": [
+    360,
+    216,
+    431,
+    228
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartII[0].Row8a[0].f1_25[0]",
+   "page": 1,
+   "rect": [
+    432,
+    216,
+    503,
+    228
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartII[0].Row8a[0].f1_26[0]",
+   "page": 1,
+   "rect": [
+    504,
+    216,
+    576,
+    228
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartII[0].Row8b[0].f1_27[0]",
+   "page": 1,
+   "rect": [
+    288,
+    192,
+    359,
+    204
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartII[0].Row8b[0].f1_28[0]",
+   "page": 1,
+   "rect": [
+    360,
+    192,
+    431,
+    204
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartII[0].Row8b[0].f1_29[0]",
+   "page": 1,
+   "rect": [
+    432,
+    192,
+    503,
+    204
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartII[0].Row8b[0].f1_30[0]",
+   "page": 1,
+   "rect": [
+    504,
+    192,
+    576,
+    204
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartII[0].Row9[0].f1_31[0]",
+   "page": 1,
+   "rect": [
+    288,
+    168,
+    359,
+    180
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartII[0].Row9[0].f1_32[0]",
+   "page": 1,
+   "rect": [
+    360,
+    168,
+    431,
+    180
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartII[0].Row9[0].f1_33[0]",
+   "page": 1,
+   "rect": [
+    432,
+    168,
+    503,
+    180
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartII[0].Row9[0].f1_34[0]",
+   "page": 1,
+   "rect": [
+    504,
+    168,
+    576,
+    180
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartII[0].Row10[0].f1_35[0]",
+   "page": 1,
+   "rect": [
+    288,
+    144,
+    359,
+    156
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartII[0].Row10[0].f1_36[0]",
+   "page": 1,
+   "rect": [
+    360,
+    144,
+    431,
+    156
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartII[0].Row10[0].f1_37[0]",
+   "page": 1,
+   "rect": [
+    432,
+    144,
+    503,
+    156
+   ]
+  },
+  {
+   "field": "topmostSubform[0].Page1[0].Table_PartII[0].Row10[0].f1_38[0]",
+   "page": 1,
+   "rect": [
+    504,
+    144,
+    576,
+    156
+   ]
+  }
+ ]
+}
