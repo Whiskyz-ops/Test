@@ -11,6 +11,10 @@ credits) and the payments section stay blank for the same reason.
 profile defaults to us_resident_indian_income (a fixture in
 dag_py/tests/fixtures/profiles). Uses assets/forms/fieldmaps/form-1040.json
 from scripts/map-form-fields.py.
+
+The engine's US constants are tax year 2026 and the PDF is the 2025 form,
+so the figures are 2026 amounts on a 2025 layout (e.g. line 12e shows the
+2026 standard deduction). The script warns when the years differ.
 """
 import json
 import os
@@ -23,6 +27,8 @@ REPO = os.path.join(HERE, "..")
 sys.path.insert(0, os.path.join(REPO, "dag_py", "src"))
 
 from wising_dag.analyze import analyze  # noqa: E402
+
+FORM_TAX_YEAR = 2025
 
 
 def us_rows(result):
@@ -60,6 +66,9 @@ def main():
     out = sys.argv[2] if len(sys.argv) > 2 else f"form-1040-{profile}.pdf"
     fixture = json.load(open(os.path.join(REPO, "dag_py", "tests", "fixtures", "profiles", profile + ".json")))
     result = analyze({k: fixture[k] for k in ("router", "india", "us")})
+    engine_year = result["model"]["meta"].get("baseYear")
+    if engine_year != FORM_TAX_YEAR:
+        print(f"WARNING: engine computed tax year {engine_year}, form is {FORM_TAX_YEAR}; figures follow {engine_year} law")
 
     fieldmap = json.load(open(os.path.join(REPO, "assets", "forms", "fieldmaps", "form-1040.json")))["lines"]
     values = {fieldmap[line]["field"]: f"{round(amount):,}" for line, amount in form_1040_lines(result).items()}
